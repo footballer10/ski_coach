@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'turn_detector.dart';
 
 /// Simple in-memory recorder.
 /// Collects incoming `Map<String,double>` samples while recording.
@@ -16,8 +17,28 @@ class MemoryRecording {
     _startTime = DateTime.now();
     _sub = samples.listen((s) {
       // clone the sample map to prevent later mutation
-      _samples.add(Map<String, double>.from(s));
+      final sample = Map<String, double>.from(s);
+      // attach timestamp in seconds with millisecond precision (3 dp).
+      // Use microsecondsSinceEpoch but round to milliseconds precision.
+      final us = DateTime.now().microsecondsSinceEpoch;
+      final seconds = us / 1e6;
+      final secondsMsPrecision = ((seconds * 1000).round()) / 1000.0;
+      sample['t'] = secondsMsPrecision; // seconds since epoch, 3 decimal places
+      _samples.add(sample);
     });
+  }
+
+  /// Stop and optionally run the user-provided segmentation function.
+  /// Returns a map with `samples` and `segments` (segments may be empty).
+  Future<Map<String, dynamic>> stopAndSegment() async {
+    final recorded = await stop();
+    List<dynamic> segments = [];
+    try {
+      segments = segmenter(recorded);
+    } catch (_) {
+      segments = [];
+    }
+    return {'samples': recorded, 'segments': segments};
   }
 
   /// Stop collecting and return the collected samples.

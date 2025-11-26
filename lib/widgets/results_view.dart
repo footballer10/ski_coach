@@ -1,0 +1,574 @@
+import 'package:flutter/material.dart';
+
+/// Displays run analysis results with navigation through categories and turns
+class ResultsView extends StatefulWidget {
+  final int leftSampleCount;
+  final int rightSampleCount;
+  final List<List<int>> leftSegments;
+  final List<List<int>> rightSegments;
+  final VoidCallback onNewRun;
+
+  const ResultsView({
+    super.key,
+    required this.leftSampleCount,
+    required this.rightSampleCount,
+    required this.leftSegments,
+    required this.rightSegments,
+    required this.onNewRun,
+  });
+
+  @override
+  State<ResultsView> createState() => _ResultsViewState();
+}
+
+enum ViewMode { overview, categoryAll, turnAll, categoryTurn }
+
+class _ResultsViewState extends State<ResultsView> {
+  String _selectedCategory = 'All Categories';
+  String _selectedTurn = 'All Turns';
+  String _categoryPageThird = 'Whole Turn'; // For Parallel/Smoothness category page
+  // Phase selections per current turn
+  String _parallelPhase = 'Whole Turn';
+  String _smoothnessPhase = 'Whole Turn';
+  
+  // Navigation history stack
+  final List<Map<String, String>> _navigationHistory = [];
+  
+  final List<String> _categories = const [
+    'All Categories',
+    'Turn Duration',
+    'Edge Angle',
+    'Parallel Ski Control',
+    'Smoothness',
+  ];
+
+  List<String> get _turns {
+    const turnCount = 5;
+    return ['All Turns', ...List.generate(turnCount, (i) => 'Turn ${i + 1}')];
+  }
+
+  ViewMode get _viewMode {
+    final allCat = _selectedCategory == 'All Categories';
+    final allTurn = _selectedTurn == 'All Turns';
+    
+    if (allCat && allTurn) return ViewMode.overview;
+    if (!allCat && allTurn) return ViewMode.categoryAll;
+    if (allCat && !allTurn) return ViewMode.turnAll;
+    return ViewMode.categoryTurn;
+  }
+
+  void _pushNavigation() {
+    _navigationHistory.add({
+      'category': _selectedCategory,
+      'turn': _selectedTurn,
+      'categoryPageThird': _categoryPageThird,
+      'parallelPhase': _parallelPhase,
+      'smoothnessPhase': _smoothnessPhase,
+    });
+  }
+
+  void _navigateBack() {
+    if (_navigationHistory.isEmpty) return;
+    final prev = _navigationHistory.removeLast();
+    setState(() {
+      _selectedCategory = prev['category']!;
+      _selectedTurn = prev['turn']!;
+      _categoryPageThird = prev['categoryPageThird']!;
+      _parallelPhase = prev['parallelPhase']!;
+      _smoothnessPhase = prev['smoothnessPhase']!;
+    });
+  }
+
+  void _selectCategory(String category) {
+    _pushNavigation();
+    setState(() => _selectedCategory = category);
+  }
+
+  void _selectTurn(String turn) {
+    _pushNavigation();
+    setState(() {
+      _selectedTurn = turn;
+      _parallelPhase = 'Whole Turn';
+      _smoothnessPhase = 'Whole Turn';
+    });
+  }
+  
+  void _selectCategoryAndTurn(String category, String turn) {
+    _pushNavigation();
+    setState(() {
+      _selectedCategory = category;
+      _selectedTurn = turn;
+      _parallelPhase = 'Whole Turn';
+      _smoothnessPhase = 'Whole Turn';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _buildNavigationBar(),
+        Expanded(child: _buildContent()),
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: ElevatedButton.icon(
+            onPressed: widget.onNewRun,
+            icon: const Icon(Icons.add, size: 24),
+            label: const Text('Start New Run'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavigationBar() {
+    final showThirdDropdown = (_selectedCategory == 'Parallel Ski Control' || _selectedCategory == 'Smoothness') && _selectedTurn == 'All Turns';
+    final showThirdDropdownCategoryTurn = (_selectedCategory == 'Parallel Ski Control' || _selectedCategory == 'Smoothness') && _selectedTurn != 'All Turns';
+    
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Row(
+        children: [
+          if (_navigationHistory.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _navigateBack,
+              tooltip: 'Back',
+            ),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              initialValue: _selectedCategory,
+              decoration: const InputDecoration(
+                labelText: 'Category',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+              items: _categories
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) _selectCategory(value);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              initialValue: _selectedTurn,
+              decoration: const InputDecoration(
+                labelText: 'Turn',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+              items: _turns
+                  .map((turn) => DropdownMenuItem(value: turn, child: Text(turn)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) _selectTurn(value);
+              },
+            ),
+          ),
+          if (showThirdDropdownCategoryTurn)
+            const SizedBox(width: 8),
+          if (showThirdDropdownCategoryTurn)
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                decoration: const InputDecoration(
+                  labelText: 'Third',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn')),
+                  DropdownMenuItem(value: 'First Third', child: Text('First Third')),
+                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third')),
+                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    _pushNavigation();
+                    setState(() {
+                      if (_selectedCategory == 'Parallel Ski Control') {
+                        _parallelPhase = value;
+                      } else {
+                        _smoothnessPhase = value;
+                      }
+                    });
+                  }
+                },
+              ),
+            ),
+          if (showThirdDropdown)
+            const SizedBox(width: 8),
+          if (showThirdDropdown)
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _categoryPageThird,
+                decoration: const InputDecoration(
+                  labelText: 'Third',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn')),
+                  DropdownMenuItem(value: 'First Third', child: Text('First Third')),
+                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third')),
+                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _categoryPageThird = value);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactSummary({bool includeSimilarity = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _summaryItem('Turns', '${_turns.length - 1}'),
+              _summaryItem('Duration', '—'),
+              _summaryItem('Start', '—'),
+              _summaryItem('Score', '—', prominent: true),
+              if (includeSimilarity) _summaryItem('Similarity', '—'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryItem(String label, String value, {bool prominent = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: prominent ? Colors.blue : Colors.grey, fontWeight: prominent ? FontWeight.bold : FontWeight.normal)),
+        Text(value, style: TextStyle(fontSize: prominent ? 18 : 14, fontWeight: FontWeight.bold, color: prominent ? Colors.blue : Colors.black)),
+      ],
+    );
+  }
+
+  Widget _buildLeftPane({bool includeSimilarity = false}) {
+    final items = _categories.skip(1).toList();
+    if (includeSimilarity) items.add('Turn Similarity');
+    
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+      children: [
+        ...items.map((cat) => ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+              title: Text(cat, style: const TextStyle(fontSize: 14)),
+              subtitle: const Text('Val: — | Score: —', style: TextStyle(fontSize: 11)),
+              onTap: cat == 'Turn Similarity' ? null : () => _selectCategory(cat),
+            )),
+      ],
+    );
+  }
+
+  Widget _buildRightPaneVisualization() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 8, 12, 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: List.generate(5, (i) {
+              final turnLabel = 'Turn ${i + 1}';
+              final isSelected = _selectedTurn == turnLabel;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => _selectTurn(turnLabel),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.blue : Colors.grey[400],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${i + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    switch (_viewMode) {
+      case ViewMode.overview:
+        return _buildOverview();
+      case ViewMode.categoryAll:
+        return _buildCategoryAllTurns();
+      case ViewMode.turnAll:
+        return _buildTurnAllCategories();
+      case ViewMode.categoryTurn:
+        return _buildCategoryTurn();
+    }
+  }
+
+  Widget _buildOverview() {
+    return Column(
+      children: [
+        _buildCompactSummary(includeSimilarity: false),
+        Expanded(
+          child: Row(
+            children: [
+              Expanded(child: _buildLeftPane(includeSimilarity: true)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildRightPaneVisualization()),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Card(
+            color: Colors.blue[50],
+            child: const Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('AI Feedback', style: TextStyle(fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('[Placeholder: AI-generated feedback]', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Old wide summary card replaced by compact summary
+
+  // Old wide visualization replaced by right pane vertical blocks
+
+  // Color handled via isSelected flag
+
+  // _buildCategoryOverview replaced by _buildLeftPane
+
+  // _buildCategoryRow replaced by compact list tiles in _buildLeftPane
+
+  // _buildFeedbackSection omitted for compact layout
+
+  Widget _buildCategoryAllTurns() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildCategorySummary(),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: List.generate(5, (i) {
+                  final turnLabel = 'Turn ${i + 1}';
+                  return GestureDetector(
+                    onTap: () => _selectCategoryAndTurn(_selectedCategory, turnLabel),
+                    child: Container(
+                      height: 40,
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Turn ${i + 1}',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildDotPlot(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategorySummary() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _summaryItem('Value', '—'),
+            _summaryItem('Optimal', '—'),
+            _summaryItem('Score', '—', prominent: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Removed old color-coded visualization in favor of compact GPS card
+
+  Widget _buildDotPlot() {
+    final turnCount = widget.leftSegments.length;
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Values Across Turns',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 100,
+              child: Center(
+                child: Text(
+                  '[Dot plot: $turnCount turns]',
+                  style: const TextStyle(fontStyle: FontStyle.italic),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTurnAllCategories() {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1.6,
+        children: [
+          _buildMetricModule('Turn Duration', 0),
+          _buildMetricModule('Edge Angle', 0),
+          _buildMetricModule('Parallel Ski Control', 0),
+          _buildMetricModule('Smoothness', 0),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricModule(String metric, int turnIndex) {
+    final showDropdown = (metric == 'Parallel Ski Control' || metric == 'Smoothness');
+    
+    return GestureDetector(
+      onTap: () => _selectCategoryAndTurn(metric, _selectedTurn),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                metric,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text('Val: —', style: const TextStyle(fontSize: 11)),
+              Text('Score: —', style: const TextStyle(fontSize: 11)),
+              if (showDropdown) ...[
+                const SizedBox(height: 4),
+                DropdownButtonFormField<String>(
+                  value: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                  isDense: true,
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    border: OutlineInputBorder(),
+                  ),
+                  style: const TextStyle(fontSize: 10, color: Colors.black),
+                  items: const [
+                    DropdownMenuItem(value: 'Whole Turn', child: Text('Whole')),
+                    DropdownMenuItem(value: 'First Third', child: Text('1st')),
+                    DropdownMenuItem(value: 'Middle Third', child: Text('Mid')),
+                    DropdownMenuItem(value: 'Final Third', child: Text('Final')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      _pushNavigation();
+                      setState(() {
+                        if (metric == 'Parallel Ski Control') {
+                          _parallelPhase = value;
+                        } else {
+                          _smoothnessPhase = value;
+                        }
+                      });
+                    }
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryTurn() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Value: [Placeholder]'),
+                  const SizedBox(height: 4),
+                  Text('Score: [Placeholder]'),
+                  const SizedBox(height: 8),
+                  const Text('[Dot plot placeholder]'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
