@@ -36,8 +36,16 @@ class _ConnectionPageState extends State<ConnectionPage> {
   @override
   void initState() {
     super.initState();
-    _applyManager();
-    startScan();
+    print('ConnectionPage: initState starting');
+    // Delay BLE initialization to not block UI rendering
+    Future.delayed(Duration.zero, () {
+      if (mounted) {
+        _applyManager();
+        print('ConnectionPage: BLE manager initialized');
+        startScan();
+        print('ConnectionPage: Scan started');
+      }
+    });
   }
 
   @override
@@ -49,30 +57,42 @@ class _ConnectionPageState extends State<ConnectionPage> {
   void _applyManager() {
     _scanSub?.cancel();
     _devices.clear();
-    _bleMgr = _useMock ? MockBleManager() : BleManager();
+    try {
+      _bleMgr = _useMock ? MockBleManager() : BleManager();
+    } catch (e) {
+      print('Error initializing BLE manager: $e');
+      // Fall back to mock on iOS if BLE fails
+      _bleMgr = MockBleManager();
+      _useMock = true;
+    }
   }
 
   void startScan() {
     _devices.clear();
     setState(() => _scanning = true);
     _scanSub?.cancel();
-    final scanStream = _bleMgr.scanForDevices(nameFilter: null);
-    _scanSub = scanStream.listen((d) {
-      setState(() {
-        if (_isWindows) {
-          final Map<String, String> m = Map<String, String>.from(d);
-          if (!_devices.any((e) => e['id'] == m['id'])) _devices.add(m);
-        } else {
-          final id = (d as dynamic).id as String;
-          final name = (d as dynamic).name as String;
-          if (!_devices.any((e) => e['id'] == id)) {
-            _devices.add({'id': id, 'name': name});
+    try {
+      final scanStream = _bleMgr.scanForDevices(nameFilter: null);
+      _scanSub = scanStream.listen((d) {
+        setState(() {
+          if (_isWindows) {
+            final Map<String, String> m = Map<String, String>.from(d);
+            if (!_devices.any((e) => e['id'] == m['id'])) _devices.add(m);
+          } else {
+            final id = (d as dynamic).id as String;
+            final name = (d as dynamic).name as String;
+            if (!_devices.any((e) => e['id'] == id)) {
+              _devices.add({'id': id, 'name': name});
+            }
           }
-        }
+        });
+      }, onDone: () {
+        if (mounted) setState(() => _scanning = false);
       });
-    }, onDone: () {
+    } catch (e) {
+      print('Error starting scan: $e');
       if (mounted) setState(() => _scanning = false);
-    });
+    }
   }
 
   void stopScan() {
