@@ -57,29 +57,39 @@ class _ConnectionPageState extends State<ConnectionPage> {
   }
 
   void startScan() {
+    // Cancel any existing scan first
+    _scanSub?.cancel();
+    _scanSub = null;
+    _statusSub?.cancel();
+    _statusSub = null;
+    
     setState(() {
       _devices.clear();
       _scanning = true;
       _leftId = null;
       _rightId = null;
     });
-    _scanSub?.cancel();
-    _statusSub?.cancel();
 
     final bleMgr = _bleMgr as BleManager;
-    _statusSub = bleMgr.statusStream.listen((status) {
-      _lastStatus = status;
-      if (status == BleStatus.ready) {
-        _statusSub?.cancel();
-        _beginRawScan();
-      }
-    });
-    // Fallback if never reaches ready
-    Future.delayed(const Duration(seconds: 5), () {
+    
+    // Small delay to ensure previous scan is fully stopped
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      if (_scanSub == null) {
-        _beginRawScan();
-      }
+      
+      _statusSub = bleMgr.statusStream.listen((status) {
+        _lastStatus = status;
+        if (status == BleStatus.ready) {
+          _statusSub?.cancel();
+          _beginRawScan();
+        }
+      });
+      // Fallback if never reaches ready
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!mounted) return;
+        if (_scanSub == null) {
+          _beginRawScan();
+        }
+      });
     });
   }
 

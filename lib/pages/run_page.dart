@@ -128,6 +128,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       _state = RunState.results;
       _analysisResults = {
         'error': message,
+        'isSensorDisconnect': true, // Flag to show reconnect button
       };
     });
     
@@ -136,6 +137,9 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _resetToRecording() {
+    // Resubscribe to samples when resetting
+    _subscribeToSamples();
+    
     setState(() {
       _state = RunState.recording;
       _recording = false;
@@ -300,6 +304,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     // Check for error
     final error = _analysisResults!['error'] as String?;
     if (error != null) {
+      final isSensorDisconnect = _analysisResults!['isSensorDisconnect'] == true;
       return ResultsView(
         leftSampleCount: 0,
         rightSampleCount: 0,
@@ -311,7 +316,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         turnDurationsSeconds: const [],
         errorMessage: error,
         onNewRun: _resetToRecording,
-        onReconnect: widget.onDisconnect,
+        onReconnect: isSensorDisconnect ? widget.onDisconnect : null,
       );
     }
 
