@@ -116,6 +116,17 @@ class _ConnectionPageState extends State<ConnectionPage> {
       }
       // Prefer service-filtered scan for stability on iOS
       final stream = (_bleMgr as BleManager).scanForDevices();
+      
+      // Fallback: if no devices found after 5 seconds, try raw scan
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!mounted) return;
+        if (_devices.isEmpty && _scanning) {
+          if (kDebugMode) debugPrint('⚠️ No devices found with service filter. Switching to RAW SCAN...');
+          _scanSub?.cancel();
+          _beginRawScan();
+        }
+      });
+      
       _scanSub = stream.listen((d) {
         final id = d.id;
         final name = d.name.isEmpty ? '' : d.name;
@@ -160,6 +171,63 @@ class _ConnectionPageState extends State<ConnectionPage> {
       });
     } catch (e) {
       if (kDebugMode) debugPrint('❌ BEGIN NAME SCAN EXCEPTION: $e');
+      setState(() => _scanning = false);
+    }
+  }
+
+  void _beginRawScan() {
+    try {
+      if (kDebugMode) {
+        debugPrint('========================================');
+        debugPrint('RAW SCAN START (no service filter)');
+        debugPrint('Looking for: "$_targetLeftName" and "$_targetRightName"');
+        debugPrint('========================================');
+      }
+      final stream = (_bleMgr as BleManager).verboseRawScan();
+      _scanSub = stream.listen((d) {
+        final id = d.id;
+        final name = d.name.isEmpty ? '' : d.name;
+        // Track encountered devices for visibility/debug (optional)
+        if (!_devices.any((e) => e['id'] == id)) {
+          setState(() {
+            _devices.add({'id': id, 'name': name.isEmpty ? '(no name)' : name});
+          });
+        }
+
+        bool updated = false;
+        if (kDebugMode) debugPrint('Comparing "$name" against "$_targetLeftName" and "$_targetRightName"');
+        if (name == _targetLeftName && _leftId == null) {
+          _leftId = id;
+          updated = true;
+          if (kDebugMode) debugPrint('✓ MATCHED LEFT by name -> $id');
+        }
+        if (name == _targetRightName && _rightId == null) {
+          _rightId = id;
+          updated = true;
+          if (kDebugMode) debugPrint('✓ MATCHED RIGHT by name -> $id');
+        }
+        if (updated && mounted) {
+          setState(() {});
+        }
+        if (_leftId != null && _rightId != null) {
+          if (kDebugMode) debugPrint('🎯 BOTH SENSORS FOUND! Stopping scan and connecting...');
+          // Stop scanning before connecting to avoid overlapping operations
+          _scanSub?.cancel();
+          setState(() => _scanning = false);
+          // Slight delay to let scanning settle on iOS
+          Future.delayed(const Duration(milliseconds: 250), () {
+            if (mounted) _connectBoth();
+          });
+        }
+      }, onError: (e) {
+        if (kDebugMode) debugPrint('❌ RAW SCAN ERROR: $e');
+        if (mounted) setState(() => _scanning = false);
+      }, onDone: () {
+        if (kDebugMode) debugPrint('Raw scan stream completed (onDone)');
+        if (mounted) setState(() => _scanning = false);
+      });
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ BEGIN RAW SCAN EXCEPTION: $e');
       setState(() => _scanning = false);
     }
   }
