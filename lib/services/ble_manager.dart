@@ -141,7 +141,31 @@ class BleManager {
     try {
       if (kDebugMode) debugPrint('[$deviceId] Starting characteristic subscription process...');
       
-      // iOS approach: Try to read the characteristic first to force discovery
+      // Try requesting a larger MTU to potentially trigger service discovery
+      try {
+        if (kDebugMode) debugPrint('[$deviceId] Requesting MTU...');
+        final mtu = await _ble.requestMtu(deviceId: deviceId, mtu: 512);
+        if (kDebugMode) debugPrint('[$deviceId] MTU set to: $mtu');
+      } catch (e) {
+        if (kDebugMode) debugPrint('[$deviceId] MTU request failed: $e');
+      }
+      
+      // Wait a moment
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Try discovering services
+      try {
+        if (kDebugMode) debugPrint('[$deviceId] Calling discoverAllServices...');
+        await _ble.discoverAllServices(deviceId);
+        if (kDebugMode) debugPrint('[$deviceId] discoverAllServices completed');
+      } catch (e) {
+        if (kDebugMode) debugPrint('[$deviceId] discoverAllServices error: $e');
+      }
+      
+      // Much longer wait for iOS to populate everything
+      if (kDebugMode) debugPrint('[$deviceId] Waiting 5 seconds for iOS to cache services...');
+      await Future.delayed(const Duration(milliseconds: 5000));
+      
       final char = QualifiedCharacteristic(
         serviceId: _service,
         characteristicId: _char,
@@ -151,31 +175,23 @@ class BleManager {
       if (kDebugMode) {
         debugPrint('[$deviceId] Target Service: $_service');
         debugPrint('[$deviceId] Target Char: $_char');
+        debugPrint('[$deviceId] Attempting to subscribe to notifications...');
       }
       
-      // Attempt 1: Try to read the characteristic to force iOS to discover it
-      try {
-        if (kDebugMode) debugPrint('[$deviceId] Attempting to read characteristic to force discovery...');
-        final readValue = await _ble.readCharacteristic(char);
-        if (kDebugMode) debugPrint('[$deviceId] ✓ Characteristic read successful! Got ${readValue.length} bytes');
-      } catch (e) {
-        if (kDebugMode) debugPrint('[$deviceId] Read failed (this is often normal): $e');
-      }
-      
-      // Wait a bit after read attempt
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Now try to subscribe
-      if (kDebugMode) debugPrint('[$deviceId] Attempting to subscribe to notifications...');
-      
+      // Subscribe
       _charSubs[deviceId] = _ble.subscribeToCharacteristic(char).listen((data) {
         if (kDebugMode) debugPrint('[$deviceId] ✓ DATA RECEIVED! ${data.length} bytes');
         _handleRawPacket(deviceId, data);
       }, onError: (e) {
         if (kDebugMode) {
           debugPrint('[$deviceId] ❌ Subscription stream error: $e');
-          debugPrint('[$deviceId] This likely means the characteristic was not discovered properly by iOS.');
-          debugPrint('[$deviceId] The sensor may need to be reset or re-paired.');
+          debugPrint('[$deviceId] ');
+          debugPrint('[$deviceId] TROUBLESHOOTING:');
+          debugPrint('[$deviceId] 1. Install "LightBlue" app from App Store');
+          debugPrint('[$deviceId] 2. Scan for your sensor (WTLeft or WTRight)');
+          debugPrint('[$deviceId] 3. Connect and view its services');
+          debugPrint('[$deviceId] 4. Look for service FFE0 and note what characteristics it has');
+          debugPrint('[$deviceId] 5. Share the characteristic UUIDs you see');
         }
       }, onDone: () {
         if (kDebugMode) debugPrint('[$deviceId] Subscription stream closed');
