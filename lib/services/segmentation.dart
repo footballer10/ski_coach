@@ -34,7 +34,7 @@ class SegmentationParams {
     this.changeBandDeg = 2.0,
     this.minGapBetweenCrossings = const Duration(milliseconds: 200),
     this.maxPairDelta = const Duration(milliseconds: 500),
-    this.minTurnDuration = const Duration(milliseconds: 500),
+    this.minTurnDuration = const Duration(milliseconds: 100),
   });
 }
 
@@ -94,15 +94,24 @@ class TurnSegmentation {
       }
     }
 
-    // Build segments from consecutive boundaries enforcing min duration and alternating direction
+    // Build segments from consecutive boundaries enforcing min duration and alternating direction.
+    // If duration < min, delete both crossings (skip this pair and the next start).
     final segments = <TurnSegment>[];
-    for (int k = 0; k + 1 < paired.length; k++) {
+    int k = 0;
+    while (k + 1 < paired.length) {
       final a = paired[k];
       final b = paired[k + 1];
       final dur = b.time.difference(a.time);
-      if (dur < params.minTurnDuration) continue;
+      if (dur < params.minTurnDuration) {
+        // delete both crossings: advance by 2
+        k += 2;
+        continue;
+      }
       // ensure alternation
-      if (a.dir == b.dir) continue;
+      if (a.dir == b.dir) {
+        k += 1;
+        continue;
+      }
 
       final seg = TurnSegment(
         startTime: a.time,
@@ -114,6 +123,7 @@ class TurnSegmentation {
         direction: b.dir, // direction of entering next turn
       );
       segments.add(seg);
+      k += 1;
     }
     
     if (kDebugMode) {
