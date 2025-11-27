@@ -13,6 +13,7 @@ class ResultsView extends StatefulWidget {
   final List<double> turnDurationsSeconds;
   final String? errorMessage;
   final VoidCallback onNewRun;
+  final VoidCallback? onReconnect;
 
   const ResultsView({
     super.key,
@@ -26,6 +27,7 @@ class ResultsView extends StatefulWidget {
     this.turnDurationsSeconds = const [],
     this.errorMessage,
     required this.onNewRun,
+    this.onReconnect,
   });
 
   @override
@@ -153,15 +155,31 @@ class _ResultsViewState extends State<ResultsView> {
           ),
           Padding(
             padding: const EdgeInsets.all(12.0),
-            child: ElevatedButton.icon(
-              onPressed: widget.onNewRun,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
+            child: Column(
+              children: [
+                if (widget.onReconnect != null)
+                  ElevatedButton.icon(
+                    onPressed: widget.onReconnect,
+                    icon: const Icon(Icons.bluetooth_searching),
+                    label: const Text('Reconnect Sensors'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                if (widget.onReconnect != null) const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: widget.onNewRun,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Try Again'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -311,6 +311,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         turnDurationsSeconds: const [],
         errorMessage: error,
         onNewRun: _resetToRecording,
+        onReconnect: widget.onDisconnect,
       );
     }
 
