@@ -52,41 +52,26 @@ class TurnSegmentation {
       debugPrint('🎿 Segmentation: Detected ${leftCross.length} left crossings, ${rightCross.length} right crossings');
     }
 
-    // Pair crossings; never miss a turn if apart: use earliest as boundary and nearest on other side if within window; else still create turn with single-sensor crossing
+    // Pair crossings: always match left and right, use average timestamp
+    // This prevents thinking there are two separate crossings when timing differs
     final paired = <_Boundary>[];
-    int i = 0, j = 0;
-    while (i < leftCross.length || j < rightCross.length) {
+    final maxCount = leftCross.length > rightCross.length ? leftCross.length : rightCross.length;
+    
+    for (int i = 0; i < maxCount; i++) {
       final lc = i < leftCross.length ? leftCross[i] : null;
-      final rc = j < rightCross.length ? rightCross[j] : null;
+      final rc = i < rightCross.length ? rightCross[i] : null;
 
-      if (lc == null && rc == null) break;
-      if (lc != null && rc == null) {
+      if (lc != null && rc != null) {
+        // Both sensors have crossing: average their timestamps
+        final avgMillis = (lc.time.millisecondsSinceEpoch + rc.time.millisecondsSinceEpoch) ~/ 2;
+        final avgTime = DateTime.fromMillisecondsSinceEpoch(avgMillis);
+        paired.add(_Boundary(avgTime, lc.dir, lc.index, rc.index, null, null));
+      } else if (lc != null) {
+        // Only left sensor
         paired.add(_Boundary(lc.time, lc.dir, lc.index, null, null, null));
-        i++;
-        continue;
-      }
-      if (rc != null && lc == null) {
+      } else if (rc != null) {
+        // Only right sensor
         paired.add(_Boundary(rc.time, rc.dir, null, rc.index, null, null));
-        j++;
-        continue;
-      }
-
-      // both available
-      final delta = (lc!.time.difference(rc!.time)).abs();
-      if (delta <= params.maxPairDelta) {
-        // pair
-        final t = lc.time.isBefore(rc.time) ? lc.time : rc.time;
-        paired.add(_Boundary(t, lc.dir, lc.index, rc.index, null, null));
-        i++; j++;
-      } else {
-        // Not within window: still create boundary from earlier and leave other for next
-        if (lc.time.isBefore(rc.time)) {
-          paired.add(_Boundary(lc.time, lc.dir, lc.index, null, null, null));
-          i++;
-        } else {
-          paired.add(_Boundary(rc.time, rc.dir, null, rc.index, null, null));
-          j++;
-        }
       }
     }
 
