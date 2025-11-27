@@ -203,6 +203,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       return;
     }
     debugPrint('🎿 RunPage: _disconnectHandled was false, proceeding');
+    // Always set error state so ResultsView will show error if on results screen
     setState(() {
       _recording = false;
       _state = RunState.results;
@@ -211,9 +212,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'isSensorDisconnect': true, // Flag to show reconnect button
       };
     });
-    debugPrint('🎿 RunPage: Calling onDisconnect callback...');
-    // Navigate to disconnect/reconnect screen
-    debugPrint('🎿 RunPage: onDisconnect is not null, invoking...');
+    // Always bring up reconnect modal immediately
+    debugPrint('🎿 RunPage: Forcing reconnect modal via onDisconnect');
     widget.onDisconnect();
   }
 
