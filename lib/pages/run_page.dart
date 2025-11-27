@@ -195,6 +195,12 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     _leftSub = null;
     _rightSub = null;
     
+    debugPrint('🎿 RunPage: _handleSensorDisconnect entered');
+    if (_disconnectHandled) {
+      debugPrint('🎿 RunPage: _disconnectHandled already true, skipping handler');
+      return;
+    }
+    debugPrint('🎿 RunPage: _disconnectHandled was false, proceeding');
     setState(() {
       _recording = false;
       _state = RunState.results;
@@ -205,12 +211,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     });
     debugPrint('🎿 RunPage: Calling onDisconnect callback...');
     // Navigate to disconnect/reconnect screen
-    if (widget.onDisconnect != null) {
-      debugPrint('🎿 RunPage: onDisconnect is not null, invoking...');
-      widget.onDisconnect();
-    } else {
-      debugPrint('🎿 RunPage: onDisconnect is null!');
-    }
+    debugPrint('🎿 RunPage: onDisconnect is not null, invoking...');
+    widget.onDisconnect();
   }
 
   void _resetToRecording() {
