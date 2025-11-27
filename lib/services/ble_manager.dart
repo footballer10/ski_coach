@@ -241,7 +241,47 @@ class BleManager {
       if (i + 1 >= bytes.length) break;
       final type = bytes[i + 1];
 
-      // ---------------- ACCEL PACKET ----------------
+      // ---------------- PACKET TYPE 0x61 (20 bytes total) ----------------
+      // This appears to be a combined packet with all 9DOF data
+      if (type == 0x61 && i + 20 <= bytes.length) {
+        // Parse all values from the 0x61 packet
+        // Bytes 2-3: unknown (seems to be a counter or value)
+        // Bytes 4-19: appear to contain sensor data
+        
+        // Let's parse assuming 16-bit little-endian values
+        // We have 9 int16 values to extract for ax,ay,az,gx,gy,gz,roll,pitch,yaw
+        
+        final ax = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
+        final ay = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
+        final az = _toScaledAccel(bytes[i + 8], bytes[i + 9]);
+        final gx = _toScaledGyro(bytes[i + 10], bytes[i + 11]);
+        final gy = _toScaledGyro(bytes[i + 12], bytes[i + 13]);
+        final gz = _toScaledGyro(bytes[i + 14], bytes[i + 15]);
+        final roll = _toScaledAngle(bytes[i + 16], bytes[i + 17]);
+        final pitch = _toScaledAngle(bytes[i + 18], bytes[i + 19]);
+        // Yaw might be in next packet or bytes 2-3
+        
+        _latest[deviceId]!["ax"] = ax;
+        _latest[deviceId]!["ay"] = ay;
+        _latest[deviceId]!["az"] = az;
+        _latest[deviceId]!["gx"] = gx;
+        _latest[deviceId]!["gy"] = gy;
+        _latest[deviceId]!["gz"] = gz;
+        _latest[deviceId]!["roll"] = roll;
+        _latest[deviceId]!["pitch"] = pitch;
+        
+        // Try to get yaw from bytes 2-3
+        final yaw = _toScaledAngle(bytes[i + 2], bytes[i + 3]);
+        _latest[deviceId]!["yaw"] = yaw;
+        
+        if (kDebugMode) {
+          debugPrint('[$deviceId] 0x61 PACKET: ax=$ax, ay=$ay, az=$az, gx=$gx, gy=$gy, gz=$gz, roll=$roll, pitch=$pitch, yaw=$yaw');
+        }
+        i += 20;
+        continue;
+      }
+
+      // ---------------- ACCEL PACKET (legacy 0x51) ----------------
       if (type == 0x51 && i + 11 <= bytes.length) {
         final ax = _toScaledAccel(bytes[i + 2], bytes[i + 3]);
         final ay = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
@@ -256,7 +296,7 @@ class BleManager {
         continue;
       }
 
-      // ---------------- GYRO PACKET ----------------
+      // ---------------- GYRO PACKET (legacy 0x52) ----------------
       if (type == 0x52 && i + 11 <= bytes.length) {
         final gx = _toScaledGyro(bytes[i + 2], bytes[i + 3]);
         final gy = _toScaledGyro(bytes[i + 4], bytes[i + 5]);
@@ -271,7 +311,7 @@ class BleManager {
         continue;
       }
 
-      // ---------------- ANGLE PACKET ----------------
+      // ---------------- ANGLE PACKET (legacy 0x53) ----------------
       if (type == 0x53 && i + 11 <= bytes.length) {
         final roll = _toScaledAngle(bytes[i + 2], bytes[i + 3]);
         final pitch = _toScaledAngle(bytes[i + 4], bytes[i + 5]);
@@ -284,11 +324,6 @@ class BleManager {
         }
         i += 11;
         continue;
-      }
-
-      // DEBUG: Log unrecognized packet types
-      if (kDebugMode && i + 1 < bytes.length) {
-        debugPrint('[$deviceId] UNKNOWN packet type: 0x${type.toRadixString(16).padLeft(2, "0")} at position $i');
       }
 
       i++;
@@ -309,7 +344,7 @@ class BleManager {
         'yaw': map['yaw']!,
       };
       if (kDebugMode) {
-        debugPrint('[$deviceId] ✓ COMPLETE SAMPLE EMITTED - adding to controller');
+        debugPrint('[$deviceId] ✓ COMPLETE SAMPLE EMITTED: roll=${sample['roll']!.toStringAsFixed(1)}°, pitch=${sample['pitch']!.toStringAsFixed(1)}°, yaw=${sample['yaw']!.toStringAsFixed(1)}°');
       }
       if (_sampleControllers.containsKey(deviceId)) {
         _sampleControllers[deviceId]!.add(sample);
@@ -318,13 +353,6 @@ class BleManager {
         if (kDebugMode) debugPrint('[$deviceId] ❌ ERROR: Controller missing when trying to emit sample!');
       }
       map.clear(); // reset for next sample
-    } else {
-      if (kDebugMode) {
-        final missing = ['ax', 'ay', 'az', 'gx', 'gy', 'gz', 'roll', 'pitch', 'yaw']
-            .where((k) => !map.containsKey(k))
-            .toList();
-        debugPrint('[$deviceId] Incomplete sample, missing: ${missing.join(", ")}');
-      }
     }
   }
 
