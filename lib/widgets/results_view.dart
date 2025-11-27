@@ -474,7 +474,10 @@ class _ResultsViewState extends State<ResultsView> {
                 children: List.generate(actualTurnCount, (i) {
                   final turnLabel = 'Turn ${i + 1}';
                   final turnDuration = (i < widget.turnDurationsSeconds.length)
-                      ? '${widget.turnDurationsSeconds[i]}s'
+                      ? '${widget.turnDurationsSeconds[i].toStringAsFixed(3)}s'
+                      : '—';
+                  final turnScore = (i < widget.turnDurationsSeconds.length)
+                      ? _scoreForDuration(widget.turnDurationsSeconds[i]).toStringAsFixed(1)
                       : '—';
                   return GestureDetector(
                     onTap: () => _selectCategoryAndTurn(_selectedCategory, turnLabel),
@@ -496,7 +499,7 @@ class _ResultsViewState extends State<ResultsView> {
                             if (_selectedCategory == 'Turn Duration') ...[
                               const SizedBox(width: 8),
                               Text(
-                                turnDuration,
+                                '$turnDuration | Score: $turnScore',
                                 style: const TextStyle(color: Colors.white70, fontSize: 12),
                               ),
                             ],
@@ -712,8 +715,10 @@ class _ResultsViewState extends State<ResultsView> {
     }
     
     String valueText = '[Placeholder]';
+    String scoreText = '[Placeholder]';
     if (_selectedCategory == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
       valueText = '${widget.turnDurationsSeconds[selectedTurnIndex].toStringAsFixed(3)}s';
+      scoreText = _scoreForDuration(widget.turnDurationsSeconds[selectedTurnIndex]).toStringAsFixed(1);
     }
     
     return SingleChildScrollView(
@@ -729,7 +734,7 @@ class _ResultsViewState extends State<ResultsView> {
                 children: [
                   Text('Value: $valueText', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('Score: [Placeholder]', style: const TextStyle(fontSize: 14)),
+                  Text('Score: $scoreText', style: const TextStyle(fontSize: 14)),
                   const SizedBox(height: 8),
                   const Text('[Dot plot placeholder]', style: TextStyle(fontStyle: FontStyle.italic)),
                 ],
