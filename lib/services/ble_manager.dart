@@ -218,7 +218,6 @@ class BleManager {
       
       // Subscribe
       _charSubs[deviceId] = _ble.subscribeToCharacteristic(char).listen((data) {
-        if (kDebugMode) debugPrint('[$deviceId] ✓ DATA RECEIVED! ${data.length} bytes');
         _handleRawPacket(deviceId, data);
       }, onError: (e) {
         if (kDebugMode) {
@@ -260,12 +259,6 @@ class BleManager {
   // Handle incoming packets
   // -------------------------------------------------------------
   void _handleRawPacket(String deviceId, List<int> bytes) {
-    // DEBUG: Log raw bytes received
-    if (kDebugMode) {
-      final hexStr = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-      debugPrint('[$deviceId] RAW DATA (${bytes.length} bytes): $hexStr');
-    }
-
     int i = 0;
 
     _latest.putIfAbsent(deviceId, () => {});
@@ -308,9 +301,6 @@ class BleManager {
         _latest[deviceId]!["pitch"] = pitch;
         _latest[deviceId]!["yaw"] = yaw;
         
-        if (kDebugMode) {
-          debugPrint('[$deviceId] 0x61: ax=${ax.toStringAsFixed(2)}g ay=${ay.toStringAsFixed(2)}g az=${az.toStringAsFixed(2)}g | gx=${gx.toStringAsFixed(1)}°/s gy=${gy.toStringAsFixed(1)}°/s gz=${gz.toStringAsFixed(1)}°/s | roll=${roll.toStringAsFixed(1)}° pitch=${pitch.toStringAsFixed(1)}° yaw=${yaw.toStringAsFixed(1)}°');
-        }
         i += 20;
         continue;
       }
@@ -401,14 +391,8 @@ class BleManager {
         'yaw': map['yaw']!,
       };
       
-      if (kDebugMode) {
-        debugPrint('[$deviceId] ✓ COMPLETE SAMPLE EMITTED: roll=${sample['roll']!.toStringAsFixed(1)}°, pitch=${sample['pitch']!.toStringAsFixed(1)}°, yaw=${sample['yaw']!.toStringAsFixed(1)}°');
-      }
       if (_sampleControllers.containsKey(deviceId)) {
         _sampleControllers[deviceId]!.add(sample);
-        if (kDebugMode) debugPrint('[$deviceId] ✓ Sample added to controller (listeners: ${_sampleControllers[deviceId]!.hasListener})');
-      } else {
-        if (kDebugMode) debugPrint('[$deviceId] ❌ ERROR: Controller missing when trying to emit sample!');
       }
       map.clear(); // reset for next sample
     }

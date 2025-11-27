@@ -72,20 +72,14 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
     if (leftStream != null) {
       _leftSub = leftStream.listen((s) {
-        debugPrint('RunPage: LEFT sample received in UI!');
         if (mounted) setState(() => _leftLatest = s);
       });
-    } else {
-      debugPrint('RunPage: LEFT stream is NULL!');
     }
 
     if (rightStream != null) {
       _rightSub = rightStream.listen((s) {
-        debugPrint('RunPage: RIGHT sample received in UI!');
         if (mounted) setState(() => _rightLatest = s);
       });
-    } else {
-      debugPrint('RunPage: RIGHT stream is NULL!');
     }
   }
 
@@ -108,11 +102,15 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final leftSamples = recordedData[widget.leftId] ?? [];
     final rightSamples = recordedData[widget.rightId] ?? [];
 
+    debugPrint('🎿 RunPage: Recorded ${leftSamples.length} left, ${rightSamples.length} right samples');
+
     // Segment turns using roll zero-crossings on both sensors
     List<ImuSample> leftImu = leftSamples.cast<ImuSample>();
     List<ImuSample> rightImu = rightSamples.cast<ImuSample>();
     final segments = TurnSegmentation.segment(left: leftImu, right: rightImu);
     final turnDurations = segments.map((s) => s.durationSeconds).toList();
+
+    debugPrint('🎿 RunPage: Segmentation complete - ${segments.length} turns, durations: $turnDurations');
 
     // Simulate analysis delay
     await Future.delayed(const Duration(milliseconds: 300));
@@ -130,6 +128,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'turnDurations': turnDurations,
     };
 
+    debugPrint('🎿 RunPage: Results prepared - turnCount=${results['turnCount']}, turnDurations=${results['turnDurations']}');
+
     if (!mounted) return;
 
     setState(() {
@@ -144,44 +144,51 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   Widget _buildRecordingView() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Recording Session',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
-            const SizedBox(height: 12),
-            _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
-            const SizedBox(height: 24),
-            if (!_recording)
-              ElevatedButton.icon(
-                onPressed: _startRecording,
-                icon: const Icon(Icons.fiber_manual_record, size: 28),
-                label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: _stopRecording,
-                icon: const Icon(Icons.stop, size: 28),
-                label: const Text('Stop Recording', style: TextStyle(fontSize: 20)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Recording Session',
+            style: Theme.of(context).textTheme.headlineSmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
+                  const SizedBox(height: 12),
+                  _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
+                ],
               ),
-          ],
-        ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (!_recording)
+            ElevatedButton.icon(
+              onPressed: _startRecording,
+              icon: const Icon(Icons.fiber_manual_record, size: 28),
+              label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: _stopRecording,
+              icon: const Icon(Icons.stop, size: 28),
+              label: const Text('Stop Recording', style: TextStyle(fontSize: 20)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+            ),
+        ],
       ),
     );
   }

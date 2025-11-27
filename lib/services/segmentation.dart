@@ -1,4 +1,5 @@
 import '../models/imu_sample.dart';
+import 'package:flutter/foundation.dart';
 
 class TurnSegment {
   final DateTime startTime;
@@ -43,8 +44,16 @@ class TurnSegmentation {
     required List<ImuSample> right,
     SegmentationParams params = const SegmentationParams(),
   }) {
+    if (kDebugMode) {
+      debugPrint('🎿 Segmentation: Processing ${left.length} left samples, ${right.length} right samples');
+    }
+    
     final leftCross = _detectCrossings(left.map((s) => _RollPoint(s.timestamp, s.roll)).toList(), params);
     final rightCross = _detectCrossings(right.map((s) => _RollPoint(s.timestamp, s.roll)).toList(), params);
+
+    if (kDebugMode) {
+      debugPrint('🎿 Segmentation: Detected ${leftCross.length} left crossings, ${rightCross.length} right crossings');
+    }
 
     // Pair crossings; never miss a turn if apart: use earliest as boundary and nearest on other side if within window; else still create turn with single-sensor crossing
     final paired = <_Boundary>[];
@@ -105,6 +114,14 @@ class TurnSegmentation {
       );
       segments.add(seg);
     }
+    
+    if (kDebugMode) {
+      debugPrint('🎿 Segmentation: Created ${segments.length} turn segments');
+      for (int i = 0; i < segments.length; i++) {
+        debugPrint('   Turn ${i + 1}: ${segments[i].durationSeconds}s (dir=${segments[i].direction})');
+      }
+    }
+    
     return segments;
   }
 
