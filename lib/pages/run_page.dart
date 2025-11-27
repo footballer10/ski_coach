@@ -268,8 +268,9 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     List<ImuSample> rightImu = rightSamples.cast<ImuSample>();
     final segments = TurnSegmentation.segment(left: leftImu, right: rightImu);
     final turnDurations = segments.map((s) => s.durationSeconds).toList();
+    final edgeAngles = segments.map((s) => s.maxEdgeAngle).toList();
 
-    debugPrint('🎿 RunPage: Segmentation complete - ${segments.length} turns, durations: $turnDurations');
+    debugPrint('🎿 RunPage: Segmentation complete - ${segments.length} turns, durations: $turnDurations, edges: $edgeAngles');
 
     // Check if no turns detected
     if (segments.isEmpty) {
@@ -296,6 +297,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'startTime': leftSamples.isNotEmpty ? leftSamples.first.timestamp : null,
         'turnCount': segments.length,
         'turnDurations': turnDurations,
+        'edgeAngles': edgeAngles,
     };
 
     debugPrint('🎿 RunPage: Results prepared - turnCount=${results['turnCount']}, turnDurations=${results['turnDurations']}');
@@ -406,6 +408,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       final startTime = _analysisResults!['startTime'] as DateTime?;
     final turnCount = _analysisResults!['turnCount'] ?? 0;
     final turnDurations = (_analysisResults!['turnDurations'] as List?)?.cast<double>() ?? [];
+    final edgeAngles = (_analysisResults!['edgeAngles'] as List?)?.cast<double>() ?? [];
 
     return ResultsView(
       leftSampleCount: leftCount,
@@ -416,6 +419,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         runStartTime: startTime,
       turnCount: turnCount,
       turnDurationsSeconds: turnDurations,
+      edgeAngles: edgeAngles,
       onNewRun: widget.onRecordAgain,
     );
   }

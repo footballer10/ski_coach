@@ -10,6 +10,7 @@ class TurnSegment {
   final int endIndexLeft;
   final int endIndexRight;
   final int direction; // -1 left, +1 right
+  final double maxEdgeAngle; // maximum absolute pitch during turn (from either sensor)
   double get durationSeconds => endTime.difference(startTime).inMilliseconds / 1000.0;
 
   TurnSegment({
@@ -20,6 +21,7 @@ class TurnSegment {
     required this.endIndexLeft,
     required this.endIndexRight,
     required this.direction,
+    required this.maxEdgeAngle,
   });
 }
 
@@ -63,14 +65,29 @@ class TurnSegmentation {
       final a = peaks[k];
       final b = peaks[k + 1];
 
+      final startIdxLeft = _nearestIndex(left, a.time);
+      final startIdxRight = _nearestIndex(right, a.time);
+      final endIdxLeft = _nearestIndex(left, b.time);
+      final endIdxRight = _nearestIndex(right, b.time);
+
+      // Find maximum absolute pitch during this turn segment
+      double maxEdgeAngle = 0.0;
+      for (int i = startIdxLeft; i <= endIdxLeft && i < left.length; i++) {
+        maxEdgeAngle = math.max(maxEdgeAngle, left[i].pitch.abs());
+      }
+      for (int i = startIdxRight; i <= endIdxRight && i < right.length; i++) {
+        maxEdgeAngle = math.max(maxEdgeAngle, right[i].pitch.abs());
+      }
+
       final seg = TurnSegment(
         startTime: a.time,
         endTime: b.time,
-        startIndexLeft: _nearestIndex(left, a.time),
-        startIndexRight: _nearestIndex(right, a.time),
-        endIndexLeft: _nearestIndex(left, b.time),
-        endIndexRight: _nearestIndex(right, b.time),
+        startIndexLeft: startIdxLeft,
+        startIndexRight: startIdxRight,
+        endIndexLeft: endIdxLeft,
+        endIndexRight: endIdxRight,
         direction: b.isPeak ? 1 : -1, // peak = right turn, valley = left turn
+        maxEdgeAngle: maxEdgeAngle,
       );
       segments.add(seg);
     }
@@ -78,7 +95,7 @@ class TurnSegmentation {
     if (kDebugMode) {
       debugPrint('🎿 Segmentation: Created ${segments.length} turn segments');
       for (int i = 0; i < segments.length; i++) {
-        debugPrint('   Turn ${i + 1}: ${segments[i].durationSeconds}s (dir=${segments[i].direction})');
+        debugPrint('   Turn ${i + 1}: ${segments[i].durationSeconds}s, edge=${segments[i].maxEdgeAngle.toStringAsFixed(1)}° (dir=${segments[i].direction})');
       }
     }
     
