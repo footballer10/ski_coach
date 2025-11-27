@@ -49,6 +49,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   Timer? _rightWatchdog;
   DateTime? _lastLeftData;
   DateTime? _lastRightData;
+  bool _disconnectHandled = false; // Prevent multiple disconnect triggers
   static const _dataTimeout = Duration(seconds: 3);
 
   @override
@@ -82,7 +83,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     
     // Check for left sensor data timeout every second
     _leftWatchdog = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
+      if (!mounted || _disconnectHandled) {
         timer.cancel();
         return;
       }
@@ -99,7 +100,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     
     // Check for right sensor data timeout every second
     _rightWatchdog = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
+      if (!mounted || _disconnectHandled) {
         timer.cancel();
         return;
       }
@@ -167,6 +168,13 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _handleSensorDisconnect(String message) {
+    // Prevent multiple triggers
+    if (_disconnectHandled) {
+      debugPrint('🎿 RunPage: Disconnect already handled, ignoring');
+      return;
+    }
+    _disconnectHandled = true;
+    
     // Stop watchdogs
     _leftWatchdog?.cancel();
     _rightWatchdog?.cancel();
@@ -196,6 +204,9 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _resetToRecording() {
+    // Reset disconnect flag
+    _disconnectHandled = false;
+    
     // Resubscribe to samples when resetting
     _subscribeToSamples();
     _startWatchdogs();

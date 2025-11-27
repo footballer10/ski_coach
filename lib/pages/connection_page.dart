@@ -72,8 +72,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
     final bleMgr = _bleMgr as BleManager;
     
-    // Small delay to ensure previous scan is fully stopped
-    Future.delayed(const Duration(milliseconds: 300), () {
+    // Longer delay to ensure previous scan is fully stopped (prevents assertion failure)
+    Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       
       _statusSub = bleMgr.statusStream.listen((status) {
