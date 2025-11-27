@@ -188,15 +188,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _handleSensorDisconnect(String message) {
-    // Prevent multiple triggers (may already be set by watchdog)
-    if (_disconnectHandled) {
-      debugPrint('🎿 RunPage: Disconnect already handled, ignoring');
-      return;
-    }
-    // Set flag if not already set (e.g., from stream onDone/onError callbacks)
-    if (!_disconnectHandled) {
-      _disconnectHandled = true;
-    }
+    debugPrint('🎿 RunPage: _handleSensorDisconnect entered with message: $message');
     
     // Stop watchdogs
     _leftWatchdog?.cancel();
@@ -204,6 +196,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     
     // Stop recording if active
     if (_recording) {
+      debugPrint('🎿 RunPage: Stopping recording due to disconnect');
       widget.bleMgr.stopRecording();
     }
     
@@ -213,8 +206,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     _leftSub = null;
     _rightSub = null;
     
-    debugPrint('🎿 RunPage: _handleSensorDisconnect entered');
     // Always set error state so ResultsView will show error if on results screen
+    debugPrint('🎿 RunPage: Setting state to results with error');
     setState(() {
       _recording = false;
       _state = RunState.results;
@@ -223,9 +216,11 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'isSensorDisconnect': true, // Flag to show reconnect button
       };
     });
+    
     // Always bring up reconnect modal immediately (idempotent)
-    debugPrint('🎿 RunPage: Forcing reconnect modal via onDisconnect');
+    debugPrint('🎿 RunPage: About to call widget.onDisconnect()');
     widget.onDisconnect();
+    debugPrint('🎿 RunPage: widget.onDisconnect() called successfully');
   }
 
   void _resetToRecording() {
