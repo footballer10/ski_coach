@@ -35,8 +35,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
   @override
   void initState() {
     super.initState();
-    // Longer delay to ensure any previous scans are fully stopped
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    // Much longer delay to ensure any previous scans are fully stopped (iOS BLE issue)
+    Future.delayed(const Duration(milliseconds: 5000), () {
       if (mounted) {
         _applyManager();
         startScan();
@@ -73,15 +73,15 @@ class _ConnectionPageState extends State<ConnectionPage> {
     final bleMgr = _bleMgr as BleManager;
     
     if (kDebugMode) {
-      debugPrint('🔵 ConnectionPage: Waiting 2000ms before starting new scan to ensure BLE stack is ready');
+      debugPrint('🔵 ConnectionPage: Waiting 5000ms before starting new scan to ensure BLE stack is ready');
     }
     
-    // Much longer delay to ensure BLE stack fully stops (prevents iOS assertion failure)
-    Future.delayed(const Duration(milliseconds: 2000), () {
+    // Much longer delay (5 seconds) to ensure BLE stack fully stops (prevents iOS assertion failure)
+    Future.delayed(const Duration(milliseconds: 5000), () {
       if (!mounted) return;
       
       if (kDebugMode) {
-        debugPrint('🔵 ConnectionPage: Starting new scan after 2000ms delay');
+        debugPrint('🔵 ConnectionPage: Starting new scan after 5000ms delay');
       }
       
       _statusSub = bleMgr.statusStream.listen((status) {
