@@ -6,6 +6,8 @@ class ResultsView extends StatefulWidget {
   final int rightSampleCount;
   final List<List<int>> leftSegments;
   final List<List<int>> rightSegments;
+    final int runDurationSeconds;
+    final DateTime? runStartTime;
   final VoidCallback onNewRun;
 
   const ResultsView({
@@ -14,6 +16,8 @@ class ResultsView extends StatefulWidget {
     required this.rightSampleCount,
     required this.leftSegments,
     required this.rightSegments,
+      this.runDurationSeconds = 0,
+      this.runStartTime,
     required this.onNewRun,
   });
 
@@ -256,6 +260,13 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCompactSummary({bool includeSimilarity = false}) {
+      final durationStr = widget.runDurationSeconds > 0 
+          ? '${widget.runDurationSeconds}s'
+          : '—';
+      final startTimeStr = widget.runStartTime != null
+          ? '${widget.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.runStartTime!.minute.toString().padLeft(2, '0')}'
+          : '—';
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
       child: Card(
@@ -265,8 +276,8 @@ class _ResultsViewState extends State<ResultsView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _summaryItem('Turns', '${_turns.length - 1}'),
-              _summaryItem('Duration', '—'),
-              _summaryItem('Start', '—'),
+                _summaryItem('Duration', durationStr),
+                _summaryItem('Start', startTimeStr),
               _summaryItem('Score', '—', prominent: true),
               if (includeSimilarity) _summaryItem('Similarity', '—'),
             ],

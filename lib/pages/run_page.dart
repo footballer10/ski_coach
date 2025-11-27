@@ -114,9 +114,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       'rightSampleCount': rightSamples.length,
       'leftSamples': leftSamples,
       'rightSamples': rightSamples,
-      'duration': leftSamples.isNotEmpty && leftSamples.length > 1
+        'duration': leftSamples.isNotEmpty && leftSamples.length > 1
           ? leftSamples.last.timestamp.difference(leftSamples.first.timestamp).inSeconds
           : 0,
+        'startTime': leftSamples.isNotEmpty ? leftSamples.first.timestamp : null,
     };
 
     if (!mounted) return;
@@ -195,12 +196,16 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final rightCount = _analysisResults!['rightSampleCount'] ?? 0;
     final leftSegments = (_analysisResults!['leftSegments'] as List?)?.cast<List<int>>() ?? [];
     final rightSegments = (_analysisResults!['rightSegments'] as List?)?.cast<List<int>>() ?? [];
+      final duration = _analysisResults!['duration'] ?? 0;
+      final startTime = _analysisResults!['startTime'] as DateTime?;
 
     return ResultsView(
       leftSampleCount: leftCount,
       rightSampleCount: rightCount,
       leftSegments: leftSegments,
       rightSegments: rightSegments,
+        runDurationSeconds: duration,
+        runStartTime: startTime,
       onNewRun: widget.onRecordAgain,
     );
   }
