@@ -23,18 +23,14 @@ class TurnSegment {
 }
 
 class SegmentationParams {
-  final double zeroBandDeg; // hysteresis band around 0
-  final double changeBandDeg; // wider band to define edge-change window
-  final Duration minGapBetweenCrossings; // debounce crossings
+  final double zeroBandDeg; // hysteresis band around 0 to avoid noise
+  final Duration minGapBetweenCrossings; // debounce rapid oscillations during transitions
   final Duration maxPairDelta; // max delta to pair L/R crossings
-  final Duration minTurnDuration;
 
   const SegmentationParams({
-    this.zeroBandDeg = 1.0,
-    this.changeBandDeg = 2.0,
-    this.minGapBetweenCrossings = const Duration(milliseconds: 200),
+    this.zeroBandDeg = 0.5, // tighter band; every real zero crossing counts
+    this.minGapBetweenCrossings = const Duration(milliseconds: 150), // debounce only jitter
     this.maxPairDelta = const Duration(milliseconds: 500),
-    this.minTurnDuration = const Duration(milliseconds: 100),
   });
 }
 
@@ -94,24 +90,12 @@ class TurnSegmentation {
       }
     }
 
-    // Build segments from consecutive boundaries enforcing min duration and alternating direction.
-    // If duration < min, delete both crossings (skip this pair and the next start).
+    // Build segments from consecutive boundaries.
+    // Start from first crossing, end at last crossing.
     final segments = <TurnSegment>[];
-    int k = 0;
-    while (k + 1 < paired.length) {
+    for (int k = 0; k + 1 < paired.length; k++) {
       final a = paired[k];
       final b = paired[k + 1];
-      final dur = b.time.difference(a.time);
-      if (dur < params.minTurnDuration) {
-        // delete both crossings: advance by 2
-        k += 2;
-        continue;
-      }
-      // ensure alternation
-      if (a.dir == b.dir) {
-        k += 1;
-        continue;
-      }
 
       final seg = TurnSegment(
         startTime: a.time,
@@ -123,7 +107,6 @@ class TurnSegmentation {
         direction: b.dir, // direction of entering next turn
       );
       segments.add(seg);
-      k += 1;
     }
     
     if (kDebugMode) {
@@ -152,47 +135,36 @@ class TurnSegmentation {
   }
 
   static List<_Crossing> _detectCrossings(List<_AnglePoint> pts, SegmentationParams p) {
-    // Detect near-zero edge-change window and use its midpoint as boundary
+    // Simple zero-crossing detector: emit crossing whenever pitch crosses through zero
+    // with hysteresis to avoid noise, debounced to filter rapid oscillations.
     final out = <_Crossing>[];
     DateTime lastBoundaryTime = DateTime.fromMillisecondsSinceEpoch(0);
     int prevSign = 0; // -1, 0, +1
-    bool inWindow = false;
-    DateTime? windowStart;
-    // index not currently used; kept minimal state
+    
     for (int i = 0; i < pts.length; i++) {
       final v = pts[i].angle;
       final t = pts[i].time;
-      final sign = v > p.zeroBandDeg ? 1 : (v < -p.zeroBandDeg ? -1 : 0);
-      final nearZero = v.abs() <= p.changeBandDeg;
-
-      if (!inWindow) {
-        // Enter window when we come near zero after being outside
-        if (nearZero && prevSign != 0) {
-          inWindow = true;
-          windowStart = t;
-          // noop
-        }
+      // Determine current sign with hysteresis band
+      int currentSign;
+      if (v > p.zeroBandDeg) {
+        currentSign = 1;
+      } else if (v < -p.zeroBandDeg) {
+        currentSign = -1;
       } else {
-        // We're inside window; exit when we leave near-zero band
-        if (!nearZero) {
-          // Window ended; if sign flipped during window, emit midpoint as boundary
-          final flipped = (prevSign != 0 && sign != 0 && sign != prevSign);
-          if (flipped && windowStart != null) {
-            final midMillis = windowStart.millisecondsSinceEpoch + ((t.millisecondsSinceEpoch - windowStart.millisecondsSinceEpoch) ~/ 2);
-            final midTime = DateTime.fromMillisecondsSinceEpoch(midMillis);
-            if (midTime.difference(lastBoundaryTime) >= p.minGapBetweenCrossings) {
-              out.add(_Crossing(time: midTime, dir: sign, index: i));
-              lastBoundaryTime = midTime;
-            }
-          }
-          inWindow = false;
-          windowStart = null;
-          // noop
+        // In dead band; keep previous sign
+        currentSign = prevSign;
+      }
+
+      // Detect sign flip (crossing zero)
+      if (prevSign != 0 && currentSign != 0 && currentSign != prevSign) {
+        // Zero crossing detected; debounce
+        if (t.difference(lastBoundaryTime) >= p.minGapBetweenCrossings) {
+          out.add(_Crossing(time: t, dir: currentSign, index: i));
+          lastBoundaryTime = t;
         }
       }
 
-      // Track previous sign for next iteration
-      if (sign != 0) prevSign = sign;
+      prevSign = currentSign;
     }
     return out;
   }
