@@ -118,12 +118,17 @@ class _ConnectionPageState extends State<ConnectionPage> {
       final stream = (_bleMgr as BleManager).scanForDevices();
       
       // Fallback: if no devices found after 5 seconds, try raw scan
-      Future.delayed(const Duration(seconds: 5), () {
+      Future.delayed(const Duration(seconds: 5), () async {
         if (!mounted) return;
         if (_devices.isEmpty && _scanning) {
           if (kDebugMode) debugPrint('⚠️ No devices found with service filter. Switching to RAW SCAN...');
           _scanSub?.cancel();
-          _beginRawScan();
+          _scanSub = null;
+          // Wait for iOS to fully stop scanning before starting new scan
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted && _scanning) {
+            _beginRawScan();
+          }
         }
       });
       
