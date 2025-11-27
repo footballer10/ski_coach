@@ -278,15 +278,6 @@ class _ResultsViewState extends State<ResultsView> {
       final startTimeStr = widget.runStartTime != null
           ? '${widget.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.runStartTime!.minute.toString().padLeft(2, '0')}'
           : '—';
-      String avgScoreStr = '—';
-      if (widget.turnDurationsSeconds.isNotEmpty) {
-        double sum = 0.0;
-        for (final x in widget.turnDurationsSeconds) {
-          sum += _scoreForDuration(x);
-        }
-        final avg = sum / widget.turnDurationsSeconds.length;
-        avgScoreStr = avg.isFinite ? avg.toStringAsFixed(1) : '—';
-      }
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -299,7 +290,7 @@ class _ResultsViewState extends State<ResultsView> {
               _summaryItem('Turns', '${widget.turnCount > 0 ? widget.turnCount : (_turns.length - 1)}'),
                 _summaryItem('Duration', durationStr),
                 _summaryItem('Start', startTimeStr),
-              _summaryItem('Score', avgScoreStr, prominent: true),
+              _summaryItem('Score', '—', prominent: true),
               if (includeSimilarity) _summaryItem('Similarity', '—'),
             ],
           ),
@@ -321,6 +312,20 @@ class _ResultsViewState extends State<ResultsView> {
   Widget _buildLeftPane({bool includeSimilarity = false}) {
     final items = _categories.skip(1).toList();
     if (includeSimilarity) items.add('Turn Similarity');
+    // Precompute Turn Duration average value and score
+    String turnDurationVal = '—';
+    String turnDurationScore = '—';
+    if (widget.turnDurationsSeconds.isNotEmpty) {
+      final durations = widget.turnDurationsSeconds;
+      final avg = durations.reduce((a,b) => a + b) / durations.length;
+      turnDurationVal = '${avg.toStringAsFixed(3)}s';
+      double scoreSum = 0.0;
+      for (final x in durations) {
+        scoreSum += _scoreForDuration(x);
+      }
+      final avgScore = scoreSum / durations.length;
+      turnDurationScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
+    }
     
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
@@ -329,7 +334,12 @@ class _ResultsViewState extends State<ResultsView> {
               dense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 8),
               title: Text(cat, style: const TextStyle(fontSize: 14)),
-              subtitle: const Text('Val: — | Score: —', style: TextStyle(fontSize: 11)),
+              subtitle: Text(
+                cat == 'Turn Duration'
+                    ? 'Val: $turnDurationVal | Score: $turnDurationScore'
+                    : 'Val: — | Score: —',
+                style: const TextStyle(fontSize: 11),
+              ),
               onTap: cat == 'Turn Similarity' ? null : () => _selectCategory(cat),
             )),
       ],
