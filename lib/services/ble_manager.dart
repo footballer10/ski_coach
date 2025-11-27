@@ -42,6 +42,20 @@ class BleManager {
     return _ble.scanForDevices(withServices: []).asBroadcastStream();
   }
 
+  /// Verbose raw scan with logging for diagnostics
+  Stream<DiscoveredDevice> verboseRawScan() {
+    return _ble
+        .scanForDevices(withServices: [])
+        .map((d) {
+          if (kDebugMode) {
+            debugPrint(
+                'DISCOVERED name="${d.name.isEmpty ? '(no name)' : d.name}" id=${d.id} rssi=${d.rssi} services=${d.serviceUuids.length}');
+          }
+          return d;
+        })
+        .asBroadcastStream();
+  }
+
   /// Connect to device and wait until connected (or timeout). Returns true on success.
   Future<bool> connectAndWait(String deviceId, {Duration timeout = const Duration(seconds: 8)}) async {
     if (_connSubs.containsKey(deviceId)) return true;
