@@ -146,25 +146,57 @@ class BleManager {
       
       if (kDebugMode) debugPrint('[$deviceId] Service discovery completed');
       
-      // Longer delay to ensure discovery completes on iOS
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // Much longer delay - iOS needs more time
+      await Future.delayed(const Duration(milliseconds: 3000));
       
-      final char = QualifiedCharacteristic(
-        serviceId: _service,
-        characteristicId: _char,
-        deviceId: deviceId,
-      );
+      if (kDebugMode) {
+        debugPrint('[$deviceId] Attempting to subscribe to characteristics...');
+        debugPrint('[$deviceId] Target Service: $_service');
+        debugPrint('[$deviceId] Target Char: $_char');
+      }
+      
+      // Try multiple possible characteristic UUIDs
+      final possibleChars = [
+        _char, // 0000FFE1
+        Uuid.parse("0000FFE2-0000-1000-8000-00805F9B34FB"),
+        Uuid.parse("0000FFE4-0000-1000-8000-00805F9B34FB"),
+      ];
+      
+      bool subscribed = false;
+      for (final charUuid in possibleChars) {
+        try {
+          if (kDebugMode) debugPrint('[$deviceId] Trying characteristic: $charUuid');
+          
+          final char = QualifiedCharacteristic(
+            serviceId: _service,
+            characteristicId: charUuid,
+            deviceId: deviceId,
+          );
 
-      if (kDebugMode) debugPrint('[$deviceId] Subscribing to characteristic ${_char}...');
-      _ble.subscribeToCharacteristic(char).listen((data) {
-        if (kDebugMode) debugPrint('[$deviceId] \u2713 DATA RECEIVED! ${data.length} bytes');
-        _handleRawPacket(deviceId, data);
-      }, onError: (e) {
-        if (kDebugMode) debugPrint('[$deviceId] \u274c Subscription error: $e');
-      });
-      if (kDebugMode) debugPrint('[$deviceId] \u2713 Successfully subscribed to characteristic');
+          _charSubs[deviceId] = _ble.subscribeToCharacteristic(char).listen((data) {
+            if (kDebugMode) debugPrint('[$deviceId] ✓ DATA RECEIVED from $charUuid! ${data.length} bytes');
+            _handleRawPacket(deviceId, data);
+          }, onError: (e) {
+            if (kDebugMode) debugPrint('[$deviceId] ❌ Error on $charUuid: $e');
+          });
+          
+          // Wait to see if subscription succeeds
+          await Future.delayed(const Duration(milliseconds: 500));
+          
+          if (kDebugMode) debugPrint('[$deviceId] ✓ Subscribed to $charUuid');
+          subscribed = true;
+          break;
+        } catch (e) {
+          if (kDebugMode) debugPrint('[$deviceId] Failed $charUuid: $e');
+          continue;
+        }
+      }
+      
+      if (!subscribed && kDebugMode) {
+        debugPrint('[$deviceId] ❌ Could not subscribe to any characteristic!');
+      }
     } catch (e) {
-      if (kDebugMode) debugPrint('[$deviceId] \u274c Error in _subscribeCharacteristic: $e');
+      if (kDebugMode) debugPrint('[$deviceId] ❌ Error in _subscribeCharacteristic: $e');
     }
   }
 
