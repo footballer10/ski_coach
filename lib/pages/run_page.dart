@@ -134,12 +134,20 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         },
         onDone: () {
           if (mounted) {
+            if (!_disconnectHandled) {
+              _disconnectHandled = true;
+              debugPrint('🎿 RunPage: Left stream onDone set _disconnectHandled = true');
+            }
             debugPrint('🎿 RunPage: Left sensor disconnected');
             _handleSensorDisconnect('Left sensor disconnected');
           }
         },
         onError: (error) {
           if (mounted) {
+            if (!_disconnectHandled) {
+              _disconnectHandled = true;
+              debugPrint('🎿 RunPage: Left stream onError set _disconnectHandled = true');
+            }
             debugPrint('🎿 RunPage: Left sensor error: $error');
             _handleSensorDisconnect('Left sensor connection error');
           }
@@ -157,12 +165,20 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         },
         onDone: () {
           if (mounted) {
+            if (!_disconnectHandled) {
+              _disconnectHandled = true;
+              debugPrint('🎿 RunPage: Right stream onDone set _disconnectHandled = true');
+            }
             debugPrint('🎿 RunPage: Right sensor disconnected');
             _handleSensorDisconnect('Right sensor disconnected');
           }
         },
         onError: (error) {
           if (mounted) {
+            if (!_disconnectHandled) {
+              _disconnectHandled = true;
+              debugPrint('🎿 RunPage: Right stream onError set _disconnectHandled = true');
+            }
             debugPrint('🎿 RunPage: Right sensor error: $error');
             _handleSensorDisconnect('Right sensor connection error');
           }
@@ -198,11 +214,6 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     _rightSub = null;
     
     debugPrint('🎿 RunPage: _handleSensorDisconnect entered');
-    if (_disconnectHandled) {
-      debugPrint('🎿 RunPage: _disconnectHandled already true, skipping handler');
-      return;
-    }
-    debugPrint('🎿 RunPage: _disconnectHandled was false, proceeding');
     // Always set error state so ResultsView will show error if on results screen
     setState(() {
       _recording = false;
@@ -212,7 +223,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'isSensorDisconnect': true, // Flag to show reconnect button
       };
     });
-    // Always bring up reconnect modal immediately
+    // Always bring up reconnect modal immediately (idempotent)
     debugPrint('🎿 RunPage: Forcing reconnect modal via onDisconnect');
     widget.onDisconnect();
   }
