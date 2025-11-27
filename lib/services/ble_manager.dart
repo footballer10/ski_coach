@@ -139,64 +139,52 @@ class BleManager {
   // -------------------------------------------------------------
   Future<void> _subscribeCharacteristic(String deviceId) async {
     try {
-      if (kDebugMode) debugPrint('[$deviceId] Discovering services...');
+      if (kDebugMode) debugPrint('[$deviceId] Starting characteristic subscription process...');
       
-      // First, discover all services
-      await _ble.discoverAllServices(deviceId);
-      
-      if (kDebugMode) debugPrint('[$deviceId] Service discovery completed');
-      
-      // Much longer delay - iOS needs more time
-      await Future.delayed(const Duration(milliseconds: 3000));
+      // iOS approach: Try to read the characteristic first to force discovery
+      final char = QualifiedCharacteristic(
+        serviceId: _service,
+        characteristicId: _char,
+        deviceId: deviceId,
+      );
       
       if (kDebugMode) {
-        debugPrint('[$deviceId] Attempting to subscribe to characteristics...');
         debugPrint('[$deviceId] Target Service: $_service');
         debugPrint('[$deviceId] Target Char: $_char');
       }
       
-      // Try multiple possible characteristic UUIDs
-      final possibleChars = [
-        _char, // 0000FFE1
-        Uuid.parse("0000FFE2-0000-1000-8000-00805F9B34FB"),
-        Uuid.parse("0000FFE4-0000-1000-8000-00805F9B34FB"),
-      ];
+      // Attempt 1: Try to read the characteristic to force iOS to discover it
+      try {
+        if (kDebugMode) debugPrint('[$deviceId] Attempting to read characteristic to force discovery...');
+        final readValue = await _ble.readCharacteristic(char);
+        if (kDebugMode) debugPrint('[$deviceId] ✓ Characteristic read successful! Got ${readValue.length} bytes');
+      } catch (e) {
+        if (kDebugMode) debugPrint('[$deviceId] Read failed (this is often normal): $e');
+      }
       
-      bool subscribed = false;
-      for (final charUuid in possibleChars) {
-        try {
-          if (kDebugMode) debugPrint('[$deviceId] Trying characteristic: $charUuid');
-          
-          final char = QualifiedCharacteristic(
-            serviceId: _service,
-            characteristicId: charUuid,
-            deviceId: deviceId,
-          );
-
-          _charSubs[deviceId] = _ble.subscribeToCharacteristic(char).listen((data) {
-            if (kDebugMode) debugPrint('[$deviceId] ✓ DATA RECEIVED from $charUuid! ${data.length} bytes');
-            _handleRawPacket(deviceId, data);
-          }, onError: (e) {
-            if (kDebugMode) debugPrint('[$deviceId] ❌ Error on $charUuid: $e');
-          });
-          
-          // Wait to see if subscription succeeds
-          await Future.delayed(const Duration(milliseconds: 500));
-          
-          if (kDebugMode) debugPrint('[$deviceId] ✓ Subscribed to $charUuid');
-          subscribed = true;
-          break;
-        } catch (e) {
-          if (kDebugMode) debugPrint('[$deviceId] Failed $charUuid: $e');
-          continue;
+      // Wait a bit after read attempt
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Now try to subscribe
+      if (kDebugMode) debugPrint('[$deviceId] Attempting to subscribe to notifications...');
+      
+      _charSubs[deviceId] = _ble.subscribeToCharacteristic(char).listen((data) {
+        if (kDebugMode) debugPrint('[$deviceId] ✓ DATA RECEIVED! ${data.length} bytes');
+        _handleRawPacket(deviceId, data);
+      }, onError: (e) {
+        if (kDebugMode) {
+          debugPrint('[$deviceId] ❌ Subscription stream error: $e');
+          debugPrint('[$deviceId] This likely means the characteristic was not discovered properly by iOS.');
+          debugPrint('[$deviceId] The sensor may need to be reset or re-paired.');
         }
-      }
+      }, onDone: () {
+        if (kDebugMode) debugPrint('[$deviceId] Subscription stream closed');
+      });
       
-      if (!subscribed && kDebugMode) {
-        debugPrint('[$deviceId] ❌ Could not subscribe to any characteristic!');
-      }
+      if (kDebugMode) debugPrint('[$deviceId] ✓ Subscribe call completed (waiting for data...)');
+      
     } catch (e) {
-      if (kDebugMode) debugPrint('[$deviceId] ❌ Error in _subscribeCharacteristic: $e');
+      if (kDebugMode) debugPrint('[$deviceId] ❌ Exception in _subscribeCharacteristic: $e');
     }
   }
 
