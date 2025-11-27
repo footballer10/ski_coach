@@ -48,8 +48,9 @@ class TurnSegmentation {
       debugPrint('🎿 Segmentation: Processing ${left.length} left samples, ${right.length} right samples');
     }
     
-    final leftCross = _detectCrossings(left.map((s) => _RollPoint(s.timestamp, s.roll)).toList(), params);
-    final rightCross = _detectCrossings(right.map((s) => _RollPoint(s.timestamp, s.roll)).toList(), params);
+    // Use pitch (lean left/right) for turn detection due to sensor orientation
+    final leftCross = _detectCrossings(left.map((s) => _AnglePoint(s.timestamp, s.pitch)).toList(), params);
+    final rightCross = _detectCrossings(right.map((s) => _AnglePoint(s.timestamp, s.pitch)).toList(), params);
 
     if (kDebugMode) {
       debugPrint('🎿 Segmentation: Detected ${leftCross.length} left crossings, ${rightCross.length} right crossings');
@@ -140,13 +141,13 @@ class TurnSegmentation {
     return candidates.first;
   }
 
-  static List<_Crossing> _detectCrossings(List<_RollPoint> pts, SegmentationParams p) {
+  static List<_Crossing> _detectCrossings(List<_AnglePoint> pts, SegmentationParams p) {
     final out = <_Crossing>[];
     DateTime lastEmit = DateTime.fromMillisecondsSinceEpoch(0);
     int lastSign = 0; // -1, 0, +1
     bool inBand = true;
     for (int i = 0; i < pts.length; i++) {
-      final v = pts[i].roll;
+      final v = pts[i].angle;
       final t = pts[i].time;
       final sign = v > p.zeroBandDeg ? 1 : (v < -p.zeroBandDeg ? -1 : 0);
 
@@ -180,10 +181,10 @@ class TurnSegmentation {
   }
 }
 
-class _RollPoint {
+class _AnglePoint {
   final DateTime time;
-  final double roll;
-  _RollPoint(this.time, this.roll);
+  final double angle;
+  _AnglePoint(this.time, this.angle);
 }
 
 class _Crossing {
