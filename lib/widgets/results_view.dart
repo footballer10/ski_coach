@@ -8,6 +8,8 @@ class ResultsView extends StatefulWidget {
   final List<List<int>> rightSegments;
     final int runDurationSeconds;
     final DateTime? runStartTime;
+  final int turnCount;
+  final List<int> turnDurationsSeconds;
   final VoidCallback onNewRun;
 
   const ResultsView({
@@ -18,6 +20,8 @@ class ResultsView extends StatefulWidget {
     required this.rightSegments,
       this.runDurationSeconds = 0,
       this.runStartTime,
+    this.turnCount = 0,
+    this.turnDurationsSeconds = const [],
     required this.onNewRun,
   });
 
@@ -47,8 +51,8 @@ class _ResultsViewState extends State<ResultsView> {
   ];
 
   List<String> get _turns {
-    const turnCount = 5;
-    return ['All Turns', ...List.generate(turnCount, (i) => 'Turn ${i + 1}')];
+    final count = widget.turnCount > 0 ? widget.turnCount : 5;
+    return ['All Turns', ...List.generate(count, (i) => 'Turn ${i + 1}')];
   }
 
   ViewMode get _viewMode {
@@ -275,7 +279,7 @@ class _ResultsViewState extends State<ResultsView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _summaryItem('Turns', '${_turns.length - 1}'),
+              _summaryItem('Turns', '${widget.turnCount > 0 ? widget.turnCount : (_turns.length - 1)}'),
                 _summaryItem('Duration', durationStr),
                 _summaryItem('Start', startTimeStr),
               _summaryItem('Score', '—', prominent: true),
@@ -322,7 +326,7 @@ class _ResultsViewState extends State<ResultsView> {
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Column(
-            children: List.generate(5, (i) {
+            children: List.generate(widget.turnCount > 0 ? widget.turnCount : 5, (i) {
               final turnLabel = 'Turn ${i + 1}';
               final isSelected = _selectedTurn == turnLabel;
               return Expanded(
@@ -335,12 +339,27 @@ class _ResultsViewState extends State<ResultsView> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Center(
-                      child: Text(
-                        '${i + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${i + 1}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            (i < widget.turnDurationsSeconds.length)
+                                ? '${widget.turnDurationsSeconds[i]}s'
+                                : '—',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

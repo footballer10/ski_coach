@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models/imu_sample.dart';
+import '../services/segmentation.dart';
 import '../widgets/results_view.dart';
 
 /// Single page that handles the full run lifecycle:
@@ -106,8 +108,14 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final leftSamples = recordedData[widget.leftId] ?? [];
     final rightSamples = recordedData[widget.rightId] ?? [];
 
+    // Segment turns using roll zero-crossings on both sensors
+    List<ImuSample> leftImu = leftSamples.cast<ImuSample>();
+    List<ImuSample> rightImu = rightSamples.cast<ImuSample>();
+    final segments = TurnSegmentation.segment(left: leftImu, right: rightImu);
+    final turnDurations = segments.map((s) => s.durationSeconds).toList();
+
     // Simulate analysis delay
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(milliseconds: 300));
 
     final results = {
       'leftSampleCount': leftSamples.length,
@@ -118,6 +126,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
           ? leftSamples.last.timestamp.difference(leftSamples.first.timestamp).inSeconds
           : 0,
         'startTime': leftSamples.isNotEmpty ? leftSamples.first.timestamp : null,
+        'turnCount': segments.length,
+        'turnDurations': turnDurations,
     };
 
     if (!mounted) return;
@@ -198,6 +208,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final rightSegments = (_analysisResults!['rightSegments'] as List?)?.cast<List<int>>() ?? [];
       final duration = _analysisResults!['duration'] ?? 0;
       final startTime = _analysisResults!['startTime'] as DateTime?;
+    final turnCount = _analysisResults!['turnCount'] ?? 0;
+    final turnDurations = (_analysisResults!['turnDurations'] as List?)?.cast<int>() ?? [];
 
     return ResultsView(
       leftSampleCount: leftCount,
@@ -206,6 +218,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       rightSegments: rightSegments,
         runDurationSeconds: duration,
         runStartTime: startTime,
+      turnCount: turnCount,
+      turnDurationsSeconds: turnDurations,
       onNewRun: widget.onRecordAgain,
     );
   }
