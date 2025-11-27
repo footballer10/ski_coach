@@ -216,7 +216,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       final duration = _analysisResults!['duration'] ?? 0;
       final startTime = _analysisResults!['startTime'] as DateTime?;
     final turnCount = _analysisResults!['turnCount'] ?? 0;
-    final turnDurations = (_analysisResults!['turnDurations'] as List?)?.cast<int>() ?? [];
+    final turnDurations = (_analysisResults!['turnDurations'] as List?)?.cast<double>() ?? [];
 
     return ResultsView(
       leftSampleCount: leftCount,

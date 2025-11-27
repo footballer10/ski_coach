@@ -9,7 +9,7 @@ class ResultsView extends StatefulWidget {
     final int runDurationSeconds;
     final DateTime? runStartTime;
   final int turnCount;
-  final List<int> turnDurationsSeconds;
+  final List<double> turnDurationsSeconds;
   final VoidCallback onNewRun;
 
   const ResultsView({
@@ -352,7 +352,7 @@ class _ResultsViewState extends State<ResultsView> {
                           const SizedBox(height: 2),
                           Text(
                             (i < widget.turnDurationsSeconds.length)
-                                ? '${widget.turnDurationsSeconds[i]}s'
+                                ? '${widget.turnDurationsSeconds[i].toStringAsFixed(3)}s'
                                 : '—',
                             style: const TextStyle(
                               color: Colors.white,
@@ -568,7 +568,7 @@ class _ResultsViewState extends State<ResultsView> {
     
     String valueText = '—';
     if (metric == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
-      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex]}s';
+      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex].toStringAsFixed(3)}s';
     }
     
     return GestureDetector(
@@ -648,7 +648,7 @@ class _ResultsViewState extends State<ResultsView> {
     
     String valueText = '[Placeholder]';
     if (_selectedCategory == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
-      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex]}s';
+      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex].toStringAsFixed(3)}s';
     }
     
     return SingleChildScrollView(

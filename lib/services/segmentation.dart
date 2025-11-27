@@ -9,7 +9,7 @@ class TurnSegment {
   final int endIndexLeft;
   final int endIndexRight;
   final int direction; // -1 left, +1 right
-  int get durationSeconds => endTime.difference(startTime).inSeconds;
+  double get durationSeconds => endTime.difference(startTime).inMilliseconds / 1000.0;
 
   TurnSegment({
     required this.startTime,
@@ -24,17 +24,17 @@ class TurnSegment {
 
 class SegmentationParams {
   final double zeroBandDeg; // hysteresis band around 0
+  final double changeBandDeg; // wider band to define edge-change window
   final Duration minGapBetweenCrossings; // debounce crossings
   final Duration maxPairDelta; // max delta to pair L/R crossings
   final Duration minTurnDuration;
-  final Duration maxTurnDuration;
 
   const SegmentationParams({
     this.zeroBandDeg = 1.0,
+    this.changeBandDeg = 2.0,
     this.minGapBetweenCrossings = const Duration(milliseconds: 200),
     this.maxPairDelta = const Duration(milliseconds: 500),
     this.minTurnDuration = const Duration(milliseconds: 500),
-    this.maxTurnDuration = const Duration(seconds: 6),
   });
 }
 
@@ -94,13 +94,13 @@ class TurnSegmentation {
       }
     }
 
-    // Build segments from consecutive boundaries enforcing min/max duration and alternating direction
+    // Build segments from consecutive boundaries enforcing min duration and alternating direction
     final segments = <TurnSegment>[];
     for (int k = 0; k + 1 < paired.length; k++) {
       final a = paired[k];
       final b = paired[k + 1];
       final dur = b.time.difference(a.time);
-      if (dur < params.minTurnDuration || dur > params.maxTurnDuration) continue;
+      if (dur < params.minTurnDuration) continue;
       // ensure alternation
       if (a.dir == b.dir) continue;
 
@@ -142,40 +142,47 @@ class TurnSegmentation {
   }
 
   static List<_Crossing> _detectCrossings(List<_AnglePoint> pts, SegmentationParams p) {
+    // Detect near-zero edge-change window and use its midpoint as boundary
     final out = <_Crossing>[];
-    DateTime lastEmit = DateTime.fromMillisecondsSinceEpoch(0);
-    int lastNonZeroSign = 0; // -1 or +1; 0 means unknown
+    DateTime lastBoundaryTime = DateTime.fromMillisecondsSinceEpoch(0);
+    int prevSign = 0; // -1, 0, +1
+    bool inWindow = false;
+    DateTime? windowStart;
+    // index not currently used; kept minimal state
     for (int i = 0; i < pts.length; i++) {
       final v = pts[i].angle;
       final t = pts[i].time;
-      // small zero band to tolerate jitter
       final sign = v > p.zeroBandDeg ? 1 : (v < -p.zeroBandDeg ? -1 : 0);
+      final nearZero = v.abs() <= p.changeBandDeg;
 
-      if (sign == 0) {
-        // ignore pure in-band points; keep lastNonZeroSign
-        continue;
-      }
-
-      if (lastNonZeroSign == 0) {
-        // initialize sign state when first leaving band
-        lastNonZeroSign = sign;
-        continue;
-      }
-
-      if (sign != lastNonZeroSign) {
-        // sign changed (e.g., 5,4,2,1,-1,1,-2,...); debounce in time
-        if (t.difference(lastEmit) >= p.minGapBetweenCrossings) {
-          out.add(_Crossing(time: t, dir: sign, index: i));
-          lastEmit = t;
-          lastNonZeroSign = sign;
-        } else {
-          // within debounce window; update state but don't emit
-          lastNonZeroSign = sign;
+      if (!inWindow) {
+        // Enter window when we come near zero after being outside
+        if (nearZero && prevSign != 0) {
+          inWindow = true;
+          windowStart = t;
+          // noop
         }
       } else {
-        // same sign; keep tracking
-        lastNonZeroSign = sign;
+        // We're inside window; exit when we leave near-zero band
+        if (!nearZero) {
+          // Window ended; if sign flipped during window, emit midpoint as boundary
+          final flipped = (prevSign != 0 && sign != 0 && sign != prevSign);
+          if (flipped && windowStart != null) {
+            final midMillis = windowStart.millisecondsSinceEpoch + ((t.millisecondsSinceEpoch - windowStart.millisecondsSinceEpoch) ~/ 2);
+            final midTime = DateTime.fromMillisecondsSinceEpoch(midMillis);
+            if (midTime.difference(lastBoundaryTime) >= p.minGapBetweenCrossings) {
+              out.add(_Crossing(time: midTime, dir: sign, index: i));
+              lastBoundaryTime = midTime;
+            }
+          }
+          inWindow = false;
+          windowStart = null;
+          // noop
+        }
       }
+
+      // Track previous sign for next iteration
+      if (sign != 0) prevSign = sign;
     }
     return out;
   }
