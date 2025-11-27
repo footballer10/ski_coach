@@ -81,8 +81,23 @@ class _ConnectionPageState extends State<ConnectionPage> {
           } else {
             final id = (d as dynamic).id as String;
             final name = (d as dynamic).name as String;
-            if (!_devices.any((e) => e['id'] == id)) {
+            // Only add devices named WTLEFT or WTRIGHT
+            if ((name == 'WTLEFT' || name == 'WTRIGHT') && !_devices.any((e) => e['id'] == id)) {
               _devices.add({'id': id, 'name': name});
+              
+              // Auto-assign based on name
+              if (name == 'WTLEFT' && _leftId == null) {
+                _leftId = id;
+              } else if (name == 'WTRIGHT' && _rightId == null) {
+                _rightId = id;
+              }
+              
+              // Auto-connect when both found
+              if (_leftId != null && _rightId != null) {
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  if (mounted) _connectBoth();
+                });
+              }
             }
           }
         });

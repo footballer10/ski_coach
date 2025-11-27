@@ -130,9 +130,10 @@ class _ResultsViewState extends State<ResultsView> {
     final showThirdDropdown = (_selectedCategory == 'Parallel Ski Control' || _selectedCategory == 'Smoothness') && _selectedTurn == 'All Turns';
     final showThirdDropdownCategoryTurn = (_selectedCategory == 'Parallel Ski Control' || _selectedCategory == 'Smoothness') && _selectedTurn != 'All Turns';
     
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Row(
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+        child: Row(
         children: [
           if (_navigationHistory.isNotEmpty)
             IconButton(
@@ -142,15 +143,16 @@ class _ResultsViewState extends State<ResultsView> {
             ),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _selectedCategory,
+              value: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Category',
                 border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               ),
+              style: const TextStyle(fontSize: 12),
               items: _categories
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat, style: const TextStyle(fontSize: 12))))
                   .toList(),
               onChanged: (value) {
                 if (value != null) _selectCategory(value);
@@ -160,15 +162,16 @@ class _ResultsViewState extends State<ResultsView> {
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _selectedTurn,
+              value: _selectedTurn,
               decoration: const InputDecoration(
                 labelText: 'Turn',
                 border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               ),
+              style: const TextStyle(fontSize: 12),
               items: _turns
-                  .map((turn) => DropdownMenuItem(value: turn, child: Text(turn)))
+                  .map((turn) => DropdownMenuItem(value: turn, child: Text(turn, style: const TextStyle(fontSize: 12))))
                   .toList(),
               onChanged: (value) {
                 if (value != null) _selectTurn(value);
@@ -180,7 +183,7 @@ class _ResultsViewState extends State<ResultsView> {
           if (showThirdDropdownCategoryTurn)
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                initialValue: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
                 decoration: const InputDecoration(
                   labelText: 'Third',
                   border: OutlineInputBorder(),
@@ -512,7 +515,7 @@ class _ResultsViewState extends State<ResultsView> {
               if (showDropdown) ...[
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
-                  value: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                  initialValue: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
                   isDense: true,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),

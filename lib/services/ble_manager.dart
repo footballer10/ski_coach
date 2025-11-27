@@ -105,16 +105,28 @@ class BleManager {
   // -------------------------------------------------------------
   // Subscribe to the IMU data stream
   // -------------------------------------------------------------
-  void _subscribeCharacteristic(String deviceId) {
-    final char = QualifiedCharacteristic(
-      serviceId: _service,
-      characteristicId: _char,
-      deviceId: deviceId,
-    );
+  Future<void> _subscribeCharacteristic(String deviceId) async {
+    try {
+      // First, discover all services
+      await _ble.discoverAllServices(deviceId);
+      
+      // Small delay to ensure discovery completes
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      final char = QualifiedCharacteristic(
+        serviceId: _service,
+        characteristicId: _char,
+        deviceId: deviceId,
+      );
 
-    _ble.subscribeToCharacteristic(char).listen((data) {
-      _handleRawPacket(deviceId, data);
-    });
+      _ble.subscribeToCharacteristic(char).listen((data) {
+        _handleRawPacket(deviceId, data);
+      }, onError: (error) {
+        print('Error subscribing to characteristic for $deviceId: $error');
+      });
+    } catch (e) {
+      print('Error in _subscribeCharacteristic for $deviceId: $e');
+    }
   }
 
   // Public getter for UI
