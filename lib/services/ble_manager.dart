@@ -21,6 +21,7 @@ class BleManager {
 
   // For storing Bluetooth connections
   final Map<String, StreamSubscription> _connSubs = {};
+  final Map<String, StreamSubscription> _charSubs = {};
 
   // For outputting IMU samples as maps: {ax,ay,az,gx,gy,gz,roll,pitch,yaw}
   final Map<String, StreamController<Map<String, double>>> _sampleControllers = {};
@@ -107,6 +108,10 @@ class BleManager {
     } catch (_) {}
     _connSubs.remove(deviceId);
     try {
+      await _charSubs[deviceId]?.cancel();
+    } catch (_) {}
+    _charSubs.remove(deviceId);
+    try {
       await _sampleControllers[deviceId]?.close();
     } catch (_) {}
     _sampleControllers.remove(deviceId);
@@ -165,7 +170,11 @@ class BleManager {
 
   // Public getter for UI
   Stream<Map<String, double>>? sampleStream(String deviceId) {
-    return _sampleControllers[deviceId]?.stream;
+    final stream = _sampleControllers[deviceId]?.stream;
+    if (kDebugMode) {
+      debugPrint('[$deviceId] sampleStream() called - controller exists: ${_sampleControllers.containsKey(deviceId)}, stream: ${stream != null}');
+    }
+    return stream;
   }
 
   // -------------------------------------------------------------
@@ -264,9 +273,14 @@ class BleManager {
         'yaw': map['yaw']!,
       };
       if (kDebugMode) {
-        debugPrint('[$deviceId] ✓ COMPLETE SAMPLE EMITTED');
+        debugPrint('[$deviceId] ✓ COMPLETE SAMPLE EMITTED - adding to controller');
       }
-      _sampleControllers[deviceId]!.add(sample);
+      if (_sampleControllers.containsKey(deviceId)) {
+        _sampleControllers[deviceId]!.add(sample);
+        if (kDebugMode) debugPrint('[$deviceId] ✓ Sample added to controller (listeners: ${_sampleControllers[deviceId]!.hasListener})');
+      } else {
+        if (kDebugMode) debugPrint('[$deviceId] ❌ ERROR: Controller missing when trying to emit sample!');
+      }
       map.clear(); // reset for next sample
     } else {
       if (kDebugMode) {

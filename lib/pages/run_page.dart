@@ -71,13 +71,23 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final leftStream = widget.bleMgr.sampleStream(widget.leftId);
     final rightStream = widget.bleMgr.sampleStream(widget.rightId);
 
-    _leftSub = leftStream?.listen((s) {
-      if (mounted) setState(() => _leftLatest = s);
-    });
+    if (leftStream != null) {
+      _leftSub = leftStream.listen((s) {
+        debugPrint('RunPage: LEFT sample received in UI!');
+        if (mounted) setState(() => _leftLatest = s);
+      });
+    } else {
+      debugPrint('RunPage: LEFT stream is NULL!');
+    }
 
-    _rightSub = rightStream?.listen((s) {
-      if (mounted) setState(() => _rightLatest = s);
-    });
+    if (rightStream != null) {
+      _rightSub = rightStream.listen((s) {
+        debugPrint('RunPage: RIGHT sample received in UI!');
+        if (mounted) setState(() => _rightLatest = s);
+      });
+    } else {
+      debugPrint('RunPage: RIGHT stream is NULL!');
+    }
   }
 
   Future<void> _startRecording() async {
