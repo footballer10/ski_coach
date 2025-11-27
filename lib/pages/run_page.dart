@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../services/memory_recording.dart';
 import '../widgets/results_view.dart';
 
 /// Single page that handles the full run lifecycle:
@@ -36,8 +35,6 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   bool get wantKeepAlive => true;
 
   RunState _state = RunState.recording;
-  MemoryRecording? _leftRec;
-  MemoryRecording? _rightRec;
   StreamSubscription<Map<String, double>>? _leftSub;
   StreamSubscription<Map<String, double>>? _rightSub;
   Map<String, double>? _leftLatest;
@@ -91,45 +88,35 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   Future<void> _startRecording() async {
-    final leftStream = widget.bleMgr.sampleStream(widget.leftId);
-    final rightStream = widget.bleMgr.sampleStream(widget.rightId);
-
-    if (leftStream == null || rightStream == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sample streams not available')),
-      );
-      return;
-    }
-
-    _leftRec = MemoryRecording(widget.leftId);
-    _rightRec = MemoryRecording(widget.rightId);
-
-    await _leftRec!.start(leftStream);
-    await _rightRec!.start(rightStream);
-
+    // Use BleManager's built-in recording
+    widget.bleMgr.startRecording();
     setState(() => _recording = true);
   }
 
   Future<void> _stopRecording() async {
-    if (_leftRec == null || _rightRec == null) return;
-
     setState(() {
       _recording = false;
       _state = RunState.processing;
     });
 
-    // Stop and retrieve samples (with segmentation hook called internally)
-    final leftData = await _leftRec!.stopAndSegment();
-    final rightData = await _rightRec!.stopAndSegment();
+    // Get recorded data from BleManager
+    final recordedData = widget.bleMgr.stopRecording();
+    
+    // Extract samples for each sensor
+    final leftSamples = recordedData[widget.leftId] ?? [];
+    final rightSamples = recordedData[widget.rightId] ?? [];
 
     // Simulate analysis delay
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
 
     final results = {
-      'leftSampleCount': (leftData['samples'] as List).length,
-      'rightSampleCount': (rightData['samples'] as List).length,
-      'leftSegments': leftData['segments'],
-      'rightSegments': rightData['segments'],
+      'leftSampleCount': leftSamples.length,
+      'rightSampleCount': rightSamples.length,
+      'leftSamples': leftSamples,
+      'rightSamples': rightSamples,
+      'duration': leftSamples.isNotEmpty && leftSamples.length > 1
+          ? leftSamples.last.timestamp.difference(leftSamples.first.timestamp).inSeconds
+          : 0,
     };
 
     if (!mounted) return;

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
-// Note: emit plain maps for samples to avoid analyzer import resolution issues
+import '../models/imu_sample.dart';
 
 class BleManager {
   // -------------------------------------------------------------
@@ -25,6 +25,11 @@ class BleManager {
 
   // For outputting IMU samples as maps: {ax,ay,az,gx,gy,gz,roll,pitch,yaw}
   final Map<String, StreamController<Map<String, double>>> _sampleControllers = {};
+
+  // Recording storage: device ID -> list of timestamped samples
+  final Map<String, List<ImuSample>> _recordedSamples = {};
+  bool _isRecording = false;
+  DateTime? _recordingStartTime;
 
   /// Stream of BLE status (ready, unauthorized, etc)
   Stream<BleStatus> get statusStream => _ble.statusStream;
@@ -117,6 +122,39 @@ class BleManager {
     _sampleControllers.remove(deviceId);
     _latest.remove(deviceId);
   }
+
+  // -------------------------------------------------------------
+  // Recording control
+  // -------------------------------------------------------------
+  
+  /// Start recording IMU data from all connected sensors
+  void startRecording() {
+    if (_isRecording) return;
+    _isRecording = true;
+    _recordingStartTime = DateTime.now();
+    _recordedSamples.clear();
+    if (kDebugMode) debugPrint('🔴 RECORDING STARTED at ${_recordingStartTime}');
+  }
+
+  /// Stop recording and return the recorded data
+  Map<String, List<ImuSample>> stopRecording() {
+    if (!_isRecording) return {};
+    _isRecording = false;
+    final duration = DateTime.now().difference(_recordingStartTime!);
+    if (kDebugMode) {
+      debugPrint('⏹️  RECORDING STOPPED - Duration: ${duration.inSeconds}s');
+      for (final entry in _recordedSamples.entries) {
+        debugPrint('   ${entry.key}: ${entry.value.length} samples (${(entry.value.length / duration.inSeconds).toStringAsFixed(1)} Hz)');
+      }
+    }
+    return Map.from(_recordedSamples);
+  }
+
+  /// Check if currently recording
+  bool get isRecording => _isRecording;
+
+  /// Get recorded sample count for a device
+  int getRecordedCount(String deviceId) => _recordedSamples[deviceId]?.length ?? 0;
 
   // -------------------------------------------------------------
   // Connect to device
@@ -328,6 +366,29 @@ class BleManager {
     // If all values exist, emit sample
     final map = _latest[deviceId]!;
     if (_hasAllFields(map)) {
+      final timestamp = DateTime.now();
+      
+      // Create ImuSample for storage
+      final imuSample = ImuSample(
+        timestamp: timestamp,
+        ax: map['ax']!,
+        ay: map['ay']!,
+        az: map['az']!,
+        gx: map['gx']!,
+        gy: map['gy']!,
+        gz: map['gz']!,
+        roll: map['roll']!,
+        pitch: map['pitch']!,
+        yaw: map['yaw']!,
+      );
+      
+      // Store sample if recording
+      if (_isRecording) {
+        _recordedSamples.putIfAbsent(deviceId, () => []);
+        _recordedSamples[deviceId]!.add(imuSample);
+      }
+      
+      // Also emit as map for backward compatibility with UI streams
       final sample = <String, double>{
         'ax': map['ax']!,
         'ay': map['ay']!,
@@ -339,6 +400,7 @@ class BleManager {
         'pitch': map['pitch']!,
         'yaw': map['yaw']!,
       };
+      
       if (kDebugMode) {
         debugPrint('[$deviceId] ✓ COMPLETE SAMPLE EMITTED: roll=${sample['roll']!.toStringAsFixed(1)}°, pitch=${sample['pitch']!.toStringAsFixed(1)}°, yaw=${sample['yaw']!.toStringAsFixed(1)}°');
       }
