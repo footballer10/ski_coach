@@ -1,18 +1,8 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import '../services/ble_manager.dart';
-import '../services/mock_ble_manager.dart';
-
-bool _safeIsWindows() {
-  try {
-    return !kIsWeb && Platform.isWindows;
-  } catch (_) {
-    return false;
-  }
-}
 
 class ConnectionPage extends StatefulWidget {
   final void Function(dynamic bleMgr, String leftId, String rightId)? onConnected;
@@ -24,8 +14,6 @@ class ConnectionPage extends StatefulWidget {
 }
 
 class _ConnectionPageState extends State<ConnectionPage> {
-  final bool _isWindows = _safeIsWindows();
-  bool _useMock = _safeIsWindows();
   late dynamic _bleMgr;
   final List<Map<String, String>> _devices = [];
   StreamSubscription<DiscoveredDevice>? _scanSub;
@@ -60,13 +48,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
   void _applyManager() {
     _scanSub?.cancel();
     _devices.clear();
-    try {
-      _bleMgr = _useMock ? MockBleManager() : BleManager();
-    } catch (e) {
-      if (kDebugMode) debugPrint('Error initializing BLE manager: $e');
-      _bleMgr = MockBleManager();
-      _useMock = true;
-    }
+    _bleMgr = BleManager();
   }
 
   void startScan() {
@@ -79,10 +61,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
     _scanSub?.cancel();
     _statusSub?.cancel();
 
-    if (_useMock) {
-      _beginRawScan();
-      return;
-    }
     final bleMgr = _bleMgr as BleManager;
     _statusSub = bleMgr.statusStream.listen((status) {
       _lastStatus = status;
@@ -249,28 +227,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
                           },
                         ),
                 ),
-                  
-                if (_isWindows) ...[
-                  const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Mock Mode'),
-                      Switch(
-                        value: _useMock,
-                        onChanged: (v) {
-                          setState(() {
-                            _useMock = v;
-                            _leftId = null;
-                            _rightId = null;
-                            _applyManager();
-                            startScan();
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
