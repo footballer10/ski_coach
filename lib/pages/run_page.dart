@@ -248,6 +248,12 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       _state = RunState.processing;
     });
 
+    // Abort analysis if disconnect was handled or state is not recording
+    if (_disconnectHandled || _state != RunState.processing) {
+      debugPrint('🎿 RunPage: Analysis aborted due to disconnect or state change.');
+      return;
+    }
+
     // Get recorded data from BleManager
     final recordedData = widget.bleMgr.stopRecording();
     
