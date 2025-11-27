@@ -42,14 +42,11 @@ class _ConnectionPageState extends State<ConnectionPage> {
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) debugPrint('ConnectionPage: initState starting');
     // Delay BLE initialization to not block UI rendering
     Future.delayed(Duration.zero, () {
       if (mounted) {
         _applyManager();
-        if (kDebugMode) debugPrint('ConnectionPage: BLE manager initialized');
         startScan();
-        if (kDebugMode) debugPrint('ConnectionPage: Scan started');
       }
     });
   }
@@ -89,7 +86,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
     final bleMgr = _bleMgr as BleManager;
     _statusSub = bleMgr.statusStream.listen((status) {
       _lastStatus = status;
-      if (kDebugMode) debugPrint('BLE Status: $status');
       if (status == BleStatus.ready) {
         _statusSub?.cancel();
         _beginRawScan();
@@ -99,7 +95,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
     Future.delayed(const Duration(seconds: 5), () {
       if (!mounted) return;
       if (_scanSub == null) {
-        if (kDebugMode) debugPrint('Status not ready after timeout -> raw scan anyway');
         _beginRawScan();
       }
     });
@@ -107,12 +102,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
   void _beginRawScan() {
     try {
-      if (kDebugMode) {
-        debugPrint('========================================');
-        debugPrint('RAW SCAN START (no service filter)');
-        debugPrint('Looking for: "$_targetLeftName" and "$_targetRightName"');
-        debugPrint('========================================');
-      }
       final stream = (_bleMgr as BleManager).verboseRawScan();
       _scanSub = stream.listen((d) {
         final id = d.id;
@@ -125,22 +114,18 @@ class _ConnectionPageState extends State<ConnectionPage> {
         }
 
         bool updated = false;
-        if (kDebugMode) debugPrint('Comparing "$name" against "$_targetLeftName" and "$_targetRightName"');
         if (name == _targetLeftName && _leftId == null) {
           _leftId = id;
           updated = true;
-          if (kDebugMode) debugPrint('✓ MATCHED LEFT by name -> $id');
         }
         if (name == _targetRightName && _rightId == null) {
           _rightId = id;
           updated = true;
-          if (kDebugMode) debugPrint('✓ MATCHED RIGHT by name -> $id');
         }
         if (updated && mounted) {
           setState(() {});
         }
         if (_leftId != null && _rightId != null) {
-          if (kDebugMode) debugPrint('🎯 BOTH SENSORS FOUND! Stopping scan and connecting...');
           // Stop scanning before connecting to avoid overlapping operations
           _scanSub?.cancel();
           setState(() => _scanning = false);
@@ -150,29 +135,23 @@ class _ConnectionPageState extends State<ConnectionPage> {
           });
         }
       }, onError: (e) {
-        if (kDebugMode) debugPrint('❌ RAW SCAN ERROR: $e');
         if (mounted) setState(() => _scanning = false);
       }, onDone: () {
-        if (kDebugMode) debugPrint('Raw scan stream completed (onDone)');
         if (mounted) setState(() => _scanning = false);
       });
     } catch (e) {
-      if (kDebugMode) debugPrint('❌ BEGIN RAW SCAN EXCEPTION: $e');
       setState(() => _scanning = false);
     }
   }
 
   void stopScan() {
-    if (kDebugMode) debugPrint('stopScan called - canceling subscription');
     _scanSub?.cancel();
     _scanSub = null;
     setState(() => _scanning = false);
   }
 
   Future<void> _connectBoth() async {
-    if (kDebugMode) debugPrint('_connectBoth called: left=$_leftId, right=$_rightId');
     if (_leftId == null || _rightId == null) {
-      if (kDebugMode) debugPrint('❌ Cannot connect: missing sensor IDs');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please assign both left and right sensors')),
       );
@@ -185,19 +164,13 @@ class _ConnectionPageState extends State<ConnectionPage> {
       builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
 
-    if (kDebugMode) debugPrint('Connecting to LEFT: $_leftId');
     final leftOk = await _bleMgr.connectAndWait(_leftId!);
-    if (kDebugMode) debugPrint('LEFT connection result: $leftOk');
-    
-    if (kDebugMode) debugPrint('Connecting to RIGHT: $_rightId');
     final rightOk = await _bleMgr.connectAndWait(_rightId!);
-    if (kDebugMode) debugPrint('RIGHT connection result: $rightOk');
 
     if (!mounted) return;
     Navigator.of(context).pop(); // close loading dialog
 
     if (leftOk && rightOk) {
-      if (kDebugMode) debugPrint('✓ BOTH SENSORS CONNECTED SUCCESSFULLY');
       // Call the callback to notify AppController
       widget.onConnected?.call(_bleMgr, _leftId!, _rightId!);
     } else {

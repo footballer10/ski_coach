@@ -33,17 +33,7 @@ class BleManager {
 
   /// Scan for devices with the WT9011 service UUID
   Stream<DiscoveredDevice> scanForDevices() {
-    // Scan with service UUID for better iOS discovery
-    if (kDebugMode) debugPrint('BLE: Starting service-filtered scan for ${_service.toString()}');
-    return _ble.scanForDevices(withServices: [_service]).map((d) {
-      if (kDebugMode) {
-        debugPrint('BLE SCAN: Found device="${d.name.isEmpty ? '(no name)' : d.name}" id=${d.id} rssi=${d.rssi} services=${d.serviceUuids.length}');
-        if (d.serviceUuids.isNotEmpty) {
-          debugPrint('  Services: ${d.serviceUuids.join(", ")}');
-        }
-      }
-      return d;
-    }).asBroadcastStream();
+    return _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
   }
 
   /// Raw scan without service filter (fallback if service-based scan finds nothing)
@@ -53,42 +43,27 @@ class BleManager {
 
   /// Verbose raw scan with logging for diagnostics
   Stream<DiscoveredDevice> verboseRawScan() {
-    return _ble
-        .scanForDevices(withServices: [])
-        .map((d) {
-          if (kDebugMode) {
-            debugPrint(
-                'DISCOVERED name="${d.name.isEmpty ? '(no name)' : d.name}" id=${d.id} rssi=${d.rssi} services=${d.serviceUuids.length}');
-          }
-          return d;
-        })
-        .asBroadcastStream();
+    return _ble.scanForDevices(withServices: []).asBroadcastStream();
   }
 
   /// Connect to device and wait until connected (or timeout). Returns true on success.
   Future<bool> connectAndWait(String deviceId, {Duration timeout = const Duration(seconds: 8)}) async {
-    if (kDebugMode) debugPrint('BLE: Attempting to connect to $deviceId');
     if (_connSubs.containsKey(deviceId)) {
-      if (kDebugMode) debugPrint('BLE: Already connected to $deviceId');
       return true;
     }
 
     final completer = Completer<bool>();
 
     final sub = _ble.connectToDevice(id: deviceId).listen((update) {
-      if (kDebugMode) debugPrint('BLE: Connection state for $deviceId: ${update.connectionState}');
       if (update.connectionState == DeviceConnectionState.connected) {
-        if (kDebugMode) debugPrint('BLE: Successfully connected to $deviceId');
         // Ensure a sample controller exists only upon successful connection
         _sampleControllers[deviceId] ??= StreamController<Map<String, double>>.broadcast();
         _subscribeCharacteristic(deviceId);
         if (!completer.isCompleted) completer.complete(true);
       } else if (update.connectionState == DeviceConnectionState.disconnected) {
-        if (kDebugMode) debugPrint('BLE: Disconnected from $deviceId');
         if (!completer.isCompleted) completer.complete(false);
       }
     }, onError: (err) {
-      if (kDebugMode) debugPrint('BLE: Connection error for $deviceId: $err');
       if (!completer.isCompleted) completer.complete(false);
     });
 
@@ -144,7 +119,6 @@ class BleManager {
   Future<void> connectToDevice(String deviceId) async {
     final sub = _ble.connectToDevice(id: deviceId).listen((update) {
       if (update.connectionState == DeviceConnectionState.connected) {
-        if (kDebugMode) debugPrint("Connected to $deviceId");
         _subscribeCharacteristic(deviceId);
       }
     });
@@ -174,11 +148,9 @@ class BleManager {
 
       _ble.subscribeToCharacteristic(char).listen((data) {
         _handleRawPacket(deviceId, data);
-      }, onError: (error) {
-        if (kDebugMode) debugPrint('Error subscribing to characteristic for $deviceId: $error');
       });
     } catch (e) {
-      if (kDebugMode) debugPrint('Error in _subscribeCharacteristic for $deviceId: $e');
+      if (kDebugMode) debugPrint('Error subscribing to characteristic: $e');
     }
   }
 
@@ -196,6 +168,12 @@ class BleManager {
   // Handle incoming packets
   // -------------------------------------------------------------
   void _handleRawPacket(String deviceId, List<int> bytes) {
+    // DEBUG: Log raw bytes received
+    if (kDebugMode) {
+      final hexStr = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+      debugPrint('[$deviceId] RAW DATA (${bytes.length} bytes): $hexStr');
+    }
+
     int i = 0;
 
     _latest.putIfAbsent(deviceId, () => {});
@@ -211,32 +189,52 @@ class BleManager {
 
       // ---------------- ACCEL PACKET ----------------
       if (type == 0x51 && i + 11 <= bytes.length) {
-        _latest[deviceId]!["ax"] = _toScaledAccel(bytes[i + 2], bytes[i + 3]);
-        _latest[deviceId]!["ay"] = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
-        _latest[deviceId]!["az"] = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
+        final ax = _toScaledAccel(bytes[i + 2], bytes[i + 3]);
+        final ay = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
+        final az = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
+        _latest[deviceId]!["ax"] = ax;
+        _latest[deviceId]!["ay"] = ay;
+        _latest[deviceId]!["az"] = az;
+        if (kDebugMode) {
+          debugPrint('[$deviceId] ACCEL: ax=$ax, ay=$ay, az=$az');
+        }
         i += 11;
         continue;
       }
 
       // ---------------- GYRO PACKET ----------------
       if (type == 0x52 && i + 11 <= bytes.length) {
-        _latest[deviceId]!["gx"] = _toScaledGyro(bytes[i + 2], bytes[i + 3]);
-        _latest[deviceId]!["gy"] = _toScaledGyro(bytes[i + 4], bytes[i + 5]);
-        _latest[deviceId]!["gz"] = _toScaledGyro(bytes[i + 6], bytes[i + 7]);
+        final gx = _toScaledGyro(bytes[i + 2], bytes[i + 3]);
+        final gy = _toScaledGyro(bytes[i + 4], bytes[i + 5]);
+        final gz = _toScaledGyro(bytes[i + 6], bytes[i + 7]);
+        _latest[deviceId]!["gx"] = gx;
+        _latest[deviceId]!["gy"] = gy;
+        _latest[deviceId]!["gz"] = gz;
+        if (kDebugMode) {
+          debugPrint('[$deviceId] GYRO: gx=$gx, gy=$gy, gz=$gz');
+        }
         i += 11;
         continue;
       }
 
       // ---------------- ANGLE PACKET ----------------
       if (type == 0x53 && i + 11 <= bytes.length) {
-        _latest[deviceId]!["roll"] =
-            _toScaledAngle(bytes[i + 2], bytes[i + 3]);
-        _latest[deviceId]!["pitch"] =
-            _toScaledAngle(bytes[i + 4], bytes[i + 5]);
-        _latest[deviceId]!["yaw"] =
-            _toScaledAngle(bytes[i + 6], bytes[i + 7]);
+        final roll = _toScaledAngle(bytes[i + 2], bytes[i + 3]);
+        final pitch = _toScaledAngle(bytes[i + 4], bytes[i + 5]);
+        final yaw = _toScaledAngle(bytes[i + 6], bytes[i + 7]);
+        _latest[deviceId]!["roll"] = roll;
+        _latest[deviceId]!["pitch"] = pitch;
+        _latest[deviceId]!["yaw"] = yaw;
+        if (kDebugMode) {
+          debugPrint('[$deviceId] ANGLE: roll=$roll, pitch=$pitch, yaw=$yaw');
+        }
         i += 11;
         continue;
+      }
+
+      // DEBUG: Log unrecognized packet types
+      if (kDebugMode && i + 1 < bytes.length) {
+        debugPrint('[$deviceId] UNKNOWN packet type: 0x${type.toRadixString(16).padLeft(2, "0")} at position $i');
       }
 
       i++;
@@ -256,8 +254,18 @@ class BleManager {
         'pitch': map['pitch']!,
         'yaw': map['yaw']!,
       };
+      if (kDebugMode) {
+        debugPrint('[$deviceId] ✓ COMPLETE SAMPLE EMITTED');
+      }
       _sampleControllers[deviceId]!.add(sample);
       map.clear(); // reset for next sample
+    } else {
+      if (kDebugMode) {
+        final missing = ['ax', 'ay', 'az', 'gx', 'gy', 'gz', 'roll', 'pitch', 'yaw']
+            .where((k) => !map.containsKey(k))
+            .toList();
+        debugPrint('[$deviceId] Incomplete sample, missing: ${missing.join(", ")}');
+      }
     }
   }
 
