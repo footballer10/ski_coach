@@ -60,12 +60,12 @@ class BleManager {
   Future<bool> connectAndWait(String deviceId, {Duration timeout = const Duration(seconds: 8)}) async {
     if (_connSubs.containsKey(deviceId)) return true;
 
-    _sampleControllers[deviceId] = StreamController<Map<String, double>>.broadcast();
-
     final completer = Completer<bool>();
 
     final sub = _ble.connectToDevice(id: deviceId).listen((update) {
       if (update.connectionState == DeviceConnectionState.connected) {
+        // Ensure a sample controller exists only upon successful connection
+        _sampleControllers[deviceId] ??= StreamController<Map<String, double>>.broadcast();
         _subscribeCharacteristic(deviceId);
         if (!completer.isCompleted) completer.complete(true);
       } else if (update.connectionState == DeviceConnectionState.disconnected) {
@@ -78,15 +78,32 @@ class BleManager {
     _connSubs[deviceId] = sub;
 
     try {
-      return await completer.future.timeout(timeout, onTimeout: () {
-        // timeout -> cancel
+      final ok = await completer.future.timeout(timeout, onTimeout: () {
+        // timeout -> cleanup
         try {
           sub.cancel();
         } catch (_) {}
         _connSubs.remove(deviceId);
+        // Ensure we also clean up controllers/state on timeout
+        try {
+          _sampleControllers[deviceId]?.close();
+        } catch (_) {}
+        _sampleControllers.remove(deviceId);
+        _latest.remove(deviceId);
         return false;
       });
+      if (!ok) {
+        // Defensive cleanup on failed connect
+        try {
+          await disconnectDevice(deviceId);
+        } catch (_) {}
+      }
+      return ok;
     } catch (_) {
+      // Defensive cleanup on error
+      try {
+        await disconnectDevice(deviceId);
+      } catch (_) {}
       return false;
     }
   }

@@ -31,11 +31,13 @@ class _ConnectionPageState extends State<ConnectionPage> {
   StreamSubscription<DiscoveredDevice>? _scanSub;
   StreamSubscription<BleStatus>? _statusSub;
   bool _scanning = false;
-  bool _startingScan = false;
   BleStatus _lastStatus = BleStatus.unknown;
 
   String? _leftId;
   String? _rightId;
+
+  static const String _targetLeftName = 'WTLeft';
+  static const String _targetRightName = 'WTRight';
 
   @override
   void initState() {
@@ -81,7 +83,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
     _statusSub?.cancel();
 
     if (_useMock) {
-      _beginRawScan();
+      _beginNameScan();
       return;
     }
     final bleMgr = _bleMgr as BleManager;
@@ -90,7 +92,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
       if (kDebugMode) debugPrint('BLE Status: $status');
       if (status == BleStatus.ready) {
         _statusSub?.cancel();
-        _beginRawScan();
+        _beginNameScan();
       }
     });
     // Fallback if never reaches ready
@@ -98,46 +100,58 @@ class _ConnectionPageState extends State<ConnectionPage> {
       if (!mounted) return;
       if (_scanSub == null) {
         if (kDebugMode) debugPrint('Status not ready after timeout -> raw scan anyway');
-        _beginRawScan();
+        _beginNameScan();
       }
     });
   }
 
-  void _beginRawScan() {
-    if (_startingScan) return;
-    _startingScan = true;
+  void _beginNameScan() {
     try {
-      if (kDebugMode) debugPrint('RAW SCAN START');
-      final stream = (_bleMgr as BleManager).verboseRawScan();
+      if (kDebugMode) debugPrint('NAME SCAN START (service-filtered)');
+      // Prefer service-filtered scan for stability on iOS
+      final stream = (_bleMgr as BleManager).scanForDevices();
       _scanSub = stream.listen((d) {
-        setState(() {
-          final id = d.id;
-            final name = d.name.isEmpty ? '(no name)' : d.name;
-          if (!_devices.any((e) => e['id'] == id)) {
-            _devices.add({'id': id, 'name': name});
-            if (kDebugMode) debugPrint('Added device row: $name');
-          }
-          // Auto-assign if names match
-          if (name == 'WTLeft' && _leftId == null) _leftId = id;
-          if (name == 'WTRight' && _rightId == null) _rightId = id;
-          if (_leftId != null && _rightId != null) {
-            // Stop scanning when both selected for cleanliness
-            _scanSub?.cancel();
-            _scanning = false;
-          }
-        });
+        final id = d.id;
+        final name = d.name.isEmpty ? '' : d.name;
+        // Track encountered devices for visibility/debug (optional)
+        if (!_devices.any((e) => e['id'] == id)) {
+          setState(() {
+            _devices.add({'id': id, 'name': name.isEmpty ? '(no name)' : name});
+          });
+        }
+
+        bool updated = false;
+        if (name == _targetLeftName && _leftId == null) {
+          _leftId = id;
+          updated = true;
+          if (kDebugMode) debugPrint('Matched LEFT by name -> $id');
+        }
+        if (name == _targetRightName && _rightId == null) {
+          _rightId = id;
+          updated = true;
+          if (kDebugMode) debugPrint('Matched RIGHT by name -> $id');
+        }
+        if (updated && mounted) {
+          setState(() {});
+        }
+        if (_leftId != null && _rightId != null) {
+          // Stop scanning before connecting to avoid overlapping operations
+          _scanSub?.cancel();
+          setState(() => _scanning = false);
+          // Slight delay to let scanning settle on iOS
+          Future.delayed(const Duration(milliseconds: 250), () {
+            if (mounted) _connectBoth();
+          });
+        }
       }, onError: (e) {
         if (kDebugMode) debugPrint('Scan error: $e');
         if (mounted) setState(() => _scanning = false);
-        _startingScan = false;
       }, onDone: () {
-        _startingScan = false;
         if (mounted) setState(() => _scanning = false);
       });
     } catch (e) {
-      if (kDebugMode) debugPrint('Begin raw scan failed: $e');
+      if (kDebugMode) debugPrint('Begin name scan failed: $e');
       setState(() => _scanning = false);
-      _startingScan = false;
     }
   }
 
@@ -217,17 +231,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
                     label: const Text('Rescan'),
                     onPressed: () => startScan(),
                   ),
-                  if (!bothSelected)
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.link_off),
-                      label: const Text('Assign Known MACs'),
-                      onPressed: () {
-                        setState(() {
-                          _leftId = _leftId ?? 'd4:54:bd:e8:b6:f4';
-                          _rightId = _rightId ?? 'ee:71:bb:5f:97:63';
-                        });
-                      },
-                    ),
                   if (bothSelected)
                     ElevatedButton.icon(
                       icon: const Icon(Icons.link),
@@ -236,38 +239,21 @@ class _ConnectionPageState extends State<ConnectionPage> {
                     ),
                 ]),
                 const SizedBox(height: 16),
+                // Keep a minimal log of discovered devices (optional visibility)
                 Expanded(
                   child: _devices.isEmpty
-                      ? const Center(child: Text('No devices yet'))
+                      ? const Center(child: Text('Searching for WTLeft/WTRight...'))
                       : ListView.builder(
                           itemCount: _devices.length,
                           itemBuilder: (ctx, i) {
                             final dev = _devices[i];
                             final id = dev['id']!;
                             final name = dev['name']!;
-                            final isLeft = _leftId == id;
-                            final isRight = _rightId == id;
-                            return Card(
-                              child: ListTile(
-                                title: Text(name),
-                                subtitle: Text(id),
-                                trailing: Wrap(spacing: 8, children: [
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isLeft ? Colors.blue : null,
-                                    ),
-                                    onPressed: () => setState(() => _leftId = id),
-                                    child: Text(isLeft ? 'Left ✓' : 'Set Left'),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isRight ? Colors.green : null,
-                                    ),
-                                    onPressed: () => setState(() => _rightId = id),
-                                    child: Text(isRight ? 'Right ✓' : 'Set Right'),
-                                  ),
-                                ]),
-                              ),
+                            return ListTile(
+                              dense: true,
+                              visualDensity: VisualDensity.compact,
+                              title: Text(name),
+                              subtitle: Text(id),
                             );
                           },
                         ),
