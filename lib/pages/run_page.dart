@@ -90,9 +90,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       
       if (_lastLeftData != null) {
         final timeSinceData = DateTime.now().difference(_lastLeftData!);
-        if (timeSinceData > _dataTimeout) {
-          debugPrint('🎿 RunPage: Left sensor timeout - no data for ${timeSinceData.inSeconds}s');
+        if (timeSinceData > _dataTimeout && !_disconnectHandled) {
+          _disconnectHandled = true; // Set flag immediately before any async operations
           timer.cancel();
+          debugPrint('🎿 RunPage: Left sensor timeout - no data for ${timeSinceData.inSeconds}s');
           _handleSensorDisconnect('Left sensor disconnected (no data)');
         }
       }
@@ -107,9 +108,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       
       if (_lastRightData != null) {
         final timeSinceData = DateTime.now().difference(_lastRightData!);
-        if (timeSinceData > _dataTimeout) {
-          debugPrint('🎿 RunPage: Right sensor timeout - no data for ${timeSinceData.inSeconds}s');
+        if (timeSinceData > _dataTimeout && !_disconnectHandled) {
+          _disconnectHandled = true; // Set flag immediately before any async operations
           timer.cancel();
+          debugPrint('🎿 RunPage: Right sensor timeout - no data for ${timeSinceData.inSeconds}s');
           _handleSensorDisconnect('Right sensor disconnected (no data)');
         }
       }
@@ -168,12 +170,15 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _handleSensorDisconnect(String message) {
-    // Prevent multiple triggers
+    // Prevent multiple triggers (may already be set by watchdog)
     if (_disconnectHandled) {
       debugPrint('🎿 RunPage: Disconnect already handled, ignoring');
       return;
     }
-    _disconnectHandled = true;
+    // Set flag if not already set (e.g., from stream onDone/onError callbacks)
+    if (!_disconnectHandled) {
+      _disconnectHandled = true;
+    }
     
     // Stop watchdogs
     _leftWatchdog?.cancel();

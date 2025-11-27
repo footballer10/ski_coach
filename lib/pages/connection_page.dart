@@ -35,8 +35,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
   @override
   void initState() {
     super.initState();
-    // Delay BLE initialization to not block UI rendering
-    Future.delayed(Duration.zero, () {
+    // Longer delay to ensure any previous scans are fully stopped
+    Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted) {
         _applyManager();
         startScan();
