@@ -34,7 +34,16 @@ class BleManager {
   /// Scan for devices with the WT9011 service UUID
   Stream<DiscoveredDevice> scanForDevices() {
     // Scan with service UUID for better iOS discovery
-    return _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
+    if (kDebugMode) debugPrint('BLE: Starting service-filtered scan for ${_service.toString()}');
+    return _ble.scanForDevices(withServices: [_service]).map((d) {
+      if (kDebugMode) {
+        debugPrint('BLE SCAN: Found device="${d.name.isEmpty ? '(no name)' : d.name}" id=${d.id} rssi=${d.rssi} services=${d.serviceUuids.length}');
+        if (d.serviceUuids.isNotEmpty) {
+          debugPrint('  Services: ${d.serviceUuids.join(", ")}');
+        }
+      }
+      return d;
+    }).asBroadcastStream();
   }
 
   /// Raw scan without service filter (fallback if service-based scan finds nothing)
@@ -58,20 +67,28 @@ class BleManager {
 
   /// Connect to device and wait until connected (or timeout). Returns true on success.
   Future<bool> connectAndWait(String deviceId, {Duration timeout = const Duration(seconds: 8)}) async {
-    if (_connSubs.containsKey(deviceId)) return true;
+    if (kDebugMode) debugPrint('BLE: Attempting to connect to $deviceId');
+    if (_connSubs.containsKey(deviceId)) {
+      if (kDebugMode) debugPrint('BLE: Already connected to $deviceId');
+      return true;
+    }
 
     final completer = Completer<bool>();
 
     final sub = _ble.connectToDevice(id: deviceId).listen((update) {
+      if (kDebugMode) debugPrint('BLE: Connection state for $deviceId: ${update.connectionState}');
       if (update.connectionState == DeviceConnectionState.connected) {
+        if (kDebugMode) debugPrint('BLE: Successfully connected to $deviceId');
         // Ensure a sample controller exists only upon successful connection
         _sampleControllers[deviceId] ??= StreamController<Map<String, double>>.broadcast();
         _subscribeCharacteristic(deviceId);
         if (!completer.isCompleted) completer.complete(true);
       } else if (update.connectionState == DeviceConnectionState.disconnected) {
+        if (kDebugMode) debugPrint('BLE: Disconnected from $deviceId');
         if (!completer.isCompleted) completer.complete(false);
       }
     }, onError: (err) {
+      if (kDebugMode) debugPrint('BLE: Connection error for $deviceId: $err');
       if (!completer.isCompleted) completer.complete(false);
     });
 
