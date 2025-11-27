@@ -83,7 +83,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
     _statusSub?.cancel();
 
     if (_useMock) {
-      _beginNameScan();
+      _beginRawScan();
       return;
     }
     final bleMgr = _bleMgr as BleManager;
@@ -92,7 +92,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
       if (kDebugMode) debugPrint('BLE Status: $status');
       if (status == BleStatus.ready) {
         _statusSub?.cancel();
-        _beginNameScan();
+        _beginRawScan();
       }
     });
     // Fallback if never reaches ready
@@ -100,88 +100,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
       if (!mounted) return;
       if (_scanSub == null) {
         if (kDebugMode) debugPrint('Status not ready after timeout -> raw scan anyway');
-        _beginNameScan();
+        _beginRawScan();
       }
     });
-  }
-
-  void _beginNameScan() {
-    try {
-      if (kDebugMode) {
-        debugPrint('========================================');
-        debugPrint('NAME SCAN START (service-filtered)');
-        debugPrint('Looking for: "$_targetLeftName" and "$_targetRightName"');
-        debugPrint('BLE Status: $_lastStatus');
-        debugPrint('========================================');
-      }
-      // Prefer service-filtered scan for stability on iOS
-      final stream = (_bleMgr as BleManager).scanForDevices();
-      
-      // Fallback: if no devices found after 5 seconds, try raw scan
-      Future.delayed(const Duration(seconds: 5), () async {
-        if (!mounted) return;
-        if (_devices.isEmpty && _scanning) {
-          if (kDebugMode) debugPrint('⚠️ No devices found with service filter. Switching to RAW SCAN...');
-          
-          // Explicitly stop the current scan
-          stopScan();
-          
-          // Wait longer for iOS BLE stack to fully stop scanning
-          await Future.delayed(const Duration(milliseconds: 1000));
-          
-          if (mounted) {
-            setState(() => _scanning = true);
-            _beginRawScan();
-          }
-        }
-      });
-      
-      _scanSub = stream.listen((d) {
-        final id = d.id;
-        final name = d.name.isEmpty ? '' : d.name;
-        // Track encountered devices for visibility/debug (optional)
-        if (!_devices.any((e) => e['id'] == id)) {
-          setState(() {
-            _devices.add({'id': id, 'name': name.isEmpty ? '(no name)' : name});
-          });
-        }
-
-        bool updated = false;
-        if (kDebugMode) debugPrint('Comparing "$name" against "$_targetLeftName" and "$_targetRightName"');
-        if (name == _targetLeftName && _leftId == null) {
-          _leftId = id;
-          updated = true;
-          if (kDebugMode) debugPrint('✓ MATCHED LEFT by name -> $id');
-        }
-        if (name == _targetRightName && _rightId == null) {
-          _rightId = id;
-          updated = true;
-          if (kDebugMode) debugPrint('✓ MATCHED RIGHT by name -> $id');
-        }
-        if (updated && mounted) {
-          setState(() {});
-        }
-        if (_leftId != null && _rightId != null) {
-          if (kDebugMode) debugPrint('🎯 BOTH SENSORS FOUND! Stopping scan and connecting...');
-          // Stop scanning before connecting to avoid overlapping operations
-          _scanSub?.cancel();
-          setState(() => _scanning = false);
-          // Slight delay to let scanning settle on iOS
-          Future.delayed(const Duration(milliseconds: 250), () {
-            if (mounted) _connectBoth();
-          });
-        }
-      }, onError: (e) {
-        if (kDebugMode) debugPrint('❌ SCAN ERROR: $e');
-        if (mounted) setState(() => _scanning = false);
-      }, onDone: () {
-        if (kDebugMode) debugPrint('Scan stream completed (onDone)');
-        if (mounted) setState(() => _scanning = false);
-      });
-    } catch (e) {
-      if (kDebugMode) debugPrint('❌ BEGIN NAME SCAN EXCEPTION: $e');
-      setState(() => _scanning = false);
-    }
   }
 
   void _beginRawScan() {
