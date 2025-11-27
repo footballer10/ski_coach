@@ -203,9 +203,14 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'isSensorDisconnect': true, // Flag to show reconnect button
       };
     });
-    
+    debugPrint('🎿 RunPage: Calling onDisconnect callback...');
     // Navigate to disconnect/reconnect screen
-    widget.onDisconnect();
+    if (widget.onDisconnect != null) {
+      debugPrint('🎿 RunPage: onDisconnect is not null, invoking...');
+      widget.onDisconnect();
+    } else {
+      debugPrint('🎿 RunPage: onDisconnect is null!');
+    }
   }
 
   void _resetToRecording() {
