@@ -31,6 +31,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
   StreamSubscription<dynamic>? _scanSub;
   StreamSubscription<BleStatus>? _statusSub;
   bool _scanning = false;
+  bool _startingScan = false;
 
   String? _leftId;
   String? _rightId;
@@ -112,10 +113,22 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
   void _beginScanningSequence({bool noServiceFilter = false}) {
     try {
+      if (_startingScan) {
+        if (kDebugMode) debugPrint('Scan already starting; skipping duplicate call');
+        return;
+      }
+      _startingScan = true;
       if (kDebugMode) debugPrint('Starting BLE scan (${noServiceFilter ? 'NO service filter' : 'service UUID filter'})');
-      final scanStream = noServiceFilter
-          ? (_bleMgr as BleManager).rawScanStream()
-          : _bleMgr.scanForDevices();
+
+      // Ensure any previous scan subscription is canceled and allow adapter to settle
+      _scanSub?.cancel();
+      _scanSub = null;
+      // Small delay to ensure underlying central manager stops scanning
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (!mounted) { _startingScan = false; return; }
+        final scanStream = noServiceFilter
+            ? (_bleMgr as BleManager).rawScanStream()
+            : _bleMgr.scanForDevices();
       _scanSub = scanStream.listen((d) {
         setState(() {
           if (_isWindows) {
@@ -146,24 +159,35 @@ class _ConnectionPageState extends State<ConnectionPage> {
             }
           }
         });
-      }, onDone: () {
+        }, onDone: () {
         if (mounted) setState(() => _scanning = false);
-      });
-
-      // Fallback: if no devices with service filter after 7s, retry without filter.
-      if (!noServiceFilter) {
-        Future.delayed(const Duration(seconds: 7), () {
-          if (!mounted) return;
-          if (_devices.isEmpty) {
-            if (kDebugMode) debugPrint('No devices found with service filter - retrying raw scan');
-            _scanSub?.cancel();
-            _beginScanningSequence(noServiceFilter: true);
-          }
+          _startingScan = false;
+        }, onError: (e) {
+          if (kDebugMode) debugPrint('Scan error: $e');
+          _startingScan = false;
         });
-      }
+
+        // Fallback: if no devices with service filter after 7s, retry without filter.
+        if (!noServiceFilter) {
+          Future.delayed(const Duration(seconds: 7), () {
+            if (!mounted) return;
+            if (_devices.isEmpty && _scanSub != null) {
+              if (kDebugMode) debugPrint('No devices found with service filter - retrying raw scan');
+              // Cancel current scan and wait briefly before retrying raw scan
+              _scanSub?.cancel();
+              _scanSub = null;
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (!mounted) return;
+                _beginScanningSequence(noServiceFilter: true);
+              });
+            }
+          });
+        }
+      });
     } catch (e) {
       if (kDebugMode) debugPrint('Error starting scan: $e');
       if (mounted) setState(() => _scanning = false);
+      _startingScan = false;
     }
   }
 
