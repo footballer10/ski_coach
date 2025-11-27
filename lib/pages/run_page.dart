@@ -71,16 +71,42 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final rightStream = widget.bleMgr.sampleStream(widget.rightId);
 
     if (leftStream != null) {
-      _leftSub = leftStream.listen((s) {
-        if (mounted) setState(() => _leftLatest = s);
-      });
+      _leftSub = leftStream.listen(
+        (s) {
+          if (mounted) setState(() => _leftLatest = s);
+        },
+        onDone: () {
+          if (_recording && mounted) {
+            debugPrint('🎿 RunPage: Left sensor disconnected during recording');
+            _handleSensorDisconnect('Left sensor disconnected');
+          }
+        },
+      );
     }
 
     if (rightStream != null) {
-      _rightSub = rightStream.listen((s) {
-        if (mounted) setState(() => _rightLatest = s);
-      });
+      _rightSub = rightStream.listen(
+        (s) {
+          if (mounted) setState(() => _rightLatest = s);
+        },
+        onDone: () {
+          if (_recording && mounted) {
+            debugPrint('🎿 RunPage: Right sensor disconnected during recording');
+            _handleSensorDisconnect('Right sensor disconnected');
+          }
+        },
+      );
     }
+  }
+
+  void _handleSensorDisconnect(String message) {
+    setState(() {
+      _recording = false;
+      _state = RunState.results;
+      _analysisResults = {
+        'error': message,
+      };
+    });
   }
 
   Future<void> _startRecording() async {
@@ -104,6 +130,21 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
     debugPrint('🎿 RunPage: Recorded ${leftSamples.length} left, ${rightSamples.length} right samples');
 
+    // Check for empty data
+    if (leftSamples.isEmpty || rightSamples.isEmpty) {
+      setState(() {
+        _analysisResults = {
+          'error': leftSamples.isEmpty && rightSamples.isEmpty
+              ? 'No data recorded from either sensor'
+              : leftSamples.isEmpty
+                  ? 'No data recorded from left sensor'
+                  : 'No data recorded from right sensor',
+        };
+        _state = RunState.results;
+      });
+      return;
+    }
+
     // Segment turns using roll zero-crossings on both sensors
     List<ImuSample> leftImu = leftSamples.cast<ImuSample>();
     List<ImuSample> rightImu = rightSamples.cast<ImuSample>();
@@ -111,6 +152,17 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final turnDurations = segments.map((s) => s.durationSeconds).toList();
 
     debugPrint('🎿 RunPage: Segmentation complete - ${segments.length} turns, durations: $turnDurations');
+
+    // Check if no turns detected
+    if (segments.isEmpty) {
+      setState(() {
+        _analysisResults = {
+          'error': 'No turns detected. Try recording a longer run with clear turns.',
+        };
+        _state = RunState.results;
+      });
+      return;
+    }
 
     // Simulate analysis delay
     await Future.delayed(const Duration(milliseconds: 300));
@@ -208,6 +260,23 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
   Widget _buildResultsView() {
     if (_analysisResults == null) return const SizedBox();
+
+    // Check for error
+    final error = _analysisResults!['error'] as String?;
+    if (error != null) {
+      return ResultsView(
+        leftSampleCount: 0,
+        rightSampleCount: 0,
+        leftSegments: const [],
+        rightSegments: const [],
+        runDurationSeconds: 0,
+        runStartTime: null,
+        turnCount: 0,
+        turnDurationsSeconds: const [],
+        errorMessage: error,
+        onNewRun: widget.onRecordAgain,
+      );
+    }
 
     final leftCount = _analysisResults!['leftSampleCount'] ?? 0;
     final rightCount = _analysisResults!['rightSampleCount'] ?? 0;

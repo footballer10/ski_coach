@@ -11,6 +11,7 @@ class ResultsView extends StatefulWidget {
     final DateTime? runStartTime;
   final int turnCount;
   final List<double> turnDurationsSeconds;
+  final String? errorMessage;
   final VoidCallback onNewRun;
 
   const ResultsView({
@@ -23,6 +24,7 @@ class ResultsView extends StatefulWidget {
       this.runStartTime,
     this.turnCount = 0,
     this.turnDurationsSeconds = const [],
+    this.errorMessage,
     required this.onNewRun,
   });
 
@@ -121,6 +123,51 @@ class _ResultsViewState extends State<ResultsView> {
 
   @override
   Widget build(BuildContext context) {
+    // Show error state if present
+    if (widget.errorMessage != null) {
+      return Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 80, color: Colors.red),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'ERROR',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      widget.errorMessage!,
+                      style: const TextStyle(fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: ElevatedButton.icon(
+              onPressed: widget.onNewRun,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    
     return Column(
       children: [
         _buildNavigationBar(),
