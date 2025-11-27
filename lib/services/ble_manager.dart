@@ -13,11 +13,11 @@ class BleManager {
 
   final FlutterReactiveBle _ble = FlutterReactiveBle();
 
-  // UUIDs for WT9011DCL BLE
+  // UUIDs for WT9011DCL BLE - CORRECTED from LightBlue inspection
   static final Uuid _service =
-      Uuid.parse("0000FFE0-0000-1000-8000-00805F9B34FB");
+      Uuid.parse("0000FFE5-0000-1000-8000-00805F9A34FB");
   static final Uuid _char =
-      Uuid.parse("0000FFE1-0000-1000-8000-00805F9B34FB");
+      Uuid.parse("0000FFE4-0000-1000-8000-00805F9A34FB");
 
   // For storing Bluetooth connections
   final Map<String, StreamSubscription> _connSubs = {};
