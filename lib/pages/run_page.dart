@@ -109,6 +109,16 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     });
   }
 
+  void _resetToRecording() {
+    setState(() {
+      _state = RunState.recording;
+      _recording = false;
+      _analysisResults = null;
+      _leftLatest = null;
+      _rightLatest = null;
+    });
+  }
+
   Future<void> _startRecording() async {
     // Use BleManager's built-in recording
     widget.bleMgr.startRecording();
@@ -274,7 +284,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         turnCount: 0,
         turnDurationsSeconds: const [],
         errorMessage: error,
-        onNewRun: widget.onRecordAgain,
+        onNewRun: _resetToRecording,
       );
     }
 
