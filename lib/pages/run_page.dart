@@ -117,6 +117,12 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       widget.bleMgr.stopRecording();
     }
     
+    // Cancel subscriptions
+    _leftSub?.cancel();
+    _rightSub?.cancel();
+    _leftSub = null;
+    _rightSub = null;
+    
     setState(() {
       _recording = false;
       _state = RunState.results;
@@ -124,6 +130,9 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'error': message,
       };
     });
+    
+    // Navigate to disconnect/reconnect screen
+    widget.onDisconnect();
   }
 
   void _resetToRecording() {

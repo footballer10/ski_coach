@@ -6,8 +6,13 @@ import '../services/ble_manager.dart';
 
 class ConnectionPage extends StatefulWidget {
   final void Function(dynamic bleMgr, String leftId, String rightId)? onConnected;
+  final bool showCloseButton;
 
-  const ConnectionPage({super.key, this.onConnected});
+  const ConnectionPage({
+    super.key,
+    this.onConnected,
+    this.showCloseButton = false,
+  });
 
   @override
   State<ConnectionPage> createState() => _ConnectionPageState();
@@ -166,6 +171,17 @@ class _ConnectionPageState extends State<ConnectionPage> {
     final rightSelected = _rightId != null;
 
     return Scaffold(
+      appBar: widget.showCloseButton
+          ? AppBar(
+              title: const Text('Reconnecting'),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+                tooltip: 'Cancel reconnection',
+              ),
+              automaticallyImplyLeading: false,
+            )
+          : null,
       body: SafeArea(
         child: Center(
           child: Padding(

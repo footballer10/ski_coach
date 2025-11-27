@@ -77,11 +77,31 @@ class _AppControllerState extends State<AppController> {
   }
 
   void _onSensorsDisconnected() {
-    // Show connection overlay (preserve all run pages)
-    setState(() {
-      _showConnectionOverlay = true;
-      _showArrows = false;
-    });
+    // Show connection overlay for reconnection (preserve all run pages)
+    // User can cancel to return to error screen on current page
+    if (!mounted) return;
+    
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ConnectionPage(
+          showCloseButton: true,
+          onConnected: (bleMgr, leftId, rightId) {
+            // Update connection info
+            _bleMgr = bleMgr;
+            _leftId = leftId;
+            _rightId = rightId;
+            
+            // Close the reconnection page and return to run page
+            Navigator.of(context).pop();
+            
+            // Enable arrows if not already enabled
+            if (!_showArrows && _runPages.isNotEmpty) {
+              setState(() => _showArrows = true);
+            }
+          },
+        ),
+      ),
+    );
   }
 
   void _addNewRunPage() {
