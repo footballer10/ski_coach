@@ -13,6 +13,9 @@ class BleManager {
 
   final FlutterReactiveBle _ble = FlutterReactiveBle();
 
+  // Track active scan subscription to ensure proper cleanup
+  StreamSubscription<DiscoveredDevice>? _activeScanSubscription;
+
   // UUIDs for WT9011DCL BLE - CORRECTED from LightBlue inspection
   static final Uuid _service =
       Uuid.parse("0000FFE5-0000-1000-8000-00805F9A34FB");
@@ -34,9 +37,6 @@ class BleManager {
   /// Stream of BLE status (ready, unauthorized, etc)
   Stream<BleStatus> get statusStream => _ble.statusStream;
 
-  Stream<DiscoveredDevice> get scanStream =>
-      _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
-
   /// Scan for devices with the WT9011 service UUID
   Stream<DiscoveredDevice> scanForDevices() {
     return _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
@@ -49,7 +49,25 @@ class BleManager {
 
   /// Verbose raw scan with logging for diagnostics
   Stream<DiscoveredDevice> verboseRawScan() {
-    return _ble.scanForDevices(withServices: []).asBroadcastStream();
+    // Cancel any existing scan first
+    _activeScanSubscription?.cancel();
+    _activeScanSubscription = null;
+    
+    return _ble.scanForDevices(withServices: []);
+  }
+  
+  /// Stop any active scan
+  Future<void> stopScan() async {
+    if (kDebugMode) {
+      debugPrint('🔵 BleManager: Stopping active scan');
+    }
+    await _activeScanSubscription?.cancel();
+    _activeScanSubscription = null;
+    // Give iOS BLE stack time to fully stop
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (kDebugMode) {
+      debugPrint('🔵 BleManager: Scan stopped');
+    }
   }
 
   /// Connect to device and wait until connected (or timeout). Returns true on success.

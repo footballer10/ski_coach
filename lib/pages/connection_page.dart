@@ -57,7 +57,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
   }
 
   void startScan() {
-    // Cancel any existing scan first and stop any active scanning
+    final bleMgr = _bleMgr as BleManager;
+    
+    // Cancel local subscriptions
     _scanSub?.cancel();
     _scanSub = null;
     _statusSub?.cancel();
@@ -70,18 +72,12 @@ class _ConnectionPageState extends State<ConnectionPage> {
       _rightId = null;
     });
 
-    final bleMgr = _bleMgr as BleManager;
-    
-    if (kDebugMode) {
-      debugPrint('🔵 ConnectionPage: Waiting 5000ms before starting new scan to ensure BLE stack is ready');
-    }
-    
-    // Much longer delay (5 seconds) to ensure BLE stack fully stops (prevents iOS assertion failure)
-    Future.delayed(const Duration(milliseconds: 5000), () {
+    // Properly stop any active BLE scan in the manager before starting new one
+    bleMgr.stopScan().then((_) {
       if (!mounted) return;
       
       if (kDebugMode) {
-        debugPrint('🔵 ConnectionPage: Starting new scan after 5000ms delay');
+        debugPrint('🔵 ConnectionPage: Starting new scan after stopping previous scan');
       }
       
       _statusSub = bleMgr.statusStream.listen((status) {
