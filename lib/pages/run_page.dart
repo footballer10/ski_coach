@@ -87,10 +87,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         timer.cancel();
         return;
       }
-      
       if (_lastLeftData != null) {
         final timeSinceData = DateTime.now().difference(_lastLeftData!);
         if (timeSinceData > _dataTimeout && !_disconnectHandled) {
+          debugPrint('🎿 RunPage: Watchdog about to call _handleSensorDisconnect (mounted=$mounted, _disconnectHandled=$_disconnectHandled)');
           _disconnectHandled = true; // Set flag immediately before any async operations
           timer.cancel();
           debugPrint('🎿 RunPage: Left sensor timeout - no data for ${timeSinceData.inSeconds}s');
@@ -105,10 +105,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         timer.cancel();
         return;
       }
-      
       if (_lastRightData != null) {
         final timeSinceData = DateTime.now().difference(_lastRightData!);
         if (timeSinceData > _dataTimeout && !_disconnectHandled) {
+          debugPrint('🎿 RunPage: Watchdog about to call _handleSensorDisconnect (mounted=$mounted, _disconnectHandled=$_disconnectHandled)');
           _disconnectHandled = true; // Set flag immediately before any async operations
           timer.cancel();
           debugPrint('🎿 RunPage: Right sensor timeout - no data for ${timeSinceData.inSeconds}s');
