@@ -242,24 +242,23 @@ class BleManager {
       final type = bytes[i + 1];
 
       // ---------------- PACKET TYPE 0x61 (20 bytes total) ----------------
-      // This appears to be a combined packet with all 9DOF data
+      // WT9011DCL default output: acceleration + angular velocity + angle
+      // Packet format: 0x55 0x61 AXL AXH AYL AYH AZL AZH WXL WXH WYL WYH WZL WZH RollL RollH PitchL PitchH YawL YawH
       if (type == 0x61 && i + 20 <= bytes.length) {
-        // Parse all values from the 0x61 packet
-        // Bytes 2-3: unknown (seems to be a counter or value)
-        // Bytes 4-19: appear to contain sensor data
+        // Acceleration (bytes 2-7): Low byte first, high byte second
+        final ax = _toScaledAccel(bytes[i + 2], bytes[i + 3]);
+        final ay = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
+        final az = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
         
-        // Let's parse assuming 16-bit little-endian values
-        // We have 9 int16 values to extract for ax,ay,az,gx,gy,gz,roll,pitch,yaw
+        // Angular velocity / Gyro (bytes 8-13)
+        final gx = _toScaledGyro(bytes[i + 8], bytes[i + 9]);
+        final gy = _toScaledGyro(bytes[i + 10], bytes[i + 11]);
+        final gz = _toScaledGyro(bytes[i + 12], bytes[i + 13]);
         
-        final ax = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
-        final ay = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
-        final az = _toScaledAccel(bytes[i + 8], bytes[i + 9]);
-        final gx = _toScaledGyro(bytes[i + 10], bytes[i + 11]);
-        final gy = _toScaledGyro(bytes[i + 12], bytes[i + 13]);
-        final gz = _toScaledGyro(bytes[i + 14], bytes[i + 15]);
-        final roll = _toScaledAngle(bytes[i + 16], bytes[i + 17]);
-        final pitch = _toScaledAngle(bytes[i + 18], bytes[i + 19]);
-        // Yaw might be in next packet or bytes 2-3
+        // Angles (bytes 14-19)
+        final roll = _toScaledAngle(bytes[i + 14], bytes[i + 15]);
+        final pitch = _toScaledAngle(bytes[i + 16], bytes[i + 17]);
+        final yaw = _toScaledAngle(bytes[i + 18], bytes[i + 19]);
         
         _latest[deviceId]!["ax"] = ax;
         _latest[deviceId]!["ay"] = ay;
@@ -269,13 +268,10 @@ class BleManager {
         _latest[deviceId]!["gz"] = gz;
         _latest[deviceId]!["roll"] = roll;
         _latest[deviceId]!["pitch"] = pitch;
-        
-        // Try to get yaw from bytes 2-3
-        final yaw = _toScaledAngle(bytes[i + 2], bytes[i + 3]);
         _latest[deviceId]!["yaw"] = yaw;
         
         if (kDebugMode) {
-          debugPrint('[$deviceId] 0x61 PACKET: ax=$ax, ay=$ay, az=$az, gx=$gx, gy=$gy, gz=$gz, roll=$roll, pitch=$pitch, yaw=$yaw');
+          debugPrint('[$deviceId] 0x61: ax=${ax.toStringAsFixed(2)}g ay=${ay.toStringAsFixed(2)}g az=${az.toStringAsFixed(2)}g | gx=${gx.toStringAsFixed(1)}°/s gy=${gy.toStringAsFixed(1)}°/s gz=${gz.toStringAsFixed(1)}°/s | roll=${roll.toStringAsFixed(1)}° pitch=${pitch.toStringAsFixed(1)}° yaw=${yaw.toStringAsFixed(1)}°');
         }
         i += 20;
         continue;
