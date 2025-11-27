@@ -29,6 +29,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
   late dynamic _bleMgr;
   final List<Map<String, String>> _devices = [];
   StreamSubscription<dynamic>? _scanSub;
+  StreamSubscription<BleStatus>? _statusSub;
   bool _scanning = false;
 
   String? _leftId;
@@ -72,40 +73,49 @@ class _ConnectionPageState extends State<ConnectionPage> {
     _devices.clear();
     setState(() => _scanning = true);
     _scanSub?.cancel();
-    
-    // Check BLE status first (for real BLE manager)
-    if (!_useMock) {
-      final statusStream = (_bleMgr as BleManager).statusStream;
-      statusStream.first.then((status) {
-        if (kDebugMode) debugPrint('BLE Status: $status');
-        if (status == BleStatus.ready) {
-          _startActualScan();
-        } else {
-          if (kDebugMode) debugPrint('BLE not ready: $status, waiting...');
-          // Wait for BLE to be ready
-          statusStream.firstWhere((s) => s == BleStatus.ready).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              if (kDebugMode) debugPrint('BLE status timeout, trying anyway...');
-              _startActualScan();
-              return BleStatus.unknown;
-            },
-          ).then((_) {
-            if (kDebugMode) debugPrint('BLE now ready, starting scan');
-            _startActualScan();
-          });
-        }
-      });
-    } else {
-      _startActualScan();
+    _statusSub?.cancel();
+
+    if (_useMock) {
+      if (kDebugMode) debugPrint('Using mock BLE manager - starting scan immediately');
+      _beginScanningSequence();
+      return;
     }
+
+    // Listen to BLE status once, then cancel.
+    final bleMgr = _bleMgr as BleManager;
+    _statusSub = bleMgr.statusStream.listen((status) {
+      if (kDebugMode) debugPrint('BLE Status update: $status');
+      if (status == BleStatus.ready) {
+        _statusSub?.cancel();
+        _beginScanningSequence();
+      } else if (status == BleStatus.unauthorized) {
+        // Inform user they must enable Bluetooth permissions in Settings.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bluetooth permission not granted. Please enable in Settings.')),
+        );
+      } else if (status == BleStatus.poweredOff) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bluetooth is off. Please enable Bluetooth.')),
+        );
+      }
+    });
+
+    // Fallback: if not ready within 6s start scan anyway.
+    Future.delayed(const Duration(seconds: 6), () {
+      if (!mounted) return;
+      if (_scanSub == null) {
+        if (kDebugMode) debugPrint('BLE not reported ready after timeout - attempting scan anyway');
+        _beginScanningSequence();
+      }
+    });
   }
 
-  void _startActualScan() {
+  void _beginScanningSequence({bool noServiceFilter = false}) {
     try {
-      if (kDebugMode) debugPrint('Starting BLE scan for service UUID...');
-      // For iOS, scan with service UUID for better device discovery
-      final scanStream = _bleMgr.scanForDevices();
+      if (kDebugMode) debugPrint('Starting BLE scan (${noServiceFilter ? 'NO service filter' : 'service UUID filter'})');
+      final scanStream = noServiceFilter
+          ? (_bleMgr as BleManager).rawScanStream()
+          : _bleMgr.scanForDevices();
       _scanSub = scanStream.listen((d) {
         setState(() {
           if (_isWindows) {
@@ -139,6 +149,18 @@ class _ConnectionPageState extends State<ConnectionPage> {
       }, onDone: () {
         if (mounted) setState(() => _scanning = false);
       });
+
+      // Fallback: if no devices with service filter after 7s, retry without filter.
+      if (!noServiceFilter) {
+        Future.delayed(const Duration(seconds: 7), () {
+          if (!mounted) return;
+          if (_devices.isEmpty) {
+            if (kDebugMode) debugPrint('No devices found with service filter - retrying raw scan');
+            _scanSub?.cancel();
+            _beginScanningSequence(noServiceFilter: true);
+          }
+        });
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('Error starting scan: $e');
       if (mounted) setState(() => _scanning = false);
@@ -223,6 +245,26 @@ class _ConnectionPageState extends State<ConnectionPage> {
                   const Text(
                     'Searching for sensors...',
                     style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+
+                if (!bothConnected && !_scanning) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.link),
+                    label: const Text('Use Known IDs'),
+                    onPressed: () {
+                      setState(() {
+                        _leftId ??= 'd4:54:bd:e8:b6:f4';
+                        _rightId ??= 'ee:71:bb:5f:97:63';
+                      });
+                      _connectBoth();
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Fallback manual connect using provided IDs',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
                 

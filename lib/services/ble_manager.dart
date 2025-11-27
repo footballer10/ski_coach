@@ -37,6 +37,11 @@ class BleManager {
     return _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
   }
 
+  /// Raw scan without service filter (fallback if service-based scan finds nothing)
+  Stream<DiscoveredDevice> rawScanStream() {
+    return _ble.scanForDevices(withServices: []).asBroadcastStream();
+  }
+
   /// Connect to device and wait until connected (or timeout). Returns true on success.
   Future<bool> connectAndWait(String deviceId, {Duration timeout = const Duration(seconds: 8)}) async {
     if (_connSubs.containsKey(deviceId)) return true;
