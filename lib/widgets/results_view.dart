@@ -66,6 +66,13 @@ class _ResultsViewState extends State<ResultsView> {
     return ViewMode.categoryTurn;
   }
 
+  double _scoreForDuration(double x) {
+    // 100 · 0.1205^((ln(x / 2))^2)
+    if (x <= 0) return 0.0;
+    final v = 100.0 * (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
+    return v.isFinite ? v : 0.0;
+  }
+
   void _pushNavigation() {
     _navigationHistory.add({
       'category': _selectedCategory,
@@ -271,6 +278,15 @@ class _ResultsViewState extends State<ResultsView> {
       final startTimeStr = widget.runStartTime != null
           ? '${widget.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.runStartTime!.minute.toString().padLeft(2, '0')}'
           : '—';
+      String avgScoreStr = '—';
+      if (widget.turnDurationsSeconds.isNotEmpty) {
+        double sum = 0.0;
+        for (final x in widget.turnDurationsSeconds) {
+          sum += _scoreForDuration(x);
+        }
+        final avg = sum / widget.turnDurationsSeconds.length;
+        avgScoreStr = avg.isFinite ? avg.toStringAsFixed(1) : '—';
+      }
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -283,7 +299,7 @@ class _ResultsViewState extends State<ResultsView> {
               _summaryItem('Turns', '${widget.turnCount > 0 ? widget.turnCount : (_turns.length - 1)}'),
                 _summaryItem('Duration', durationStr),
                 _summaryItem('Start', startTimeStr),
-              _summaryItem('Score', '—', prominent: true),
+              _summaryItem('Score', avgScoreStr, prominent: true),
               if (includeSimilarity) _summaryItem('Similarity', '—'),
             ],
           ),
@@ -603,8 +619,11 @@ class _ResultsViewState extends State<ResultsView> {
     }
     
     String valueText = '—';
+    String scoreText = '—';
     if (metric == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
-      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex].toStringAsFixed(3)}s';
+      final x = widget.turnDurationsSeconds[selectedTurnIndex];
+      valueText = '${x.toStringAsFixed(3)}s';
+      scoreText = _scoreForDuration(x).toStringAsFixed(1);
     }
     
     return GestureDetector(
@@ -627,7 +646,7 @@ class _ResultsViewState extends State<ResultsView> {
               ),
               const SizedBox(height: 2),
               Text('Val: $valueText', style: const TextStyle(fontSize: 9)),
-              Text('Score: —', style: const TextStyle(fontSize: 9)),
+              Text('Score: $scoreText', style: const TextStyle(fontSize: 9)),
               if (showDropdown) ...[
                 const SizedBox(height: 2),
                 SizedBox(
