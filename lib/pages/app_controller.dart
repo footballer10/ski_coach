@@ -77,10 +77,15 @@ class _AppControllerState extends State<AppController> {
   }
 
   void _onSensorsDisconnected() {
+    debugPrint('🎿 AppController: _onSensorsDisconnected called');
     // Show connection overlay for reconnection (preserve all run pages)
     // User can cancel to return to error screen on current page
-    if (!mounted) return;
+    if (!mounted) {
+      debugPrint('🎿 AppController: Not mounted, skipping navigation');
+      return;
+    }
     
+    debugPrint('🎿 AppController: Pushing ConnectionPage with showCloseButton=true');
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ConnectionPage(
