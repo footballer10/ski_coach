@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 /// Displays run analysis results with navigation through categories and turns
 class ResultsView extends StatefulWidget {
@@ -490,15 +491,50 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCategorySummary() {
+    String valueText = '—';
+    String optimalText = '—';
+    String scoreText = '—';
+
+    if (_selectedCategory == 'Turn Duration') {
+      optimalText = '2.000s';
+      final durations = widget.turnDurationsSeconds;
+      if (_selectedTurn == 'All Turns') {
+        if (durations.isNotEmpty) {
+          final avg = durations.reduce((a,b) => a + b) / durations.length;
+          valueText = '${avg.toStringAsFixed(3)}s';
+          // score: average of per-turn scores
+          double scoreSum = 0.0;
+          for (final x in durations) {
+            final s = 100.0 * (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
+            scoreSum += s;
+          }
+          final avgScore = scoreSum / durations.length;
+          scoreText = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
+        }
+      } else {
+        // specific turn
+        final match = RegExp(r'Turn (\d+)').firstMatch(_selectedTurn);
+        if (match != null) {
+          final idx = int.parse(match.group(1)!) - 1;
+          if (idx >= 0 && idx < durations.length) {
+            final x = durations[idx];
+            valueText = '${x.toStringAsFixed(3)}s';
+            final score = 100.0 * (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
+            scoreText = score.isFinite ? score.toStringAsFixed(1) : '—';
+          }
+        }
+      }
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _summaryItem('Value', '—'),
-            _summaryItem('Optimal', '—'),
-            _summaryItem('Score', '—', prominent: true),
+            _summaryItem('Value', valueText),
+            _summaryItem('Optimal', optimalText),
+            _summaryItem('Score', scoreText, prominent: true),
           ],
         ),
       ),
