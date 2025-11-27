@@ -134,11 +134,15 @@ class BleManager {
   // -------------------------------------------------------------
   Future<void> _subscribeCharacteristic(String deviceId) async {
     try {
+      if (kDebugMode) debugPrint('[$deviceId] Discovering services...');
+      
       // First, discover all services
       await _ble.discoverAllServices(deviceId);
       
-      // Small delay to ensure discovery completes
-      await Future.delayed(const Duration(milliseconds: 500));
+      if (kDebugMode) debugPrint('[$deviceId] Service discovery completed');
+      
+      // Longer delay to ensure discovery completes on iOS
+      await Future.delayed(const Duration(milliseconds: 1500));
       
       final char = QualifiedCharacteristic(
         serviceId: _service,
@@ -146,11 +150,15 @@ class BleManager {
         deviceId: deviceId,
       );
 
+      if (kDebugMode) debugPrint('[$deviceId] Subscribing to characteristic ${_char}...');
       _ble.subscribeToCharacteristic(char).listen((data) {
         _handleRawPacket(deviceId, data);
+      }, onError: (e) {
+        if (kDebugMode) debugPrint('[$deviceId] Subscription error: $e');
       });
+      if (kDebugMode) debugPrint('[$deviceId] Successfully subscribed to characteristic');
     } catch (e) {
-      if (kDebugMode) debugPrint('Error subscribing to characteristic: $e');
+      if (kDebugMode) debugPrint('[$deviceId] Error in _subscribeCharacteristic: $e');
     }
   }
 

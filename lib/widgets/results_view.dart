@@ -499,48 +499,55 @@ class _ResultsViewState extends State<ResultsView> {
       onTap: () => _selectCategoryAndTurn(metric, _selectedTurn),
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(6.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 metric,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
-              Text('Val: —', style: const TextStyle(fontSize: 11)),
-              Text('Score: —', style: const TextStyle(fontSize: 11)),
+              const SizedBox(height: 2),
+              Text('Val: —', style: const TextStyle(fontSize: 10)),
+              Text('Score: —', style: const TextStyle(fontSize: 10)),
               if (showDropdown) ...[
-                const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
-                  initialValue: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
-                  isDense: true,
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    border: OutlineInputBorder(),
+                const SizedBox(height: 2),
+                Flexible(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                    isDense: true,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    style: const TextStyle(fontSize: 9, color: Colors.black),
+                    dropdownColor: Colors.white,
+                    menuMaxHeight: 200,
+                    items: const [
+                      DropdownMenuItem(value: 'Whole Turn', child: Text('Whole', style: TextStyle(fontSize: 9))),
+                      DropdownMenuItem(value: 'First Third', child: Text('1st', style: TextStyle(fontSize: 9))),
+                      DropdownMenuItem(value: 'Middle Third', child: Text('Mid', style: TextStyle(fontSize: 9))),
+                      DropdownMenuItem(value: 'Final Third', child: Text('Final', style: TextStyle(fontSize: 9))),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _pushNavigation();
+                        setState(() {
+                          if (metric == 'Parallel Ski Control') {
+                            _parallelPhase = value;
+                          } else {
+                            _smoothnessPhase = value;
+                          }
+                        });
+                      }
+                    },
                   ),
-                  style: const TextStyle(fontSize: 10, color: Colors.black),
-                  items: const [
-                    DropdownMenuItem(value: 'Whole Turn', child: Text('Whole')),
-                    DropdownMenuItem(value: 'First Third', child: Text('1st')),
-                    DropdownMenuItem(value: 'Middle Third', child: Text('Mid')),
-                    DropdownMenuItem(value: 'Final Third', child: Text('Final')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      _pushNavigation();
-                      setState(() {
-                        if (metric == 'Parallel Ski Control') {
-                          _parallelPhase = value;
-                        } else {
-                          _smoothnessPhase = value;
-                        }
-                      });
-                    }
-                  },
                 ),
               ],
             ],
