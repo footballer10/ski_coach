@@ -134,7 +134,7 @@ class _ResultsViewState extends State<ResultsView> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
         child: Row(
-        children: [
+          children: [
           if (_navigationHistory.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -143,7 +143,7 @@ class _ResultsViewState extends State<ResultsView> {
             ),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Category',
                 border: OutlineInputBorder(),
@@ -162,7 +162,7 @@ class _ResultsViewState extends State<ResultsView> {
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _selectedTurn,
+              initialValue: _selectedTurn,
               decoration: const InputDecoration(
                 labelText: 'Turn',
                 border: OutlineInputBorder(),

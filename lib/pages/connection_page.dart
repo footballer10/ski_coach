@@ -81,14 +81,14 @@ class _ConnectionPageState extends State<ConnectionPage> {
           } else {
             final id = (d as dynamic).id as String;
             final name = (d as dynamic).name as String;
-            // Only add devices named WTLEFT or WTRIGHT
-            if ((name == 'WTLEFT' || name == 'WTRIGHT') && !_devices.any((e) => e['id'] == id)) {
+            // Only add devices named WTLeft or WTRight
+            if ((name == 'WTLeft' || name == 'WTRight') && !_devices.any((e) => e['id'] == id)) {
               _devices.add({'id': id, 'name': name});
               
               // Auto-assign based on name
-              if (name == 'WTLEFT' && _leftId == null) {
+              if (name == 'WTLeft' && _leftId == null) {
                 _leftId = id;
-              } else if (name == 'WTRIGHT' && _rightId == null) {
+              } else if (name == 'WTRight' && _rightId == null) {
                 _rightId = id;
               }
               
@@ -147,138 +147,115 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bothAssigned = _leftId != null && _rightId != null;
+    final bothConnected = _leftId != null && _rightId != null;
+    final leftConnected = _leftId != null;
+    final rightConnected = _rightId != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Connect Sensors'),
-        actions: [
-          if (_isWindows)
-            Row(
-              children: [
-                const Text('Mock'),
-                Switch(
-                  value: _useMock,
-                  onChanged: (v) {
-                    setState(() {
-                      _useMock = v;
-                      _applyManager();
-                      startScan();
-                    });
-                  },
-                ),
-              ],
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Assign Sensors:',
-                  style: Theme.of(context).textTheme.titleLarge,
+                const Text(
+                  'Connecting to Sensors',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Card(
-                        color: _leftId != null ? Colors.green.shade100 : null,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            children: [
-                              const Text('LEFT', style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text(_leftId != null
-                                  ? _devices.firstWhere((d) => d['id'] == _leftId)['name'] ?? _leftId!
-                                  : 'Not assigned'),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Card(
-                        color: _rightId != null ? Colors.blue.shade100 : null,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            children: [
-                              const Text('RIGHT', style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text(_rightId != null
-                                  ? _devices.firstWhere((d) => d['id'] == _rightId)['name'] ?? _rightId!
-                                  : 'Not assigned'),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 40),
+                
+                // Left sensor status
+                _buildSensorStatus(
+                  'Left Sensor',
+                  leftConnected,
+                  Colors.blue,
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: bothAssigned ? _connectBoth : null,
-                  child: const Text('Connect Both Sensors'),
+                const SizedBox(height: 20),
+                
+                // Right sensor status
+                _buildSensorStatus(
+                  'Right Sensor',
+                  rightConnected,
+                  Colors.green,
                 ),
-              ],
-            ),
-          ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Available Devices', style: Theme.of(context).textTheme.titleMedium),
-                _scanning
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : IconButton(icon: const Icon(Icons.refresh), onPressed: startScan),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _devices.isEmpty
-                ? Center(child: _scanning ? const CircularProgressIndicator() : const Text('No devices found'))
-                : ListView.builder(
-                    itemCount: _devices.length,
-                    itemBuilder: (ctx, i) {
-                      final dev = _devices[i];
-                      final id = dev['id']!;
-                      final name = dev['name'] ?? 'Unknown';
-                      final isLeft = _leftId == id;
-                      final isRight = _rightId == id;
-
-                      return ListTile(
-                        title: Text(name),
-                        subtitle: Text(id),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isLeft ? Colors.green : null,
-                              ),
-                              onPressed: () => setState(() => _leftId = id),
-                              child: const Text('LEFT'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isRight ? Colors.blue : null,
-                              ),
-                              onPressed: () => setState(() => _rightId = id),
-                              child: const Text('RIGHT'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                const SizedBox(height: 40),
+                
+                // Scanning indicator
+                if (_scanning && !bothConnected) ...[
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Searching for sensors...',
+                    style: TextStyle(color: Colors.grey),
                   ),
+                ],
+                
+                if (bothConnected)
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 32),
+                      SizedBox(width: 8),
+                      Text(
+                        'Connected!',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                      ),
+                    ],
+                  ),
+                  
+                if (_isWindows) ...[
+                  const SizedBox(height: 40),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Mock Mode'),
+                      Switch(
+                        value: _useMock,
+                        onChanged: (v) {
+                          setState(() {
+                            _useMock = v;
+                            _leftId = null;
+                            _rightId = null;
+                            _applyManager();
+                            startScan();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSensorStatus(String label, bool connected, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: connected ? color : Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(12),
+        color: connected ? color.withValues(alpha: 0.1) : null,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: connected ? color : Colors.grey,
+            ),
+          ),
+          Icon(
+            connected ? Icons.check_circle : Icons.circle_outlined,
+            color: connected ? color : Colors.grey[300],
+            size: 32,
           ),
         ],
       ),
