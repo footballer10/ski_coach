@@ -76,9 +76,15 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
           if (mounted) setState(() => _leftLatest = s);
         },
         onDone: () {
-          if (_recording && mounted) {
-            debugPrint('🎿 RunPage: Left sensor disconnected during recording');
+          if (mounted) {
+            debugPrint('🎿 RunPage: Left sensor disconnected');
             _handleSensorDisconnect('Left sensor disconnected');
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            debugPrint('🎿 RunPage: Left sensor error: $error');
+            _handleSensorDisconnect('Left sensor connection error');
           }
         },
       );
@@ -90,9 +96,15 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
           if (mounted) setState(() => _rightLatest = s);
         },
         onDone: () {
-          if (_recording && mounted) {
-            debugPrint('🎿 RunPage: Right sensor disconnected during recording');
+          if (mounted) {
+            debugPrint('🎿 RunPage: Right sensor disconnected');
             _handleSensorDisconnect('Right sensor disconnected');
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            debugPrint('🎿 RunPage: Right sensor error: $error');
+            _handleSensorDisconnect('Right sensor connection error');
           }
         },
       );
@@ -100,6 +112,11 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _handleSensorDisconnect(String message) {
+    // Stop recording if active
+    if (_recording) {
+      widget.bleMgr.stopRecording();
+    }
+    
     setState(() {
       _recording = false;
       _state = RunState.results;
