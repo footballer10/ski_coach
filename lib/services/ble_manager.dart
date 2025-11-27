@@ -26,15 +26,12 @@ class BleManager {
   final Map<String, StreamController<Map<String, double>>> _sampleControllers = {};
 
   Stream<DiscoveredDevice> get scanStream =>
-      _ble.scanForDevices(withServices: []).asBroadcastStream();
+      _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
 
-  /// Convenience scanner with optional name filter
-  Stream<DiscoveredDevice> scanForDevices({String? nameFilter}) {
-    return _ble.scanForDevices(withServices: []).where((d) {
-      if (nameFilter == null || nameFilter.isEmpty) return true;
-      final name = d.name;
-      return name.toLowerCase().contains(nameFilter.toLowerCase());
-    }).asBroadcastStream();
+  /// Scan for devices with the WT9011 service UUID
+  Stream<DiscoveredDevice> scanForDevices() {
+    // Scan with service UUID for better iOS discovery
+    return _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
   }
 
   /// Connect to device and wait until connected (or timeout). Returns true on success.
@@ -122,10 +119,10 @@ class BleManager {
       _ble.subscribeToCharacteristic(char).listen((data) {
         _handleRawPacket(deviceId, data);
       }, onError: (error) {
-        print('Error subscribing to characteristic for $deviceId: $error');
+        if (kDebugMode) debugPrint('Error subscribing to characteristic for $deviceId: $error');
       });
     } catch (e) {
-      print('Error in _subscribeCharacteristic for $deviceId: $e');
+      if (kDebugMode) debugPrint('Error in _subscribeCharacteristic for $deviceId: $e');
     }
   }
 

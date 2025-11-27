@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/ble_manager.dart';
 import '../services/mock_ble_manager.dart';
@@ -36,14 +36,14 @@ class _ConnectionPageState extends State<ConnectionPage> {
   @override
   void initState() {
     super.initState();
-    print('ConnectionPage: initState starting');
+    if (kDebugMode) debugPrint('ConnectionPage: initState starting');
     // Delay BLE initialization to not block UI rendering
     Future.delayed(Duration.zero, () {
       if (mounted) {
         _applyManager();
-        print('ConnectionPage: BLE manager initialized');
+        if (kDebugMode) debugPrint('ConnectionPage: BLE manager initialized');
         startScan();
-        print('ConnectionPage: Scan started');
+        if (kDebugMode) debugPrint('ConnectionPage: Scan started');
       }
     });
   }
@@ -60,7 +60,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
     try {
       _bleMgr = _useMock ? MockBleManager() : BleManager();
     } catch (e) {
-      print('Error initializing BLE manager: $e');
+      if (kDebugMode) debugPrint('Error initializing BLE manager: $e');
       // Fall back to mock on iOS if BLE fails
       _bleMgr = MockBleManager();
       _useMock = true;
@@ -72,7 +72,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
     setState(() => _scanning = true);
     _scanSub?.cancel();
     try {
-      final scanStream = _bleMgr.scanForDevices(nameFilter: null);
+      // For iOS, scan with service UUID for better device discovery
+      final scanStream = _bleMgr.scanForDevices();
       _scanSub = scanStream.listen((d) {
         setState(() {
           if (_isWindows) {
@@ -81,9 +82,11 @@ class _ConnectionPageState extends State<ConnectionPage> {
           } else {
             final id = (d as dynamic).id as String;
             final name = (d as dynamic).name as String;
+            if (kDebugMode) debugPrint('Found device: $name ($id)');
             // Only add devices named WTLeft or WTRight
             if ((name == 'WTLeft' || name == 'WTRight') && !_devices.any((e) => e['id'] == id)) {
               _devices.add({'id': id, 'name': name});
+              if (kDebugMode) debugPrint('Added $name sensor');
               
               // Auto-assign based on name
               if (name == 'WTLeft' && _leftId == null) {
@@ -105,7 +108,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
         if (mounted) setState(() => _scanning = false);
       });
     } catch (e) {
-      print('Error starting scan: $e');
+      if (kDebugMode) debugPrint('Error starting scan: $e');
       if (mounted) setState(() => _scanning = false);
     }
   }
