@@ -1,5 +1,6 @@
 import '../models/imu_sample.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 
 class TurnSegment {
   final DateTime startTime;
@@ -23,14 +24,12 @@ class TurnSegment {
 }
 
 class SegmentationParams {
-  final double zeroBandDeg; // hysteresis band around 0 to avoid noise
-  final Duration minGapBetweenCrossings; // debounce rapid oscillations during transitions
-  final Duration maxPairDelta; // max delta to pair L/R crossings
+  final double minPeakChangeDeg; // minimum yaw change from valley to peak to count as a turn
+  final Duration minGapBetweenPeaks; // debounce rapid oscillations
 
   const SegmentationParams({
-    this.zeroBandDeg = 0.5, // tighter band; every real zero crossing counts
-    this.minGapBetweenCrossings = const Duration(milliseconds: 150), // debounce only jitter
-    this.maxPairDelta = const Duration(milliseconds: 500),
+    this.minPeakChangeDeg = 10.0, // must change at least 10° from valley to peak
+    this.minGapBetweenPeaks = const Duration(milliseconds: 200), // debounce noise
   });
 }
 
@@ -44,26 +43,25 @@ class TurnSegmentation {
       debugPrint('🎿 Segmentation: Processing ${left.length} left samples, ${right.length} right samples');
     }
     
-    // Average pitch from both sensors at aligned timestamps
-    final avgPitch = _averagePitchSignals(left, right);
+    // Average yaw from both sensors at aligned timestamps
+    final avgYaw = _averageYawSignals(left, right);
     
     if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Created ${avgPitch.length} averaged pitch points');
+      debugPrint('🎿 Segmentation: Created ${avgYaw.length} averaged yaw points');
     }
     
-    // Detect crossings on the averaged pitch signal
-    final crossings = _detectCrossings(avgPitch, params);
+    // Detect yaw peaks (local maxima/minima = turn points)
+    final peaks = _detectYawPeaks(avgYaw, params);
 
     if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Detected ${crossings.length} zero crossings');
+      debugPrint('🎿 Segmentation: Detected ${peaks.length} yaw peaks (turn points)');
     }
 
-    // Build segments from consecutive crossings.
-    // Start from first crossing, end at last crossing.
+    // Build segments from consecutive peaks
     final segments = <TurnSegment>[];
-    for (int k = 0; k + 1 < crossings.length; k++) {
-      final a = crossings[k];
-      final b = crossings[k + 1];
+    for (int k = 0; k + 1 < peaks.length; k++) {
+      final a = peaks[k];
+      final b = peaks[k + 1];
 
       final seg = TurnSegment(
         startTime: a.time,
@@ -72,7 +70,7 @@ class TurnSegmentation {
         startIndexRight: _nearestIndex(right, a.time),
         endIndexLeft: _nearestIndex(left, b.time),
         endIndexRight: _nearestIndex(right, b.time),
-        direction: b.dir, // direction of entering next turn
+        direction: b.isPeak ? 1 : -1, // peak = right turn, valley = left turn
       );
       segments.add(seg);
     }
@@ -87,30 +85,47 @@ class TurnSegmentation {
     return segments;
   }
 
-  static List<_AnglePoint> _averagePitchSignals(List<ImuSample> left, List<ImuSample> right) {
-    // Merge and average pitch from both sensors at all timestamps
-    final Map<int, List<double>> pitchByTime = {};
+  static List<_AnglePoint> _averageYawSignals(List<ImuSample> left, List<ImuSample> right) {
+    // Merge and average yaw from both sensors at all timestamps
+    // Handle yaw wraparound: -180° to +180°
+    final Map<int, List<double>> yawByTime = {};
     
-    // Collect all pitch values by timestamp (milliseconds since epoch)
+    // Collect all yaw values by timestamp (milliseconds since epoch)
     for (final s in left) {
       final key = s.timestamp.millisecondsSinceEpoch;
-      pitchByTime.putIfAbsent(key, () => []).add(s.pitch);
+      yawByTime.putIfAbsent(key, () => []).add(s.yaw);
     }
     for (final s in right) {
       final key = s.timestamp.millisecondsSinceEpoch;
-      pitchByTime.putIfAbsent(key, () => []).add(s.pitch);
+      yawByTime.putIfAbsent(key, () => []).add(s.yaw);
     }
     
-    // Average pitch values at each timestamp and create AnglePoints
+    // Average yaw values at each timestamp, handling wraparound
     final result = <_AnglePoint>[];
-    final sortedKeys = pitchByTime.keys.toList()..sort();
+    final sortedKeys = yawByTime.keys.toList()..sort();
     for (final ms in sortedKeys) {
-      final values = pitchByTime[ms]!;
-      final avg = values.reduce((a, b) => a + b) / values.length;
+      final values = yawByTime[ms]!;
+      final avg = _averageAngles(values);
       result.add(_AnglePoint(DateTime.fromMillisecondsSinceEpoch(ms), avg));
     }
     
     return result;
+  }
+
+  /// Average angles handling wraparound at ±180°
+  static double _averageAngles(List<double> angles) {
+    if (angles.isEmpty) return 0.0;
+    if (angles.length == 1) return angles[0];
+    
+    // Convert to unit vectors, average, then back to angle
+    double sumX = 0.0, sumY = 0.0;
+    for (final a in angles) {
+      final rad = a * 3.14159265359 / 180.0;
+      sumX += math.cos(rad);
+      sumY += math.sin(rad);
+    }
+    final avgRad = math.atan2(sumY / angles.length, sumX / angles.length);
+    return avgRad * 180.0 / 3.14159265359;
   }
 
   static int _nearestIndex(List<ImuSample> xs, DateTime t) {
@@ -128,39 +143,56 @@ class TurnSegmentation {
     return candidates.first;
   }
 
-  static List<_Crossing> _detectCrossings(List<_AnglePoint> pts, SegmentationParams p) {
-    // Simple zero-crossing detector: emit crossing whenever pitch crosses through zero
-    // with hysteresis to avoid noise, debounced to filter rapid oscillations.
-    final out = <_Crossing>[];
-    DateTime lastBoundaryTime = DateTime.fromMillisecondsSinceEpoch(0);
-    int prevSign = 0; // -1, 0, +1
+  static List<_Peak> _detectYawPeaks(List<_AnglePoint> pts, SegmentationParams p) {
+    // Detect local maxima and minima in yaw signal
+    // A peak is a local maximum (right turn), valley is local minimum (left turn)
+    if (pts.length < 3) return [];
     
-    for (int i = 0; i < pts.length; i++) {
-      final v = pts[i].angle;
+    final peaks = <_Peak>[];
+    DateTime? lastPeakTime;
+    
+    for (int i = 1; i < pts.length - 1; i++) {
+      final prev = pts[i - 1].angle;
+      final curr = pts[i].angle;
+      final next = pts[i + 1].angle;
       final t = pts[i].time;
-      // Determine current sign with hysteresis band
-      int currentSign;
-      if (v > p.zeroBandDeg) {
-        currentSign = 1;
-      } else if (v < -p.zeroBandDeg) {
-        currentSign = -1;
-      } else {
-        // In dead band; keep previous sign
-        currentSign = prevSign;
-      }
-
-      // Detect sign flip (crossing zero)
-      if (prevSign != 0 && currentSign != 0 && currentSign != prevSign) {
-        // Zero crossing detected; debounce
-        if (t.difference(lastBoundaryTime) >= p.minGapBetweenCrossings) {
-          out.add(_Crossing(time: t, dir: currentSign, index: i));
-          lastBoundaryTime = t;
+      
+      // Handle wraparound when comparing angles
+      final diffPrev = _angleDiff(curr, prev);
+      final diffNext = _angleDiff(next, curr);
+      
+      bool isLocalMax = diffPrev > 0 && diffNext < 0;
+      bool isLocalMin = diffPrev < 0 && diffNext > 0;
+      
+      if (isLocalMax || isLocalMin) {
+        // Check if change is significant enough
+        // Look back and forward to find the valley/peak magnitude
+        double magnitude = 0.0;
+        for (int j = math.max(0, i - 10); j < math.min(pts.length, i + 10); j++) {
+          magnitude = math.max(magnitude, _angleDiff(curr, pts[j].angle).abs());
         }
+        
+        if (magnitude < p.minPeakChangeDeg) continue; // too small, likely noise
+        
+        // Debounce
+        if (lastPeakTime != null && t.difference(lastPeakTime) < p.minGapBetweenPeaks) {
+          continue;
+        }
+        
+        peaks.add(_Peak(time: t, yaw: curr, isPeak: isLocalMax, index: i));
+        lastPeakTime = t;
       }
-
-      prevSign = currentSign;
     }
-    return out;
+    
+    return peaks;
+  }
+
+  /// Calculate angular difference handling wraparound: result in range [-180, 180]
+  static double _angleDiff(double a, double b) {
+    double diff = a - b;
+    while (diff > 180) diff -= 360;
+    while (diff < -180) diff += 360;
+    return diff;
   }
 }
 
@@ -170,9 +202,10 @@ class _AnglePoint {
   _AnglePoint(this.time, this.angle);
 }
 
-class _Crossing {
+class _Peak {
   final DateTime time;
-  final int dir; // -1 left, +1 right
+  final double yaw;
+  final bool isPeak; // true = local max (right turn), false = local min (left turn)
   final int index;
-  _Crossing({required this.time, required this.dir, required this.index});
+  _Peak({required this.time, required this.yaw, required this.isPeak, required this.index});
 }
