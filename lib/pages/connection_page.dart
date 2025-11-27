@@ -35,12 +35,12 @@ class _ConnectionPageState extends State<ConnectionPage> {
   @override
   void initState() {
     super.initState();
-    // Much longer delay to ensure any previous scans are fully stopped (iOS BLE issue)
-    Future.delayed(const Duration(milliseconds: 5000), () {
-      if (mounted) {
-        _applyManager();
-        startScan();
-      }
+    // Ensure we have a manager, disconnect any lingering connections, then scan
+    _applyManager();
+    final bleMgr = _bleMgr as BleManager;
+    bleMgr.stopScan().then((_) => bleMgr.disconnectAll()).then((_) {
+      if (!mounted) return;
+      startScan();
     });
   }
 
@@ -99,7 +99,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
   void _beginRawScan() {
     try {
-      final stream = (_bleMgr as BleManager).verboseRawScan();
+      final mgr = (_bleMgr as BleManager);
+      final stream = mgr.verboseRawScan();
       _scanSub = stream.listen((d) {
         final id = d.id;
         final name = d.name.isEmpty ? '' : d.name;
@@ -169,6 +170,16 @@ class _ConnectionPageState extends State<ConnectionPage> {
         ),
       ),
     );
+
+    // Ensure both are disconnected before attempting fresh connections
+    try {
+      await (_bleMgr as BleManager).disconnectDevice(_leftId!);
+    } catch (_) {}
+    try {
+      await (_bleMgr as BleManager).disconnectDevice(_rightId!);
+    } catch (_) {}
+    // Allow a short settle time on iOS
+    await Future.delayed(const Duration(milliseconds: 250));
 
     final leftOk = await _bleMgr.connectAndWait(_leftId!);
     final rightOk = await _bleMgr.connectAndWait(_rightId!);

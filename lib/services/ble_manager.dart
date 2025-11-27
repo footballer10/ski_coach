@@ -141,6 +141,26 @@ class BleManager {
     _latest.remove(deviceId);
   }
 
+  /// Check if a device is currently connected (subscription active)
+  bool isConnected(String deviceId) {
+    return _connSubs.containsKey(deviceId);
+  }
+
+  /// Disconnect all connected devices
+  Future<void> disconnectAll() async {
+    if (kDebugMode) {
+      debugPrint('🔌 BleManager: Disconnecting all devices (${_connSubs.length})');
+    }
+    final ids = _connSubs.keys.toList();
+    for (final id in ids) {
+      try {
+        await disconnectDevice(id);
+      } catch (_) {}
+    }
+    // Small delay to allow iOS to finalize disconnections
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+
   // -------------------------------------------------------------
   // Recording control
   // -------------------------------------------------------------
