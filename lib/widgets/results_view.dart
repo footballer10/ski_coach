@@ -143,16 +143,21 @@ class _ResultsViewState extends State<ResultsView> {
             ),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _selectedCategory,
+              value: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Category',
                 border: OutlineInputBorder(),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               ),
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12, color: Colors.black),
+              dropdownColor: Colors.white,
+              isExpanded: true,
               items: _categories
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat, style: const TextStyle(fontSize: 12))))
+                  .map((cat) => DropdownMenuItem(
+                        value: cat,
+                        child: Text(cat, style: const TextStyle(fontSize: 12, color: Colors.black)),
+                      ))
                   .toList(),
               onChanged: (value) {
                 if (value != null) _selectCategory(value);
@@ -162,16 +167,21 @@ class _ResultsViewState extends State<ResultsView> {
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _selectedTurn,
+              value: _selectedTurn,
               decoration: const InputDecoration(
                 labelText: 'Turn',
                 border: OutlineInputBorder(),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               ),
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12, color: Colors.black),
+              dropdownColor: Colors.white,
+              isExpanded: true,
               items: _turns
-                  .map((turn) => DropdownMenuItem(value: turn, child: Text(turn, style: const TextStyle(fontSize: 12))))
+                  .map((turn) => DropdownMenuItem(
+                        value: turn,
+                        child: Text(turn, style: const TextStyle(fontSize: 12, color: Colors.black)),
+                      ))
                   .toList(),
               onChanged: (value) {
                 if (value != null) _selectTurn(value);
@@ -183,18 +193,21 @@ class _ResultsViewState extends State<ResultsView> {
           if (showThirdDropdownCategoryTurn)
             Expanded(
               child: DropdownButtonFormField<String>(
-                initialValue: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                value: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
                 decoration: const InputDecoration(
                   labelText: 'Third',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 ),
+                style: const TextStyle(fontSize: 12, color: Colors.black),
+                dropdownColor: Colors.white,
+                isExpanded: true,
                 items: const [
-                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn')),
-                  DropdownMenuItem(value: 'First Third', child: Text('First Third')),
-                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third')),
-                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third')),
+                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'First Third', child: Text('First Third', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third', style: TextStyle(fontSize: 12, color: Colors.black))),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -215,18 +228,21 @@ class _ResultsViewState extends State<ResultsView> {
           if (showThirdDropdown)
             Expanded(
               child: DropdownButtonFormField<String>(
-                initialValue: _categoryPageThird,
+                value: _categoryPageThird,
                 decoration: const InputDecoration(
                   labelText: 'Third',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 ),
+                style: const TextStyle(fontSize: 12, color: Colors.black),
+                dropdownColor: Colors.white,
+                isExpanded: true,
                 items: const [
-                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn')),
-                  DropdownMenuItem(value: 'First Third', child: Text('First Third')),
-                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third')),
-                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third')),
+                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'First Third', child: Text('First Third', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third', style: TextStyle(fontSize: 12, color: Colors.black))),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _categoryPageThird = value);
@@ -499,30 +515,33 @@ class _ResultsViewState extends State<ResultsView> {
       onTap: () => _selectCategoryAndTurn(metric, _selectedTurn),
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(6.0),
+          padding: const EdgeInsets.all(4.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                metric,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Flexible(
+                child: Text(
+                  metric,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const SizedBox(height: 2),
-              Text('Val: —', style: const TextStyle(fontSize: 10)),
-              Text('Score: —', style: const TextStyle(fontSize: 10)),
+              Text('Val: —', style: const TextStyle(fontSize: 9)),
+              Text('Score: —', style: const TextStyle(fontSize: 9)),
               if (showDropdown) ...[
                 const SizedBox(height: 2),
-                Flexible(
+                SizedBox(
+                  height: 28,
                   child: DropdownButtonFormField<String>(
-                    initialValue: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                    value: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
                     isDense: true,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -530,10 +549,10 @@ class _ResultsViewState extends State<ResultsView> {
                     dropdownColor: Colors.white,
                     menuMaxHeight: 200,
                     items: const [
-                      DropdownMenuItem(value: 'Whole Turn', child: Text('Whole', style: TextStyle(fontSize: 9))),
-                      DropdownMenuItem(value: 'First Third', child: Text('1st', style: TextStyle(fontSize: 9))),
-                      DropdownMenuItem(value: 'Middle Third', child: Text('Mid', style: TextStyle(fontSize: 9))),
-                      DropdownMenuItem(value: 'Final Third', child: Text('Final', style: TextStyle(fontSize: 9))),
+                      DropdownMenuItem(value: 'Whole Turn', child: Text('Whole', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'First Third', child: Text('1st', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Middle Third', child: Text('Mid', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Final Third', child: Text('Final', style: TextStyle(fontSize: 9, color: Colors.black))),
                     ],
                     onChanged: (value) {
                       if (value != null) {

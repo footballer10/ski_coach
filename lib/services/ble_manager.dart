@@ -152,13 +152,14 @@ class BleManager {
 
       if (kDebugMode) debugPrint('[$deviceId] Subscribing to characteristic ${_char}...');
       _ble.subscribeToCharacteristic(char).listen((data) {
+        if (kDebugMode) debugPrint('[$deviceId] \u2713 DATA RECEIVED! ${data.length} bytes');
         _handleRawPacket(deviceId, data);
       }, onError: (e) {
-        if (kDebugMode) debugPrint('[$deviceId] Subscription error: $e');
+        if (kDebugMode) debugPrint('[$deviceId] \u274c Subscription error: $e');
       });
-      if (kDebugMode) debugPrint('[$deviceId] Successfully subscribed to characteristic');
+      if (kDebugMode) debugPrint('[$deviceId] \u2713 Successfully subscribed to characteristic');
     } catch (e) {
-      if (kDebugMode) debugPrint('[$deviceId] Error in _subscribeCharacteristic: $e');
+      if (kDebugMode) debugPrint('[$deviceId] \u274c Error in _subscribeCharacteristic: $e');
     }
   }
 
