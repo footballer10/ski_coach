@@ -162,22 +162,114 @@ class _ConnectionPageState extends State<ConnectionPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Connecting to sensors...', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
     );
 
     final leftOk = await _bleMgr.connectAndWait(_leftId!);
     final rightOk = await _bleMgr.connectAndWait(_rightId!);
 
     if (!mounted) return;
-    Navigator.of(context).pop(); // close loading dialog
 
-    if (leftOk && rightOk) {
-      // Call the callback to notify AppController
-      widget.onConnected?.call(_bleMgr, _leftId!, _rightId!);
-    } else {
+    if (!leftOk || !rightOk) {
+      Navigator.of(context).pop(); // close loading dialog
       if (kDebugMode) debugPrint('❌ CONNECTION FAILED: left=$leftOk, right=$rightOk');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to connect to one or both sensors')),
+      );
+      return;
+    }
+
+    // Wait for actual data from both sensors before proceeding
+    if (kDebugMode) debugPrint('✓ Sensors connected, waiting for data...');
+    
+    // Update dialog message
+    if (mounted) {
+      Navigator.of(context).pop();
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Waiting for sensor data...', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    bool leftDataReceived = false;
+    bool rightDataReceived = false;
+
+    final leftStream = _bleMgr.sampleStream(_leftId!);
+    final rightStream = _bleMgr.sampleStream(_rightId!);
+
+    StreamSubscription? leftDataSub;
+    StreamSubscription? rightDataSub;
+
+    final dataCompleter = Completer<bool>();
+
+    leftDataSub = leftStream?.listen((data) {
+      if (kDebugMode) debugPrint('✓ Left sensor data received');
+      leftDataReceived = true;
+      if (rightDataReceived && !dataCompleter.isCompleted) {
+        dataCompleter.complete(true);
+      }
+    });
+
+    rightDataSub = rightStream?.listen((data) {
+      if (kDebugMode) debugPrint('✓ Right sensor data received');
+      rightDataReceived = true;
+      if (leftDataReceived && !dataCompleter.isCompleted) {
+        dataCompleter.complete(true);
+      }
+    });
+
+    // Wait for data with timeout
+    try {
+      await dataCompleter.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          if (kDebugMode) debugPrint('⚠️ Timeout waiting for sensor data');
+          return false;
+        },
+      );
+    } finally {
+      leftDataSub?.cancel();
+      rightDataSub?.cancel();
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop(); // close loading dialog
+
+    if (leftDataReceived && rightDataReceived) {
+      if (kDebugMode) debugPrint('✓ Both sensors sending data, proceeding to run page');
+      // Call the callback to notify AppController
+      widget.onConnected?.call(_bleMgr, _leftId!, _rightId!);
+    } else {
+      if (kDebugMode) debugPrint('❌ Failed to receive data from sensors');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            leftDataReceived
+                ? 'No data from right sensor'
+                : rightDataReceived
+                    ? 'No data from left sensor'
+                    : 'No data from either sensor',
+          ),
+        ),
       );
     }
   }
