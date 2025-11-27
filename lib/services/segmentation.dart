@@ -30,11 +30,11 @@ class SegmentationParams {
   final Duration maxTurnDuration;
 
   const SegmentationParams({
-    this.zeroBandDeg = 3.0,
-    this.minGapBetweenCrossings = const Duration(milliseconds: 700),
-    this.maxPairDelta = const Duration(milliseconds: 300),
-    this.minTurnDuration = const Duration(milliseconds: 800),
-    this.maxTurnDuration = const Duration(seconds: 4),
+    this.zeroBandDeg = 1.0,
+    this.minGapBetweenCrossings = const Duration(milliseconds: 200),
+    this.maxPairDelta = const Duration(milliseconds: 500),
+    this.minTurnDuration = const Duration(milliseconds: 500),
+    this.maxTurnDuration = const Duration(seconds: 6),
   });
 }
 
@@ -144,37 +144,37 @@ class TurnSegmentation {
   static List<_Crossing> _detectCrossings(List<_AnglePoint> pts, SegmentationParams p) {
     final out = <_Crossing>[];
     DateTime lastEmit = DateTime.fromMillisecondsSinceEpoch(0);
-    int lastSign = 0; // -1, 0, +1
-    bool inBand = true;
+    int lastNonZeroSign = 0; // -1 or +1; 0 means unknown
     for (int i = 0; i < pts.length; i++) {
       final v = pts[i].angle;
       final t = pts[i].time;
+      // small zero band to tolerate jitter
       final sign = v > p.zeroBandDeg ? 1 : (v < -p.zeroBandDeg ? -1 : 0);
 
-      // hysteresis: only consider leaving band when beyond thresholds
       if (sign == 0) {
-        inBand = true;
+        // ignore pure in-band points; keep lastNonZeroSign
         continue;
       }
-      if (inBand) {
-        // first sample leaving band defines the sign state
-        inBand = false;
-        lastSign = sign;
+
+      if (lastNonZeroSign == 0) {
+        // initialize sign state when first leaving band
+        lastNonZeroSign = sign;
         continue;
       }
-      // detect sign change when previously opposite and we're beyond band
-      if (lastSign != 0 && sign != lastSign) {
-        // debounce on time
+
+      if (sign != lastNonZeroSign) {
+        // sign changed (e.g., 5,4,2,1,-1,1,-2,...); debounce in time
         if (t.difference(lastEmit) >= p.minGapBetweenCrossings) {
           out.add(_Crossing(time: t, dir: sign, index: i));
           lastEmit = t;
-          lastSign = sign;
+          lastNonZeroSign = sign;
         } else {
-          // too soon, ignore bounce
-          lastSign = sign; // update state but don't emit
+          // within debounce window; update state but don't emit
+          lastNonZeroSign = sign;
         }
       } else {
-        lastSign = sign;
+        // same sign; keep tracking
+        lastNonZeroSign = sign;
       }
     }
     return out;
