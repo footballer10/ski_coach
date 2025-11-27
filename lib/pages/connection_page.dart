@@ -122,11 +122,15 @@ class _ConnectionPageState extends State<ConnectionPage> {
         if (!mounted) return;
         if (_devices.isEmpty && _scanning) {
           if (kDebugMode) debugPrint('⚠️ No devices found with service filter. Switching to RAW SCAN...');
-          _scanSub?.cancel();
-          _scanSub = null;
-          // Wait for iOS to fully stop scanning before starting new scan
-          await Future.delayed(const Duration(milliseconds: 500));
-          if (mounted && _scanning) {
+          
+          // Explicitly stop the current scan
+          stopScan();
+          
+          // Wait longer for iOS BLE stack to fully stop scanning
+          await Future.delayed(const Duration(milliseconds: 1000));
+          
+          if (mounted) {
+            setState(() => _scanning = true);
             _beginRawScan();
           }
         }
@@ -238,7 +242,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
   }
 
   void stopScan() {
+    if (kDebugMode) debugPrint('stopScan called - canceling subscription');
     _scanSub?.cancel();
+    _scanSub = null;
     setState(() => _scanning = false);
   }
 
