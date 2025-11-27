@@ -25,6 +25,9 @@ class BleManager {
   // For outputting IMU samples as maps: {ax,ay,az,gx,gy,gz,roll,pitch,yaw}
   final Map<String, StreamController<Map<String, double>>> _sampleControllers = {};
 
+  /// Stream of BLE status (ready, unauthorized, etc)
+  Stream<BleStatus> get statusStream => _ble.statusStream;
+
   Stream<DiscoveredDevice> get scanStream =>
       _ble.scanForDevices(withServices: [_service]).asBroadcastStream();
 

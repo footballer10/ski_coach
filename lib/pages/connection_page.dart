@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import '../services/ble_manager.dart';
 import '../services/mock_ble_manager.dart';
 
@@ -71,7 +72,38 @@ class _ConnectionPageState extends State<ConnectionPage> {
     _devices.clear();
     setState(() => _scanning = true);
     _scanSub?.cancel();
+    
+    // Check BLE status first (for real BLE manager)
+    if (!_useMock) {
+      final statusStream = (_bleMgr as BleManager).statusStream;
+      statusStream.first.then((status) {
+        if (kDebugMode) debugPrint('BLE Status: $status');
+        if (status == BleStatus.ready) {
+          _startActualScan();
+        } else {
+          if (kDebugMode) debugPrint('BLE not ready: $status, waiting...');
+          // Wait for BLE to be ready
+          statusStream.firstWhere((s) => s == BleStatus.ready).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              if (kDebugMode) debugPrint('BLE status timeout, trying anyway...');
+              _startActualScan();
+              return BleStatus.unknown;
+            },
+          ).then((_) {
+            if (kDebugMode) debugPrint('BLE now ready, starting scan');
+            _startActualScan();
+          });
+        }
+      });
+    } else {
+      _startActualScan();
+    }
+  }
+
+  void _startActualScan() {
     try {
+      if (kDebugMode) debugPrint('Starting BLE scan for service UUID...');
       // For iOS, scan with service UUID for better device discovery
       final scanStream = _bleMgr.scanForDevices();
       _scanSub = scanStream.listen((d) {
