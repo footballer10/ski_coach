@@ -233,7 +233,8 @@ class _ResultsViewState extends State<ResultsView> {
                 },
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
