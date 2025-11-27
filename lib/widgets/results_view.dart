@@ -432,6 +432,7 @@ class _ResultsViewState extends State<ResultsView> {
   // _buildFeedbackSection omitted for compact layout
 
   Widget _buildCategoryAllTurns() {
+    final actualTurnCount = widget.turnCount > 0 ? widget.turnCount : 5;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -443,8 +444,11 @@ class _ResultsViewState extends State<ResultsView> {
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
-                children: List.generate(5, (i) {
+                children: List.generate(actualTurnCount, (i) {
                   final turnLabel = 'Turn ${i + 1}';
+                  final turnDuration = (i < widget.turnDurationsSeconds.length)
+                      ? '${widget.turnDurationsSeconds[i]}s'
+                      : '—';
                   return GestureDetector(
                     onTap: () => _selectCategoryAndTurn(_selectedCategory, turnLabel),
                     child: Container(
@@ -455,9 +459,21 @@ class _ResultsViewState extends State<ResultsView> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Center(
-                        child: Text(
-                          'Turn ${i + 1}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Turn ${i + 1}',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                            if (_selectedCategory == 'Turn Duration') ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                turnDuration,
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
@@ -541,6 +557,20 @@ class _ResultsViewState extends State<ResultsView> {
   Widget _buildMetricModule(String metric, int turnIndex) {
     final showDropdown = (metric == 'Parallel Ski Control' || metric == 'Smoothness');
     
+    // Extract turn index from _selectedTurn (e.g., "Turn 3" -> 2)
+    int? selectedTurnIndex;
+    if (_selectedTurn != 'All Turns') {
+      final match = RegExp(r'Turn (\d+)').firstMatch(_selectedTurn);
+      if (match != null) {
+        selectedTurnIndex = int.parse(match.group(1)!) - 1;
+      }
+    }
+    
+    String valueText = '—';
+    if (metric == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
+      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex]}s';
+    }
+    
     return GestureDetector(
       onTap: () => _selectCategoryAndTurn(metric, _selectedTurn),
       child: Card(
@@ -560,7 +590,7 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ),
               const SizedBox(height: 2),
-              Text('Val: —', style: const TextStyle(fontSize: 9)),
+              Text('Val: $valueText', style: const TextStyle(fontSize: 9)),
               Text('Score: —', style: const TextStyle(fontSize: 9)),
               if (showDropdown) ...[
                 const SizedBox(height: 2),
@@ -607,6 +637,20 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCategoryTurn() {
+    // Extract turn index from _selectedTurn (e.g., "Turn 3" -> 2)
+    int? selectedTurnIndex;
+    if (_selectedTurn != 'All Turns') {
+      final match = RegExp(r'Turn (\d+)').firstMatch(_selectedTurn);
+      if (match != null) {
+        selectedTurnIndex = int.parse(match.group(1)!) - 1;
+      }
+    }
+    
+    String valueText = '[Placeholder]';
+    if (_selectedCategory == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
+      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex]}s';
+    }
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -618,11 +662,11 @@ class _ResultsViewState extends State<ResultsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Value: [Placeholder]'),
+                  Text('Value: $valueText', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('Score: [Placeholder]'),
+                  Text('Score: [Placeholder]', style: const TextStyle(fontSize: 14)),
                   const SizedBox(height: 8),
-                  const Text('[Dot plot placeholder]'),
+                  const Text('[Dot plot placeholder]', style: TextStyle(fontStyle: FontStyle.italic)),
                 ],
               ),
             ),
