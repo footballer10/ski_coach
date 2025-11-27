@@ -44,51 +44,34 @@ class TurnSegmentation {
       debugPrint('🎿 Segmentation: Processing ${left.length} left samples, ${right.length} right samples');
     }
     
-    // Use pitch (lean left/right) for turn detection due to sensor orientation
-    final leftCross = _detectCrossings(left.map((s) => _AnglePoint(s.timestamp, s.pitch)).toList(), params);
-    final rightCross = _detectCrossings(right.map((s) => _AnglePoint(s.timestamp, s.pitch)).toList(), params);
+    // Average pitch from both sensors at aligned timestamps
+    final avgPitch = _averagePitchSignals(left, right);
+    
+    if (kDebugMode) {
+      debugPrint('🎿 Segmentation: Created ${avgPitch.length} averaged pitch points');
+    }
+    
+    // Detect crossings on the averaged pitch signal
+    final crossings = _detectCrossings(avgPitch, params);
 
     if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Detected ${leftCross.length} left crossings, ${rightCross.length} right crossings');
+      debugPrint('🎿 Segmentation: Detected ${crossings.length} zero crossings');
     }
 
-    // Pair crossings: always match left and right, use average timestamp
-    // This prevents thinking there are two separate crossings when timing differs
-    final paired = <_Boundary>[];
-    final maxCount = leftCross.length > rightCross.length ? leftCross.length : rightCross.length;
-    
-    for (int i = 0; i < maxCount; i++) {
-      final lc = i < leftCross.length ? leftCross[i] : null;
-      final rc = i < rightCross.length ? rightCross[i] : null;
-
-      if (lc != null && rc != null) {
-        // Both sensors have crossing: average their timestamps
-        final avgMillis = (lc.time.millisecondsSinceEpoch + rc.time.millisecondsSinceEpoch) ~/ 2;
-        final avgTime = DateTime.fromMillisecondsSinceEpoch(avgMillis);
-        paired.add(_Boundary(avgTime, lc.dir, lc.index, rc.index, null, null));
-      } else if (lc != null) {
-        // Only left sensor
-        paired.add(_Boundary(lc.time, lc.dir, lc.index, null, null, null));
-      } else if (rc != null) {
-        // Only right sensor
-        paired.add(_Boundary(rc.time, rc.dir, null, rc.index, null, null));
-      }
-    }
-
-    // Build segments from consecutive boundaries.
+    // Build segments from consecutive crossings.
     // Start from first crossing, end at last crossing.
     final segments = <TurnSegment>[];
-    for (int k = 0; k + 1 < paired.length; k++) {
-      final a = paired[k];
-      final b = paired[k + 1];
+    for (int k = 0; k + 1 < crossings.length; k++) {
+      final a = crossings[k];
+      final b = crossings[k + 1];
 
       final seg = TurnSegment(
         startTime: a.time,
         endTime: b.time,
-        startIndexLeft: a.leftIndex ?? _nearestIndex(left, a.time),
-        startIndexRight: a.rightIndex ?? _nearestIndex(right, a.time),
-        endIndexLeft: b.leftIndex ?? _nearestIndex(left, b.time),
-        endIndexRight: b.rightIndex ?? _nearestIndex(right, b.time),
+        startIndexLeft: _nearestIndex(left, a.time),
+        startIndexRight: _nearestIndex(right, a.time),
+        endIndexLeft: _nearestIndex(left, b.time),
+        endIndexRight: _nearestIndex(right, b.time),
         direction: b.dir, // direction of entering next turn
       );
       segments.add(seg);
@@ -102,6 +85,32 @@ class TurnSegmentation {
     }
     
     return segments;
+  }
+
+  static List<_AnglePoint> _averagePitchSignals(List<ImuSample> left, List<ImuSample> right) {
+    // Merge and average pitch from both sensors at all timestamps
+    final Map<int, List<double>> pitchByTime = {};
+    
+    // Collect all pitch values by timestamp (milliseconds since epoch)
+    for (final s in left) {
+      final key = s.timestamp.millisecondsSinceEpoch;
+      pitchByTime.putIfAbsent(key, () => []).add(s.pitch);
+    }
+    for (final s in right) {
+      final key = s.timestamp.millisecondsSinceEpoch;
+      pitchByTime.putIfAbsent(key, () => []).add(s.pitch);
+    }
+    
+    // Average pitch values at each timestamp and create AnglePoints
+    final result = <_AnglePoint>[];
+    final sortedKeys = pitchByTime.keys.toList()..sort();
+    for (final ms in sortedKeys) {
+      final values = pitchByTime[ms]!;
+      final avg = values.reduce((a, b) => a + b) / values.length;
+      result.add(_AnglePoint(DateTime.fromMillisecondsSinceEpoch(ms), avg));
+    }
+    
+    return result;
   }
 
   static int _nearestIndex(List<ImuSample> xs, DateTime t) {
@@ -166,14 +175,4 @@ class _Crossing {
   final int dir; // -1 left, +1 right
   final int index;
   _Crossing({required this.time, required this.dir, required this.index});
-}
-
-class _Boundary {
-  final DateTime time;
-  final int dir;
-  final int? leftIndex;
-  final int? rightIndex;
-  final int? leftEnd;
-  final int? rightEnd;
-  _Boundary(this.time, this.dir, this.leftIndex, this.rightIndex, this.leftEnd, this.rightEnd);
 }
