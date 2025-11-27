@@ -43,11 +43,19 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   Map<String, double>? _rightLatest;
   bool _recording = false;
   Map<String, dynamic>? _analysisResults;
+  
+  // Watchdog timers to detect sensor disconnection
+  Timer? _leftWatchdog;
+  Timer? _rightWatchdog;
+  DateTime? _lastLeftData;
+  DateTime? _lastRightData;
+  static const _dataTimeout = Duration(seconds: 3);
 
   @override
   void initState() {
     super.initState();
     _subscribeToSamples();
+    _startWatchdogs();
     
     // Auto-start recording if requested
     if (widget.autoStart) {
@@ -63,7 +71,48 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   void dispose() {
     _leftSub?.cancel();
     _rightSub?.cancel();
+    _leftWatchdog?.cancel();
+    _rightWatchdog?.cancel();
     super.dispose();
+  }
+  
+  void _startWatchdogs() {
+    _leftWatchdog?.cancel();
+    _rightWatchdog?.cancel();
+    
+    // Check for left sensor data timeout every second
+    _leftWatchdog = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      if (_lastLeftData != null) {
+        final timeSinceData = DateTime.now().difference(_lastLeftData!);
+        if (timeSinceData > _dataTimeout) {
+          debugPrint('🎿 RunPage: Left sensor timeout - no data for ${timeSinceData.inSeconds}s');
+          timer.cancel();
+          _handleSensorDisconnect('Left sensor disconnected (no data)');
+        }
+      }
+    });
+    
+    // Check for right sensor data timeout every second
+    _rightWatchdog = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      if (_lastRightData != null) {
+        final timeSinceData = DateTime.now().difference(_lastRightData!);
+        if (timeSinceData > _dataTimeout) {
+          debugPrint('🎿 RunPage: Right sensor timeout - no data for ${timeSinceData.inSeconds}s');
+          timer.cancel();
+          _handleSensorDisconnect('Right sensor disconnected (no data)');
+        }
+      }
+    });
   }
 
   void _subscribeToSamples() {
@@ -73,7 +122,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     if (leftStream != null) {
       _leftSub = leftStream.listen(
         (s) {
-          if (mounted) setState(() => _leftLatest = s);
+          if (mounted) {
+            setState(() => _leftLatest = s);
+            _lastLeftData = DateTime.now();
+          }
         },
         onDone: () {
           if (mounted) {
@@ -93,7 +145,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     if (rightStream != null) {
       _rightSub = rightStream.listen(
         (s) {
-          if (mounted) setState(() => _rightLatest = s);
+          if (mounted) {
+            setState(() => _rightLatest = s);
+            _lastRightData = DateTime.now();
+          }
         },
         onDone: () {
           if (mounted) {
@@ -112,6 +167,10 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _handleSensorDisconnect(String message) {
+    // Stop watchdogs
+    _leftWatchdog?.cancel();
+    _rightWatchdog?.cancel();
+    
     // Stop recording if active
     if (_recording) {
       widget.bleMgr.stopRecording();
@@ -139,6 +198,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   void _resetToRecording() {
     // Resubscribe to samples when resetting
     _subscribeToSamples();
+    _startWatchdogs();
     
     setState(() {
       _state = RunState.recording;
@@ -146,6 +206,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       _analysisResults = null;
       _leftLatest = null;
       _rightLatest = null;
+      _lastLeftData = null;
+      _lastRightData = null;
     });
   }
 
