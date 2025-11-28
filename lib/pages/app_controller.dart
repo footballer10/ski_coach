@@ -76,29 +76,30 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
+  bool _reconnectOpen = false;
+
   void _onSensorsDisconnected() {
     debugPrint('🎿 AppController: _onSensorsDisconnected called');
-    // Show connection overlay for reconnection (preserve all run pages)
-    // User can cancel to return to error screen on current page
     if (!mounted) {
       debugPrint('🎿 AppController: Not mounted, skipping navigation');
       return;
     }
-    
+    if (_reconnectOpen) {
+      debugPrint('🎿 AppController: Reconnect modal already open, skipping push');
+      return;
+    }
+    _reconnectOpen = true;
     debugPrint('🎿 AppController: Pushing ConnectionPage with showCloseButton=true');
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (context) => ConnectionPage(
           showCloseButton: true,
           onConnected: (bleMgr, leftId, rightId) {
-            // Update connection info
             _bleMgr = bleMgr;
             _leftId = leftId;
             _rightId = rightId;
-            
-            // Close the reconnection page and return to run page
             Navigator.of(context).pop();
-            
             // Enable arrows if not already enabled
             if (!_showArrows && _runPages.isNotEmpty) {
               setState(() => _showArrows = true);
@@ -106,7 +107,11 @@ class _AppControllerState extends State<AppController> {
           },
         ),
       ),
-    );
+    )
+        .then((_) {
+      // Modal closed (via X or after successful reconnect)
+      _reconnectOpen = false;
+    });
   }
 
   void _addNewRunPage() {

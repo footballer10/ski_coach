@@ -56,7 +56,14 @@ class _ConnectionPageState extends State<ConnectionPage> {
     _bleMgr = BleManager();
   }
 
+  bool _startingScan = false;
+
   void startScan() {
+    if (_startingScan) {
+      if (kDebugMode) debugPrint('🔵 ConnectionPage: startScan ignored (already starting)');
+      return;
+    }
+    _startingScan = true;
     final bleMgr = _bleMgr as BleManager;
     
     // Cancel local subscriptions
@@ -74,7 +81,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
     // Properly stop any active BLE scan in the manager before starting new one
     bleMgr.stopScan().then((_) {
-      if (!mounted) return;
+      if (!mounted) { _startingScan = false; return; }
       
       if (kDebugMode) {
         debugPrint('🔵 ConnectionPage: Starting new scan after stopping previous scan');
@@ -89,11 +96,13 @@ class _ConnectionPageState extends State<ConnectionPage> {
       });
       // Fallback if never reaches ready
       Future.delayed(const Duration(seconds: 5), () {
-        if (!mounted) return;
+        if (!mounted) { _startingScan = false; return; }
         if (_scanSub == null) {
           _beginRawScan();
         }
       });
+      // Reset starting flag once status subscription created
+      _startingScan = false;
     });
   }
 

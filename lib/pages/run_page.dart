@@ -206,18 +206,12 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     _leftSub = null;
     _rightSub = null;
     
-    // Always set error state so ResultsView will show error if on results screen
-    debugPrint('🎿 RunPage: Setting state to results with error');
+    // Do not overwrite current results view; just stop recording and show reconnect
+    debugPrint('🎿 RunPage: Preparing reconnect overlay (preserving current page)');
     setState(() {
       _recording = false;
-      _state = RunState.results;
-      _analysisResults = {
-        'error': message,
-        'isSensorDisconnect': true, // Flag to show reconnect button
-      };
     });
-    
-    // Always bring up reconnect modal immediately (idempotent)
+    // Bring up reconnect modal immediately (idempotent via AppController)
     debugPrint('🎿 RunPage: About to call widget.onDisconnect()');
     widget.onDisconnect();
     debugPrint('🎿 RunPage: widget.onDisconnect() called successfully');
