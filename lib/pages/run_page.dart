@@ -232,16 +232,15 @@ enum RunState { recording, processing, results }
     _rightSub = null;
     
     if (wasRecording) {
-      // Show error page for recording disconnect (preserve as results page)
-      debugPrint('🎿 RunPage: Setting error results state for recording disconnect');
+      // Show error page for recording disconnect with reconnect-only option until sensors return
+      debugPrint('🎿 RunPage: Setting reconnect-only error for recording disconnect');
       setState(() {
         _recording = false;
         _state = RunState.results;
         _analysisResults = {
           'error': message,
           'isSensorDisconnect': true,
-          // Allow immediate start of a fresh run after sensors are reconnected
-          'startAnotherRun': true,
+          'reconnectOnly': true,
         };
       });
     } else {

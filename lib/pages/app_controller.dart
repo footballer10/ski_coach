@@ -175,27 +175,27 @@ class _AppControllerState extends State<AppController> {
       autoStart: false,
       onResultsShown: null,
     );
+    int targetIndex = 0;
     setState(() {
       _runPages.add(newPage);
       _runPageKeys.add(pageKey);
       _tempErrorPageKeys.add(pageKey);
+      targetIndex = _runPages.length - 1;
+      _currentPage = targetIndex;
     });
     // Force the new error page to always show only the reconnect button (never 'Start Another Run')
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (pageKey.currentState != null && pageKey.currentState!.mounted) {
-        pageKey.currentState!.showDisconnectErrorOnlyReconnect(message);
-      }
-      if (_pageController.hasClients && mounted) {
-        _pageController.jumpToPage(_runPages.length - 1);
-        setState(() {
-          _currentPage = _runPages.length - 1;
-        });
+      if (!mounted) return;
+      _ensureReconnectOnlyErrorInitialized(pageKey, message);
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(targetIndex);
       }
     });
   }
 
   void _removeTemporaryErrorPages() {
     if (_tempErrorPageKeys.isEmpty) return;
+    int targetPage = 0;
     setState(() {
       for (final key in _tempErrorPageKeys) {
         final idx = _runPageKeys.indexOf(key);
@@ -205,8 +205,38 @@ class _AppControllerState extends State<AppController> {
         }
       }
       _tempErrorPageKeys.clear();
-      // Adjust current page index if needed
-      _currentPage = _currentPage.clamp(0, _runPages.length - 1);
+      if (_runPages.isEmpty) {
+        _currentPage = 0;
+      } else {
+        _currentPage = _currentPage.clamp(0, _runPages.length - 1);
+      }
+      targetPage = _currentPage;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_pageController.hasClients && targetPage >= 0 && targetPage < _runPages.length) {
+        _pageController.jumpToPage(targetPage);
+      }
+    });
+  }
+
+  void _ensureReconnectOnlyErrorInitialized(
+    GlobalKey<RunPageState> key,
+    String message, {
+    int attempt = 0,
+  }) {
+    if (!mounted) return;
+    const maxAttempts = 5;
+    final state = key.currentState;
+    if (state != null && state.mounted) {
+      state.showDisconnectErrorOnlyReconnect(message);
+      return;
+    }
+    if (attempt >= maxAttempts) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureReconnectOnlyErrorInitialized(key, message, attempt: attempt + 1);
     });
   }
 
