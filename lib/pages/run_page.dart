@@ -298,6 +298,7 @@ enum RunState { recording, processing, results }
   }
 
   bool get hasRecordingDisconnectError => _analysisResults != null && _analysisResults!['isSensorDisconnect'] == true;
+    bool get isReconnectOnlyError => _analysisResults != null && _analysisResults!['reconnectOnly'] == true;
   bool get isSummaryWithValidResults => _state == RunState.results && _analysisResults != null && _analysisResults!['error'] == null;
   bool get shouldShowPostReconnectError => (
     // Only if a disconnect occurred (flags) and not already an error page

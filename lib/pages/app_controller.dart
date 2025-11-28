@@ -113,9 +113,10 @@ class _AppControllerState extends State<AppController> {
             final currentState = currentKey?.currentState;
             if (currentState != null && currentState.mounted) {
               // Only show post-reconnect error if page was interrupted during pre/recording or processing, not if it had valid summary results
-              if (currentState.shouldShowPostReconnectError) {
-                currentState.showPostReconnectErrorStartNewRun();
-              }
+                // If we previously showed a reconnect-only error (after X), convert to start-another-run error now
+                if (currentState.shouldShowPostReconnectError || (currentState.hasRecordingDisconnectError && currentState.isReconnectOnlyError)) {
+                  currentState.showPostReconnectErrorStartNewRun();
+                }
             }
             // Notify pages to resubscribe/reset guards
             _notifyRunPagesReconnected();
@@ -135,10 +136,8 @@ class _AppControllerState extends State<AppController> {
           final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
           final currentState = currentKey?.currentState;
           if (currentState != null && currentState.mounted) {
-            // Only convert page if not a valid summary results page (avoid losing analysis)
-            if (!currentState.isSummaryWithValidResults) {
-              currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
-            }
+            // Show reconnect-only error regardless of summary state, since user explicitly canceled
+            currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
           }
         }
       } catch (_) {
