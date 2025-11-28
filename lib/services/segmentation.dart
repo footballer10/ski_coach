@@ -176,29 +176,29 @@ class TurnSegmentation {
   }
 
   static List<_AnglePoint> _averageYawSignals(List<ImuSample> left, List<ImuSample> right) {
-    // Merge and average yaw from both sensors at all timestamps
-    // Handle yaw wraparound: -180° to +180°
-    final Map<int, List<double>> yawByTime = {};
-    
-    // Collect all yaw values by timestamp (milliseconds since epoch)
-    for (final s in left) {
-      final key = s.timestamp.millisecondsSinceEpoch;
-      yawByTime.putIfAbsent(key, () => []).add(s.yaw);
-    }
-    for (final s in right) {
-      final key = s.timestamp.millisecondsSinceEpoch;
-      yawByTime.putIfAbsent(key, () => []).add(s.yaw);
-    }
-    
-    // Average yaw values at each timestamp, handling wraparound
+    // Pair left/right samples by index order; discard extras when lists differ in length
     final result = <_AnglePoint>[];
-    final sortedKeys = yawByTime.keys.toList()..sort();
-    for (final ms in sortedKeys) {
-      final values = yawByTime[ms]!;
-      final avg = _averageAngles(values);
-      result.add(_AnglePoint(DateTime.fromMillisecondsSinceEpoch(ms), avg));
+    if (left.isEmpty || right.isEmpty) {
+      return result;
     }
-    
+
+    final pairCount = math.min(left.length, right.length);
+    final droppedLeft = left.length - pairCount;
+    final droppedRight = right.length - pairCount;
+
+    for (int k = 0; k < pairCount; k++) {
+      final l = left[k];
+      final r = right[k];
+      final avgYaw = _averageAngles([l.yaw, r.yaw]);
+      final meanMs = ((l.timestamp.millisecondsSinceEpoch + r.timestamp.millisecondsSinceEpoch) / 2).round();
+      final isUtc = l.timestamp.isUtc || r.timestamp.isUtc;
+      result.add(_AnglePoint(DateTime.fromMillisecondsSinceEpoch(meanMs, isUtc: isUtc), avgYaw));
+    }
+
+    if (kDebugMode && (droppedLeft > 0 || droppedRight > 0)) {
+      debugPrint('🎯 Segmentation: index pairing dropped extras left=$droppedLeft right=$droppedRight');
+    }
+
     return result;
   }
 
@@ -248,6 +248,8 @@ class TurnSegmentation {
     DateTime? lastPeakTime;
     
     const prominenceWindow = 20; // samples to inspect on each side for prominence
+    const int trendWindow = 3; // look this many samples to verify monotonic trend
+    const double trendThreshold = 0.5; // minimum yaw change to qualify as monotonic
     for (int i = 1; i < pts.length - 1; i++) {
       final currWrapped = pts[i].angle;
       final prevUnwrapped = unwrapped[i - 1];
@@ -265,6 +267,23 @@ class TurnSegmentation {
         if (kDebugMode) {
           debugPrint('      peak-candidate idx=$i time=${t.toIso8601String()} yaw=${currWrapped.toStringAsFixed(2)}° type=${isLocalMax ? 'MAX' : 'MIN'} diffPrev=${diffPrev.toStringAsFixed(2)} diffNext=${diffNext.toStringAsFixed(2)}');
         }
+
+        final beforeIdx = math.max(0, i - trendWindow);
+        final afterIdx = math.min(unwrapped.length - 1, i + trendWindow);
+        final beforeDelta = currUnwrapped - unwrapped[beforeIdx];
+        final afterDelta = unwrapped[afterIdx] - currUnwrapped;
+
+        final bool trendValid = isLocalMax
+            ? beforeDelta > trendThreshold && afterDelta < -trendThreshold
+            : beforeDelta < -trendThreshold && afterDelta > trendThreshold;
+
+        if (!trendValid) {
+          if (kDebugMode) {
+            debugPrint('         ↳ rejected: insufficient monotonic trend (before=${beforeDelta.toStringAsFixed(2)}°, after=${afterDelta.toStringAsFixed(2)}°)');
+          }
+          continue;
+        }
+
         final leftSwing = _swingMagnitude(unwrapped, i, prominenceWindow, toLeft: true);
         final rightSwing = _swingMagnitude(unwrapped, i, prominenceWindow, toLeft: false);
         final prominence = (leftSwing == 0 || rightSwing == 0)
@@ -276,6 +295,27 @@ class TurnSegmentation {
             debugPrint('         ↳ rejected: prominence ${prominence.toStringAsFixed(2)}° < ${p.minPeakChangeDeg}° (left=${leftSwing.toStringAsFixed(2)}°, right=${rightSwing.toStringAsFixed(2)}°)');
           }
           continue; // not enough yaw change on both sides, treat as noise
+        }
+
+        if (peaks.isNotEmpty && peaks.last.isPeak == isLocalMax) {
+          final previous = peaks.last;
+          final prevUnwrappedAtPeak = unwrapped[previous.index];
+          final bool newIsMoreExtreme = isLocalMax
+              ? currUnwrapped > prevUnwrappedAtPeak
+              : currUnwrapped < prevUnwrappedAtPeak;
+
+          if (newIsMoreExtreme) {
+            if (kDebugMode) {
+              debugPrint('         ↳ replacing previous ${isLocalMax ? 'MAX' : 'MIN'} (idx=${previous.index}) with more extreme candidate idx=$i');
+            }
+            peaks[peaks.length - 1] = _Peak(time: t, yaw: currWrapped, isPeak: isLocalMax, index: i);
+            lastPeakTime = t;
+          } else {
+            if (kDebugMode) {
+              debugPrint('         ↳ discarded: existing ${isLocalMax ? 'MAX' : 'MIN'} at idx=${previous.index} is more extreme');
+            }
+          }
+          continue;
         }
         
         // Debounce
