@@ -180,15 +180,16 @@ class _AppControllerState extends State<AppController> {
       _runPageKeys.add(pageKey);
       _tempErrorPageKeys.add(pageKey);
     });
-    // Initialize the page into reconnect-only error state
+    // Force the new error page to always show only the reconnect button (never 'Start Another Run')
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      pageKey.currentState?.showDisconnectErrorOnlyReconnect(message);
+      if (pageKey.currentState != null && pageKey.currentState!.mounted) {
+        pageKey.currentState!.showDisconnectErrorOnlyReconnect(message);
+      }
       if (_pageController.hasClients && mounted) {
-        _pageController.animateToPage(
-          _runPages.length - 1,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        _pageController.jumpToPage(_runPages.length - 1);
+        setState(() {
+          _currentPage = _runPages.length - 1;
+        });
       }
     });
   }
