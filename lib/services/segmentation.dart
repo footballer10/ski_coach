@@ -28,17 +28,13 @@ class TurnSegment {
 class SegmentationParams {
   final double minPeakChangeDeg; // minimum yaw change from valley to peak to count as a turn
   final Duration minGapBetweenPeaks; // debounce rapid oscillations
-  final double minTurnAmplitudeDeg; // yaw swing required across a full turn segment
-  final double minEdgeAngleDeg; // optional guard using max pitch during the segment
-  final Duration minSegmentDuration; // ensure turns last long enough to be real
+  final Duration minApproachTime; // minimum time moving toward peak on each side
   final int smoothingWindow; // number of samples for moving average smoothing
 
   const SegmentationParams({
-    this.minPeakChangeDeg = 22.0, // require ~22° swing between valley & peak to count
-    this.minGapBetweenPeaks = const Duration(milliseconds: 325), // slightly longer debounce
-    this.minTurnAmplitudeDeg = 35.0,
-    this.minEdgeAngleDeg = 0.0,
-    this.minSegmentDuration = const Duration(milliseconds: 850),
+    this.minPeakChangeDeg = 8.0, // reduced to allow smaller quick turns
+    this.minGapBetweenPeaks = const Duration(milliseconds: 150), // reduced for quick turns
+    this.minApproachTime = const Duration(milliseconds: 100), // ensure sustained movement
     this.smoothingWindow = 5,
   });
 }
@@ -71,9 +67,21 @@ class TurnSegmentation {
 
     // Build segments from consecutive peaks
     final segments = <TurnSegment>[];
+    int rejectedApproach = 0;
+    int rejectedAlternation = 0;
+    
     for (int k = 0; k + 1 < peaks.length; k++) {
       final a = peaks[k];
       final b = peaks[k + 1];
+
+      // Ensure peaks alternate between max and min (no two lefts or two rights in a row)
+      if (a.isPeak == b.isPeak) {
+        rejectedAlternation++;
+        if (kDebugMode) {
+          debugPrint('   ❌ Segment ${k + 1}: rejected (peaks don\'t alternate: both are ${a.isPeak ? "max" : "min"})');
+        }
+        continue;
+      }
 
       final startIdxLeft = _nearestIndex(left, a.time);
       final startIdxRight = _nearestIndex(right, a.time);
@@ -82,15 +90,19 @@ class TurnSegmentation {
       final startYawIdx = _indexForTime(smoothedYaw, a.time);
       final endYawIdx = _indexForTime(smoothedYaw, b.time);
 
-      if (startYawIdx == null || endYawIdx == null) {
+      if (startYawIdx == null || endYawIdx == null || startYawIdx >= endYawIdx) {
+        if (kDebugMode) {
+          debugPrint('   ❌ Segment ${k + 1}: rejected (invalid yaw indices)');
+        }
         continue;
       }
 
-      if (startYawIdx >= endYawIdx) {
-        continue;
-      }
-
-      if (b.time.difference(a.time) < params.minSegmentDuration) {
+      // Check that yaw moved toward the peak for at least minApproachTime on each side
+      if (!_hasApproachTime(unwrappedYaw, smoothedYaw, startYawIdx, endYawIdx, b.isPeak, params.minApproachTime)) {
+        rejectedApproach++;
+        if (kDebugMode) {
+          debugPrint('   ❌ Segment ${k + 1}: rejected (insufficient approach time on both sides)');
+        }
         continue;
       }
 
@@ -103,18 +115,11 @@ class TurnSegmentation {
         maxEdgeAngle = math.max(maxEdgeAngle, right[i].pitch.abs());
       }
 
-      if (params.minEdgeAngleDeg > 0 && maxEdgeAngle < params.minEdgeAngleDeg) {
-        continue;
-      }
-
+      final duration = b.time.difference(a.time);
       final yawSwing = _yawSwing(unwrappedYaw, startYawIdx, endYawIdx);
-      if (yawSwing < params.minTurnAmplitudeDeg) {
-        continue;
-      }
-
-      final isRightTurn = b.isPeak;
-      if (!_isMonotonicTurn(unwrappedYaw, startYawIdx, endYawIdx, expectIncreasing: isRightTurn)) {
-        continue;
+      
+      if (kDebugMode) {
+        debugPrint('   ✅ Segment ${k + 1}: accepted (duration=${duration.inMilliseconds}ms, swing=${yawSwing.toStringAsFixed(1)}°, edge=${maxEdgeAngle.toStringAsFixed(1)}°)');
       }
 
       final seg = TurnSegment(
@@ -128,6 +133,10 @@ class TurnSegmentation {
         maxEdgeAngle: maxEdgeAngle,
       );
       segments.add(seg);
+    }
+    
+    if (kDebugMode) {
+      debugPrint('🎿 Segmentation: Rejection summary: approach=$rejectedApproach, alternation=$rejectedAlternation');
     }
     
     if (kDebugMode) {
@@ -360,6 +369,89 @@ class TurnSegmentation {
       }
     }
     return total > 0;
+  }
+
+  /// Check that yaw moved toward the peak for at least minApproachTime on both sides
+  static bool _hasApproachTime(
+    List<double> unwrappedYaw,
+    List<_AnglePoint> smoothedYaw,
+    int startIdx,
+    int endIdx,
+    bool isPeak,
+    Duration minApproachTime,
+  ) {
+    if (unwrappedYaw.isEmpty || startIdx >= endIdx || smoothedYaw.isEmpty) {
+      return false;
+    }
+
+    // Find the actual peak/valley index within the segment
+    int extremeIdx = startIdx;
+    double extremeVal = unwrappedYaw[startIdx];
+    for (int i = startIdx + 1; i <= endIdx; i++) {
+      if (isPeak) {
+        if (unwrappedYaw[i] > extremeVal) {
+          extremeVal = unwrappedYaw[i];
+          extremeIdx = i;
+        }
+      } else {
+        if (unwrappedYaw[i] < extremeVal) {
+          extremeVal = unwrappedYaw[i];
+          extremeIdx = i;
+        }
+      }
+    }
+
+    // Check approach from left (startIdx to extremeIdx)
+    Duration leftApproach = Duration.zero;
+    if (extremeIdx > startIdx) {
+      double prev = unwrappedYaw[startIdx];
+      DateTime? approachStart;
+      for (int i = startIdx + 1; i <= extremeIdx; i++) {
+        final delta = unwrappedYaw[i] - prev;
+        final movingToward = isPeak ? delta > 0.5 : delta < -0.5;
+        
+        if (movingToward) {
+          approachStart ??= smoothedYaw[i - 1].time;
+        } else {
+          approachStart = null;
+        }
+        
+        if (approachStart != null) {
+          leftApproach = smoothedYaw[i].time.difference(approachStart);
+          if (leftApproach >= minApproachTime) {
+            break;
+          }
+        }
+        prev = unwrappedYaw[i];
+      }
+    }
+
+    // Check approach from right (extremeIdx to endIdx)
+    Duration rightApproach = Duration.zero;
+    if (extremeIdx < endIdx) {
+      double prev = unwrappedYaw[endIdx];
+      DateTime? approachStart;
+      for (int i = endIdx - 1; i >= extremeIdx; i--) {
+        final delta = prev - unwrappedYaw[i];
+        final movingToward = isPeak ? delta < -0.5 : delta > 0.5;
+        
+        if (movingToward) {
+          approachStart ??= smoothedYaw[i + 1].time;
+        } else {
+          approachStart = null;
+        }
+        
+        if (approachStart != null) {
+          rightApproach = approachStart.difference(smoothedYaw[i].time);
+          if (rightApproach >= minApproachTime) {
+            break;
+          }
+        }
+        prev = unwrappedYaw[i];
+      }
+    }
+
+    return leftApproach >= minApproachTime && rightApproach >= minApproachTime;
   }
 
   static int? _indexForTime(List<_AnglePoint> pts, DateTime time) {
