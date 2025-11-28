@@ -143,6 +143,16 @@ class _AppControllerState extends State<AppController> {
             if (currentState.isSummaryWithValidResults) {
               // Add a temporary error page to the right, do not replace summary
               _addTemporaryReconnectErrorPage('Sensors disconnected. Please reconnect to continue.');
+              // Jump to the new error page immediately
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_pageController.hasClients && mounted) {
+                  _pageController.animateToPage(
+                    _runPages.length - 1,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }
+              });
             } else {
               // Replace current non-summary page with reconnect-only error
               currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
