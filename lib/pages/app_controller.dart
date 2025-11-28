@@ -12,7 +12,7 @@ class AppController extends StatefulWidget {
 
 class _AppControllerState extends State<AppController> {
   final PageController _pageController = PageController();
-  final List<Widget> _runPages = [];
+  List<Widget> _runPages = [];
   
   dynamic _bleMgr;
   String? _leftId;
@@ -104,6 +104,9 @@ class _AppControllerState extends State<AppController> {
             if (!_showArrows && _runPages.isNotEmpty) {
               setState(() => _showArrows = true);
             }
+            // Trigger rebuild of all RunPages with new connection info
+            // This will cause didUpdateWidget to fire on existing pages
+            _rebuildRunPages();
           },
         ),
       ),
@@ -111,6 +114,29 @@ class _AppControllerState extends State<AppController> {
         .then((_) {
       // Modal closed (via X or after successful reconnect)
       _reconnectOpen = false;
+    });
+  }
+
+  void _rebuildRunPages() {
+    // Rebuild all run pages with updated connection info
+    setState(() {
+      _runPages = _runPages.map((oldPage) {
+        // Preserve the key but update connection parameters
+        return RunPage(
+          key: oldPage.key,
+          bleMgr: _bleMgr!,
+          leftId: _leftId!,
+          rightId: _rightId!,
+          onRecordAgain: _addNewRunPage,
+          onDisconnect: _onSensorsDisconnected,
+          autoStart: false,
+          onResultsShown: () {
+            if (!_showArrows) {
+              setState(() => _showArrows = true);
+            }
+          },
+        );
+      }).toList();
     });
   }
 

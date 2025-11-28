@@ -13,6 +13,7 @@ class RunPage extends StatefulWidget {
   final VoidCallback onRecordAgain;
   final VoidCallback onDisconnect;
   final VoidCallback? onResultsShown;
+  final VoidCallback? onReconnected;
   final bool autoStart;
 
   const RunPage({
@@ -23,6 +24,7 @@ class RunPage extends StatefulWidget {
     required this.onRecordAgain,
     required this.onDisconnect,
     this.onResultsShown,
+    this.onReconnected,
     this.autoStart = false,
   });
 
@@ -50,6 +52,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   DateTime? _lastLeftData;
   DateTime? _lastRightData;
   bool _disconnectHandled = false; // Prevent multiple disconnect triggers
+  bool _disconnectedWhileRecording = false; // Track if disconnect happened during recording
   static const _dataTimeout = Duration(seconds: 3);
 
   @override
@@ -65,6 +68,22 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
           _startRecording();
         }
       });
+    }
+    
+    // Register reconnect callback
+    widget.onReconnected?.call();
+  }
+
+  @override
+  void didUpdateWidget(RunPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Check if we just reconnected (new bleMgr/IDs while disconnect flag is set)
+    if (_disconnectedWhileRecording && 
+        (widget.bleMgr != oldWidget.bleMgr || 
+         widget.leftId != oldWidget.leftId || 
+         widget.rightId != oldWidget.rightId)) {
+      debugPrint('🎿 RunPage: Detected reconnect after recording disconnect, resetting to fresh recording state');
+      _resetToRecording();
     }
   }
 
@@ -198,6 +217,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     if (_recording) {
       debugPrint('🎿 RunPage: Stopping recording due to disconnect');
       widget.bleMgr.stopRecording();
+      _disconnectedWhileRecording = true;
     }
     
     // Cancel subscriptions
@@ -218,8 +238,9 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   void _resetToRecording() {
-    // Reset disconnect flag
+    // Reset disconnect flags
     _disconnectHandled = false;
+    _disconnectedWhileRecording = false;
     
     // Resubscribe to samples when resetting
     _subscribeToSamples();
