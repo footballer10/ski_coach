@@ -187,9 +187,7 @@ class _AppControllerState extends State<AppController> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _ensureReconnectOnlyErrorInitialized(pageKey, message);
-      if (_pageController.hasClients) {
-        _pageController.jumpToPage(targetIndex);
-      }
+      _forceNavigateToPage(targetIndex);
     });
   }
 
@@ -214,9 +212,7 @@ class _AppControllerState extends State<AppController> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_pageController.hasClients && targetPage >= 0 && targetPage < _runPages.length) {
-        _pageController.jumpToPage(targetPage);
-      }
+      _forceNavigateToPage(targetPage);
     });
   }
 
@@ -226,17 +222,51 @@ class _AppControllerState extends State<AppController> {
     int attempt = 0,
   }) {
     if (!mounted) return;
-    const maxAttempts = 5;
+    const maxAttempts = 12;
     final state = key.currentState;
     if (state != null && state.mounted) {
       state.showDisconnectErrorOnlyReconnect(message);
       return;
     }
     if (attempt >= maxAttempts) {
+      debugPrint('🎿 AppController: Failed to initialize reconnect-only error page after $maxAttempts attempts');
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureReconnectOnlyErrorInitialized(key, message, attempt: attempt + 1);
+    });
+  }
+
+  void _forceNavigateToPage(int pageIndex, {int attempt = 0}) {
+    if (!mounted) return;
+    if (_runPages.isEmpty) return;
+    const maxAttempts = 12;
+    final clampedIndex = pageIndex.clamp(0, _runPages.length - 1);
+    if (!_pageController.hasClients) {
+      if (attempt >= maxAttempts) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _forceNavigateToPage(clampedIndex, attempt: attempt + 1);
+      });
+      return;
+    }
+
+    final current = _pageController.page?.round();
+    if (current == clampedIndex) {
+      return;
+    }
+
+    try {
+      _pageController.jumpToPage(clampedIndex);
+    } catch (err) {
+      debugPrint('🎿 AppController: jumpToPage error: $err');
+    }
+
+    if (attempt >= maxAttempts) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _forceNavigateToPage(clampedIndex, attempt: attempt + 1);
     });
   }
 
