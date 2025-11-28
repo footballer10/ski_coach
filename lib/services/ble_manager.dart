@@ -171,7 +171,7 @@ class BleManager {
     _isRecording = true;
     _recordingStartTime = DateTime.now();
     _recordedSamples.clear();
-    if (kDebugMode) debugPrint('🔴 RECORDING STARTED at ${_recordingStartTime}');
+    if (kDebugMode) debugPrint('🔴 RECORDING STARTED at $_recordingStartTime');
   }
 
   /// Stop recording and return the recorded data

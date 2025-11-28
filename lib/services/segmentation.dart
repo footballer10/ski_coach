@@ -207,8 +207,12 @@ class TurnSegmentation {
   /// Calculate angular difference handling wraparound: result in range [-180, 180]
   static double _angleDiff(double a, double b) {
     double diff = a - b;
-    while (diff > 180) diff -= 360;
-    while (diff < -180) diff += 360;
+    while (diff > 180) {
+      diff -= 360;
+    }
+    while (diff < -180) {
+      diff += 360;
+    }
     return diff;
   }
 }

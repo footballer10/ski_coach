@@ -12,7 +12,7 @@ class AppController extends StatefulWidget {
 
 class _AppControllerState extends State<AppController> {
   final PageController _pageController = PageController();
-  List<Widget> _runPages = [];
+  final List<Widget> _runPages = [];
   final List<GlobalKey<RunPageState>> _runPageKeys = [];
   
   dynamic _bleMgr;
@@ -148,15 +148,7 @@ class _AppControllerState extends State<AppController> {
     }
   }
 
-  bool _anyRecordingDisconnectError() {
-    for (final key in _runPageKeys) {
-      final state = key.currentState;
-      if (state != null && state.mounted && state.hasRecordingDisconnectError) {
-        return true;
-      }
-    }
-    return false;
-  }
+  // Removed unused helper _anyRecordingDisconnectError
 
   void _addNewRunPage() {
     final pageKey = GlobalKey<RunPageState>();

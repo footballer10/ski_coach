@@ -237,7 +237,7 @@ class _ResultsViewState extends State<ResultsView> {
             ),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Category',
                 border: OutlineInputBorder(),
@@ -261,7 +261,7 @@ class _ResultsViewState extends State<ResultsView> {
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _selectedTurn,
+              initialValue: _selectedTurn,
               decoration: const InputDecoration(
                 labelText: 'Turn',
                 border: OutlineInputBorder(),
@@ -287,7 +287,7 @@ class _ResultsViewState extends State<ResultsView> {
           if (showThirdDropdownCategoryTurn)
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                initialValue: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
                 decoration: const InputDecoration(
                   labelText: 'Third',
                   border: OutlineInputBorder(),
@@ -322,7 +322,7 @@ class _ResultsViewState extends State<ResultsView> {
           if (showThirdDropdown)
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _categoryPageThird,
+                initialValue: _categoryPageThird,
                 decoration: const InputDecoration(
                   labelText: 'Third',
                   border: OutlineInputBorder(),
