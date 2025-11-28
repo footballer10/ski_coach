@@ -108,19 +108,18 @@ class _AppControllerState extends State<AppController> {
               setState(() => _showArrows = true);
             }
             // After reconnect:
+            // - If temporary error page(s) were added (from summary), remove them and restore summary
             // - If current page is pre-recording/recording, replace with error page offering 'Start Another Run'
-            // - Summary pages: do not inject error
             final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
             final currentState = currentKey?.currentState;
             if (currentState != null && currentState.mounted) {
-              // Only show post-reconnect error if page was interrupted during pre/recording or processing, not if it had valid summary results
-                // If there are temporary error pages (added from summary), remove them on successful reconnect
-                if (_tempErrorPageKeys.isNotEmpty) {
-                  _removeTemporaryErrorPages();
-                } else if (currentState.shouldShowPostReconnectError || (currentState.hasRecordingDisconnectError && currentState.isReconnectOnlyError)) {
-                  // For non-summary interruption, convert to Start Another Run
-                  currentState.showPostReconnectErrorStartNewRun();
-                }
+              if (_tempErrorPageKeys.isNotEmpty) {
+                // Remove error page(s) and restore summary/results
+                _removeTemporaryErrorPages();
+              } else if (currentState.shouldShowPostReconnectError || (currentState.hasRecordingDisconnectError && currentState.isReconnectOnlyError)) {
+                // For non-summary interruption, convert to Start Another Run
+                currentState.showPostReconnectErrorStartNewRun();
+              }
             }
             // Notify pages to resubscribe/reset guards
             _notifyRunPagesReconnected();
@@ -141,7 +140,7 @@ class _AppControllerState extends State<AppController> {
           final currentState = currentKey?.currentState;
           if (currentState != null && currentState.mounted) {
             if (currentState.isSummaryWithValidResults) {
-              // Add a temporary error page to the right, do not replace summary
+              // Always append a temporary error page to the right, never replace summary/results
               _addTemporaryReconnectErrorPage('Sensors disconnected. Please reconnect to continue.');
               // Force navigation to the new error page synchronously
               setState(() {
@@ -153,7 +152,7 @@ class _AppControllerState extends State<AppController> {
                 }
               });
             } else {
-              // Replace current non-summary page with reconnect-only error
+              // For all other states, replace with reconnect-only error page
               currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
             }
           }
