@@ -14,6 +14,7 @@ class _AppControllerState extends State<AppController> {
   final PageController _pageController = PageController();
   final List<Widget> _runPages = [];
   final List<GlobalKey<RunPageState>> _runPageKeys = [];
+  final List<GlobalKey<RunPageState>> _tempErrorPageKeys = [];
   
   dynamic _bleMgr;
   String? _leftId;
@@ -113,8 +114,11 @@ class _AppControllerState extends State<AppController> {
             final currentState = currentKey?.currentState;
             if (currentState != null && currentState.mounted) {
               // Only show post-reconnect error if page was interrupted during pre/recording or processing, not if it had valid summary results
-                // If we previously showed a reconnect-only error (after X), convert to start-another-run error now
-                if (currentState.shouldShowPostReconnectError || (currentState.hasRecordingDisconnectError && currentState.isReconnectOnlyError)) {
+                // If there are temporary error pages (added from summary), remove them on successful reconnect
+                if (_tempErrorPageKeys.isNotEmpty) {
+                  _removeTemporaryErrorPages();
+                } else if (currentState.shouldShowPostReconnectError || (currentState.hasRecordingDisconnectError && currentState.isReconnectOnlyError)) {
+                  // For non-summary interruption, convert to Start Another Run
                   currentState.showPostReconnectErrorStartNewRun();
                 }
             }
@@ -136,13 +140,64 @@ class _AppControllerState extends State<AppController> {
           final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
           final currentState = currentKey?.currentState;
           if (currentState != null && currentState.mounted) {
-            // Show reconnect-only error regardless of summary state, since user explicitly canceled
-            currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
+            if (currentState.isSummaryWithValidResults) {
+              // Add a temporary error page to the right, do not replace summary
+              _addTemporaryReconnectErrorPage('Sensors disconnected. Please reconnect to continue.');
+            } else {
+              // Replace current non-summary page with reconnect-only error
+              currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
+            }
           }
         }
       } catch (_) {
         // If BLE manager does not expose isConnected yet, skip
       }
+    });
+  }
+
+  void _addTemporaryReconnectErrorPage(String message) {
+    final pageKey = GlobalKey<RunPageState>();
+    final newPage = RunPage(
+      key: pageKey,
+      bleMgr: _bleMgr,
+      leftId: _leftId ?? '',
+      rightId: _rightId ?? '',
+      onRecordAgain: _addNewRunPage,
+      onDisconnect: _onSensorsDisconnected,
+      autoStart: false,
+      onResultsShown: null,
+    );
+    setState(() {
+      _runPages.add(newPage);
+      _runPageKeys.add(pageKey);
+      _tempErrorPageKeys.add(pageKey);
+    });
+    // Initialize the page into reconnect-only error state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      pageKey.currentState?.showDisconnectErrorOnlyReconnect(message);
+      if (_pageController.hasClients && mounted) {
+        _pageController.animateToPage(
+          _runPages.length - 1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  void _removeTemporaryErrorPages() {
+    if (_tempErrorPageKeys.isEmpty) return;
+    setState(() {
+      for (final key in _tempErrorPageKeys) {
+        final idx = _runPageKeys.indexOf(key);
+        if (idx >= 0) {
+          _runPageKeys.removeAt(idx);
+          _runPages.removeAt(idx);
+        }
+      }
+      _tempErrorPageKeys.clear();
+      // Adjust current page index if needed
+      _currentPage = _currentPage.clamp(0, _runPages.length - 1);
     });
   }
 
