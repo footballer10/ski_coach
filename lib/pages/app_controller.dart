@@ -106,10 +106,17 @@ class _AppControllerState extends State<AppController> {
             if (!_showArrows && _runPages.isNotEmpty) {
               setState(() => _showArrows = true);
             }
-            _notifyRunPagesReconnected();
-            if (_anyRecordingDisconnectError()) {
-              _addNewRunPage();
+            // After reconnect:
+            // - If current page is pre-recording/recording, replace with error page offering 'Start Another Run'
+            // - Summary pages: do not inject error
+            final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
+            final currentState = currentKey?.currentState;
+            if (currentState != null && currentState.mounted) {
+              // If it is not already in results due to a recording disconnect, show post-reconnect error
+              currentState.showPostReconnectErrorStartNewRun();
             }
+            // Notify pages to resubscribe/reset guards
+            _notifyRunPagesReconnected();
           },
         ),
       ),
@@ -117,6 +124,21 @@ class _AppControllerState extends State<AppController> {
         .then((_) {
       // Modal closed (via X or after successful reconnect)
       _reconnectOpen = false;
+      // If closed via X and sensors are not connected, show error with ONLY reconnect button
+      try {
+        final bothConnected = _bleMgr != null &&
+            _leftId != null && _rightId != null &&
+            _bleMgr.isConnected(_leftId) && _bleMgr.isConnected(_rightId);
+        if (!bothConnected) {
+          final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
+          final currentState = currentKey?.currentState;
+          if (currentState != null && currentState.mounted) {
+            currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
+          }
+        }
+      } catch (_) {
+        // If BLE manager does not expose isConnected yet, skip
+      }
     });
   }
 

@@ -297,6 +297,31 @@ enum RunState { recording, processing, results }
 
   bool get hasRecordingDisconnectError => _analysisResults != null && _analysisResults!['isSensorDisconnect'] == true;
 
+  // Explicit error rendering helpers for controller-driven UX
+  void showDisconnectErrorOnlyReconnect(String message) {
+    setState(() {
+      _recording = false;
+      _state = RunState.results;
+      _analysisResults = {
+        'error': message,
+        'isSensorDisconnect': true,
+        'reconnectOnly': true,
+      };
+    });
+  }
+
+  void showPostReconnectErrorStartNewRun() {
+    setState(() {
+      _recording = false;
+      _state = RunState.results;
+      _analysisResults = {
+        'error': 'Sensors reconnected. Previous session was interrupted.',
+        'isSensorDisconnect': true,
+        'startAnotherRun': true,
+      };
+    });
+  }
+
   Future<void> _startRecording() async {
     // Use BleManager's built-in recording
     widget.bleMgr.startRecording();
@@ -463,6 +488,8 @@ enum RunState { recording, processing, results }
       final isSensorDisconnect = _analysisResults!['isSensorDisconnect'] == true;
       // Only show reconnect button if both sensors are NOT currently connected
       final bothConnected = widget.bleMgr.isConnected(widget.leftId) && widget.bleMgr.isConnected(widget.rightId);
+      final reconnectOnly = _analysisResults!['reconnectOnly'] == true;
+      final startAnotherRun = _analysisResults!['startAnotherRun'] == true;
       return ResultsView(
         leftSampleCount: 0,
         rightSampleCount: 0,
@@ -475,7 +502,8 @@ enum RunState { recording, processing, results }
         errorMessage: error,
         onNewRun: _resetToRecording,
         onReconnect: isSensorDisconnect ? widget.onDisconnect : null,
-        showReconnectButton: isSensorDisconnect && !bothConnected,
+        showReconnectButton: reconnectOnly ? true : (isSensorDisconnect && !bothConnected),
+        showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
       );
     }
 

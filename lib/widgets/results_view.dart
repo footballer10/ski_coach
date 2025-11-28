@@ -16,6 +16,7 @@ class ResultsView extends StatefulWidget {
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
   final bool showReconnectButton;
+  final bool showTryAgainButton;
 
   const ResultsView({
     super.key,
@@ -32,6 +33,7 @@ class ResultsView extends StatefulWidget {
     required this.onNewRun,
     this.onReconnect,
     this.showReconnectButton = true,
+    this.showTryAgainButton = true,
   });
 
   @override
@@ -179,16 +181,17 @@ class _ResultsViewState extends State<ResultsView> {
                     ),
                   ),
                 if (widget.onReconnect != null && widget.showReconnectButton) const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  onPressed: widget.onNewRun,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Try Again'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+                if (widget.showTryAgainButton)
+                  ElevatedButton.icon(
+                    onPressed: widget.onNewRun,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Start Another Run'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
