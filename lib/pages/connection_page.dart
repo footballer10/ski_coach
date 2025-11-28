@@ -106,6 +106,15 @@ class _ConnectionPageState extends State<ConnectionPage> {
     });
   }
 
+  Future<void> _prepareFreshScan() async {
+    // Ensure any lingering connections are cleared so devices advertise again
+    try {
+      await (_bleMgr as BleManager).disconnectAll();
+    } catch (_) {}
+    if (!mounted) return;
+    startScan();
+  }
+
   void _beginRawScan() {
     try {
       final mgr = (_bleMgr as BleManager);
@@ -202,6 +211,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to connect to one or both sensors')),
       );
+      // Disconnect any partial connection so a rescan can rediscover devices
+      try { await (_bleMgr as BleManager).disconnectAll(); } catch (_) {}
       return;
     }
 
@@ -351,7 +362,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
                   OutlinedButton.icon(
                     icon: const Icon(Icons.refresh),
                     label: const Text('Rescan'),
-                    onPressed: () => startScan(),
+                    onPressed: () => _prepareFreshScan(),
                   ),
                   if (bothSelected)
                     ElevatedButton.icon(

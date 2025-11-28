@@ -240,6 +240,8 @@ enum RunState { recording, processing, results }
         _analysisResults = {
           'error': message,
           'isSensorDisconnect': true,
+          // Allow immediate start of a fresh run after sensors are reconnected
+          'startAnotherRun': true,
         };
       });
     } else {
