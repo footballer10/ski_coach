@@ -51,7 +51,8 @@ class TurnSegmentation {
     
     // Average yaw from both sensors at aligned timestamps
     final avgYaw = _averageYawSignals(left, right);
-    final smoothedYaw = _smoothYaw(avgYaw, params.smoothingWindow);
+    final unwrappedAvgYaw = _unwrapYaw(avgYaw);
+    final smoothedYaw = _smoothYaw(avgYaw, unwrappedAvgYaw, params.smoothingWindow);
     final unwrappedYaw = _unwrapYaw(smoothedYaw);
     
     if (kDebugMode) {
@@ -109,7 +110,7 @@ class TurnSegmentation {
         continue;
       }
 
-      // Check that yaw moved toward the peak for at least minApproachTime on each side
+      // Check that yaw moved toward the upcoming peak for at least minApproachTime
       final approach = _hasApproachTime(
         unwrappedYaw,
         smoothedYaw,
@@ -121,7 +122,8 @@ class TurnSegmentation {
       if (!approach.satisfied) {
         rejectedApproach++;
         if (kDebugMode) {
-          debugPrint('   ❌ Segment ${k + 1}: rejected (insufficient approach time on both sides, left=${approach.left.inMilliseconds}ms, right=${approach.right.inMilliseconds}ms, required=${params.minApproachTime.inMilliseconds}ms)');
+          final targetLabel = b.isPeak ? 'max' : 'min';
+          debugPrint('   ❌ Segment ${k + 1}: rejected (insufficient approach toward $targetLabel: ${approach.towardsPeak.inMilliseconds}ms < ${params.minApproachTime.inMilliseconds}ms)');
         }
         continue;
       }
@@ -238,106 +240,72 @@ class TurnSegmentation {
     List<double> unwrapped,
     SegmentationParams p,
   ) {
-    // Detect local maxima and minima in yaw signal
-    // A peak is a local maximum (right turn), valley is local minimum (left turn)
-    if (pts.length < 3 || pts.length != unwrapped.length) {
+    if (pts.length < 2 || pts.length != unwrapped.length) {
       return [];
     }
-    
+
     final peaks = <_Peak>[];
-    DateTime? lastPeakTime;
-    
-    const prominenceWindow = 20; // samples to inspect on each side for prominence
-    const int trendWindow = 3; // look this many samples to verify monotonic trend
-    const double trendThreshold = 0.5; // minimum yaw change to qualify as monotonic
-    for (int i = 1; i < pts.length - 1; i++) {
-      final currWrapped = pts[i].angle;
-      final prevUnwrapped = unwrapped[i - 1];
-      final currUnwrapped = unwrapped[i];
-      final nextUnwrapped = unwrapped[i + 1];
-      final t = pts[i].time;
-      
-      final diffPrev = currUnwrapped - prevUnwrapped;
-      final diffNext = nextUnwrapped - currUnwrapped;
-      
-      bool isLocalMax = diffPrev > 0 && diffNext < 0;
-      bool isLocalMin = diffPrev < 0 && diffNext > 0;
-      
-      if (isLocalMax || isLocalMin) {
-        if (kDebugMode) {
-          debugPrint('      peak-candidate idx=$i time=${t.toIso8601String()} yaw=${currWrapped.toStringAsFixed(2)}° type=${isLocalMax ? 'MAX' : 'MIN'} diffPrev=${diffPrev.toStringAsFixed(2)} diffNext=${diffNext.toStringAsFixed(2)}');
-        }
+    final hysteresis = math.max(p.minPeakChangeDeg, 10.0);
 
-        final beforeIdx = math.max(0, i - trendWindow);
-        final afterIdx = math.min(unwrapped.length - 1, i + trendWindow);
-        final beforeDelta = currUnwrapped - unwrapped[beforeIdx];
-        final afterDelta = unwrapped[afterIdx] - currUnwrapped;
+    // Decide whether we start by looking for a max or a min based on the first noticeable slope
+    bool seekingMax = true;
+    for (int i = 1; i < unwrapped.length; i++) {
+      final delta = unwrapped[i] - unwrapped[i - 1];
+      if (delta.abs() > 0.05) {
+        seekingMax = delta > 0;
+        break;
+      }
+    }
 
-        final bool trendValid = isLocalMax
-            ? beforeDelta > trendThreshold && afterDelta < -trendThreshold
-            : beforeDelta < -trendThreshold && afterDelta > trendThreshold;
+    double currentExtreme = unwrapped[0];
+    int extremeIdx = 0;
 
-        if (!trendValid) {
+    if (kDebugMode) {
+      debugPrint('      peak-detector: hysteresis=${hysteresis.toStringAsFixed(1)}° starting=${seekingMax ? 'MAX' : 'MIN'}');
+    }
+
+    for (int i = 1; i < unwrapped.length; i++) {
+      final value = unwrapped[i];
+
+      if (seekingMax) {
+        if (value > currentExtreme) {
+          currentExtreme = value;
+          extremeIdx = i;
+        } else if (currentExtreme - value >= hysteresis) {
+          peaks.add(_Peak(
+            time: pts[extremeIdx].time,
+            yaw: pts[extremeIdx].angle,
+            isPeak: true,
+            index: extremeIdx,
+          ));
           if (kDebugMode) {
-            debugPrint('         ↳ rejected: insufficient monotonic trend (before=${beforeDelta.toStringAsFixed(2)}°, after=${afterDelta.toStringAsFixed(2)}°)');
+            debugPrint('         ↳ commit MAX idx=$extremeIdx yaw=${pts[extremeIdx].angle.toStringAsFixed(2)}°');
           }
-          continue;
-        }
-
-        final leftSwing = _swingMagnitude(unwrapped, i, prominenceWindow, toLeft: true);
-        final rightSwing = _swingMagnitude(unwrapped, i, prominenceWindow, toLeft: false);
-        final prominence = (leftSwing == 0 || rightSwing == 0)
-            ? math.max(leftSwing, rightSwing)
-            : math.min(leftSwing, rightSwing);
-
-        if (prominence < p.minPeakChangeDeg) {
-          if (kDebugMode) {
-            debugPrint('         ↳ rejected: prominence ${prominence.toStringAsFixed(2)}° < ${p.minPeakChangeDeg}° (left=${leftSwing.toStringAsFixed(2)}°, right=${rightSwing.toStringAsFixed(2)}°)');
-          }
-          continue; // not enough yaw change on both sides, treat as noise
-        }
-
-        if (peaks.isNotEmpty && peaks.last.isPeak == isLocalMax) {
-          final previous = peaks.last;
-          final prevUnwrappedAtPeak = unwrapped[previous.index];
-          final bool newIsMoreExtreme = isLocalMax
-              ? currUnwrapped > prevUnwrappedAtPeak
-              : currUnwrapped < prevUnwrappedAtPeak;
-
-          if (newIsMoreExtreme) {
-            if (kDebugMode) {
-              debugPrint('         ↳ replacing previous ${isLocalMax ? 'MAX' : 'MIN'} (idx=${previous.index}) with more extreme candidate idx=$i');
-            }
-            peaks[peaks.length - 1] = _Peak(time: t, yaw: currWrapped, isPeak: isLocalMax, index: i);
-            lastPeakTime = t;
-          } else {
-            if (kDebugMode) {
-              debugPrint('         ↳ discarded: existing ${isLocalMax ? 'MAX' : 'MIN'} at idx=${previous.index} is more extreme');
-            }
-          }
-          continue;
-        }
-        
-        // Debounce
-        if (lastPeakTime != null && t.difference(lastPeakTime) < p.minGapBetweenPeaks) {
-          if (kDebugMode) {
-            debugPrint('         ↳ rejected: within debounce window (${t.difference(lastPeakTime).inMilliseconds}ms < ${p.minGapBetweenPeaks.inMilliseconds}ms)');
-          }
-          continue;
-        }
-        
-        peaks.add(_Peak(time: t, yaw: currWrapped, isPeak: isLocalMax, index: i));
-        lastPeakTime = t;
-        if (kDebugMode) {
-          debugPrint('         ↳ accepted as peak index=${peaks.length - 1}');
+          seekingMax = false;
+          currentExtreme = value;
+          extremeIdx = i;
         }
       } else {
-        if (kDebugMode) {
-          debugPrint('      idx=$i skipped (not a local extremum, diffPrev=${diffPrev.toStringAsFixed(2)}, diffNext=${diffNext.toStringAsFixed(2)})');
+        if (value < currentExtreme) {
+          currentExtreme = value;
+          extremeIdx = i;
+        } else if (value - currentExtreme >= hysteresis) {
+          peaks.add(_Peak(
+            time: pts[extremeIdx].time,
+            yaw: pts[extremeIdx].angle,
+            isPeak: false,
+            index: extremeIdx,
+          ));
+          if (kDebugMode) {
+            debugPrint('         ↳ commit MIN idx=$extremeIdx yaw=${pts[extremeIdx].angle.toStringAsFixed(2)}°');
+          }
+          seekingMax = true;
+          currentExtreme = value;
+          extremeIdx = i;
         }
       }
     }
-    
+
     return peaks;
   }
 
@@ -353,27 +321,23 @@ class TurnSegmentation {
     return diff;
   }
 
-  static double _swingMagnitude(
-    List<double> unwrappedYaw,
-    int center,
-    int window, {
-    required bool toLeft,
-  }) {
-    if (unwrappedYaw.isEmpty) return 0;
-    final base = unwrappedYaw[center];
-    double swing = 0.0;
-    int steps = 0;
-    int j = toLeft ? center - 1 : center + 1;
-    while (j >= 0 && j < unwrappedYaw.length && steps < window) {
-      swing = math.max(swing, (unwrappedYaw[j] - base).abs());
-      steps++;
-      j += toLeft ? -1 : 1;
+  static double _wrapAngle(double angle) {
+    double wrapped = angle;
+    while (wrapped > 180) {
+      wrapped -= 360;
     }
-    return swing;
+    while (wrapped <= -180) {
+      wrapped += 360;
+    }
+    return wrapped;
   }
 
-  static List<_AnglePoint> _smoothYaw(List<_AnglePoint> pts, int window) {
-    if (window <= 1 || pts.length < 3) {
+  static List<_AnglePoint> _smoothYaw(
+    List<_AnglePoint> pts,
+    List<double> unwrapped,
+    int window,
+  ) {
+    if (window <= 1 || pts.length < 3 || pts.length != unwrapped.length) {
       return pts;
     }
     final half = window ~/ 2;
@@ -381,12 +345,14 @@ class TurnSegmentation {
     for (int i = 0; i < pts.length; i++) {
       final start = math.max(0, i - half);
       final end = math.min(pts.length - 1, i + half);
-      final angles = <double>[];
+      double sum = 0.0;
+      int count = 0;
       for (int j = start; j <= end; j++) {
-        angles.add(pts[j].angle);
+        sum += unwrapped[j];
+        count++;
       }
-      final avg = _averageAngles(angles);
-      smoothed.add(_AnglePoint(pts[i].time, avg));
+      final avg = count == 0 ? unwrapped[i] : sum / count;
+      smoothed.add(_AnglePoint(pts[i].time, _wrapAngle(avg)));
     }
     return smoothed;
   }
@@ -422,94 +388,56 @@ class TurnSegmentation {
     return maxVal - minVal;
   }
 
-  /// Check that yaw moved toward the peak for at least minApproachTime on both sides
+  /// Check that yaw moved toward the target peak for at least minApproachTime
   static _ApproachCheck _hasApproachTime(
     List<double> unwrappedYaw,
     List<_AnglePoint> smoothedYaw,
     int startIdx,
     int endIdx,
-    bool isPeak,
+    bool targetIsPeak,
     Duration minApproachTime,
   ) {
     if (unwrappedYaw.isEmpty || startIdx >= endIdx || smoothedYaw.isEmpty) {
-      return _ApproachCheck(satisfied: false, left: Duration.zero, right: Duration.zero);
+      return _ApproachCheck(
+        satisfied: false,
+        left: Duration.zero,
+        right: Duration.zero,
+        towardsPeak: Duration.zero,
+      );
     }
 
-    // Find the actual peak/valley index within the segment
-    int extremeIdx = startIdx;
-    double extremeVal = unwrappedYaw[startIdx];
+    const double trendThreshold = 0.5;
+    DateTime? approachStart;
+    Duration approachDuration = Duration.zero;
+    double prev = unwrappedYaw[startIdx];
+
     for (int i = startIdx + 1; i <= endIdx; i++) {
-      if (isPeak) {
-        if (unwrappedYaw[i] > extremeVal) {
-          extremeVal = unwrappedYaw[i];
-          extremeIdx = i;
+      final delta = unwrappedYaw[i] - prev;
+      final movingToward = targetIsPeak ? delta > trendThreshold : delta < -trendThreshold;
+
+      if (movingToward) {
+        approachStart ??= smoothedYaw[i - 1].time;
+        approachDuration = smoothedYaw[i].time.difference(approachStart);
+        if (approachDuration >= minApproachTime) {
+          break;
         }
       } else {
-        if (unwrappedYaw[i] < extremeVal) {
-          extremeVal = unwrappedYaw[i];
-          extremeIdx = i;
-        }
+        approachStart = null;
       }
-    }
 
-    // Check approach from left (startIdx to extremeIdx)
-    Duration leftApproach = Duration.zero;
-    if (extremeIdx > startIdx) {
-      double prev = unwrappedYaw[startIdx];
-      DateTime? approachStart;
-      for (int i = startIdx + 1; i <= extremeIdx; i++) {
-        final delta = unwrappedYaw[i] - prev;
-        final movingToward = isPeak ? delta > 0.5 : delta < -0.5;
-        
-        if (movingToward) {
-          approachStart ??= smoothedYaw[i - 1].time;
-        } else {
-          approachStart = null;
-        }
-        
-        if (approachStart != null) {
-          leftApproach = smoothedYaw[i].time.difference(approachStart);
-          if (leftApproach >= minApproachTime) {
-            break;
-          }
-        }
-        prev = unwrappedYaw[i];
-      }
-    }
-
-    // Check approach from right (extremeIdx to endIdx)
-    Duration rightApproach = Duration.zero;
-    if (extremeIdx < endIdx) {
-      double prev = unwrappedYaw[endIdx];
-      DateTime? approachStart;
-      for (int i = endIdx - 1; i >= extremeIdx; i--) {
-        final delta = prev - unwrappedYaw[i];
-        final movingToward = isPeak ? delta < -0.5 : delta > 0.5;
-        
-        if (movingToward) {
-          approachStart ??= smoothedYaw[i + 1].time;
-        } else {
-          approachStart = null;
-        }
-        
-        if (approachStart != null) {
-          rightApproach = approachStart.difference(smoothedYaw[i].time);
-          if (rightApproach >= minApproachTime) {
-            break;
-          }
-        }
-        prev = unwrappedYaw[i];
-      }
+      prev = unwrappedYaw[i];
     }
 
     if (kDebugMode) {
-      debugPrint('      approach-check: extremeIdx=$extremeIdx left=${leftApproach.inMilliseconds}ms right=${rightApproach.inMilliseconds}ms required=${minApproachTime.inMilliseconds}ms');
+      final dirLabel = targetIsPeak ? 'toward max' : 'toward min';
+      debugPrint('      approach-check: $dirLabel duration=${approachDuration.inMilliseconds}ms required=${minApproachTime.inMilliseconds}ms');
     }
 
     return _ApproachCheck(
-      satisfied: leftApproach >= minApproachTime && rightApproach >= minApproachTime,
-      left: leftApproach,
-      right: rightApproach,
+      satisfied: approachDuration >= minApproachTime,
+      left: targetIsPeak ? approachDuration : Duration.zero,
+      right: targetIsPeak ? Duration.zero : approachDuration,
+      towardsPeak: approachDuration,
     );
   }
 
@@ -547,7 +475,13 @@ class _ApproachCheck {
   final bool satisfied;
   final Duration left;
   final Duration right;
-  _ApproachCheck({required this.satisfied, required this.left, required this.right});
+  final Duration towardsPeak;
+  _ApproachCheck({
+    required this.satisfied,
+    required this.left,
+    required this.right,
+    required this.towardsPeak,
+  });
 }
 
 class _AnglePoint {
