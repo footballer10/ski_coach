@@ -159,15 +159,16 @@ class _ConnectionPageState extends State<ConnectionPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Connecting to sensors...', style: TextStyle(color: Colors.white)),
+      builder: (ctx) => AlertDialog(
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        content: Row(
+          children: const [
+            SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
+            SizedBox(width: 16),
+            Expanded(child: Text('Connecting to sensors...')),
           ],
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
 
@@ -204,15 +205,16 @@ class _ConnectionPageState extends State<ConnectionPage> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Waiting for sensor data...', style: TextStyle(color: Colors.white)),
+        builder: (ctx) => AlertDialog(
+          contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          content: Row(
+            children: const [
+              SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
+              SizedBox(width: 16),
+              Expanded(child: Text('Waiting for sensors to start streaming...')),
             ],
           ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -228,8 +230,14 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
     final dataCompleter = Completer<bool>();
 
+    bool leftLogged = false;
+    bool rightLogged = false;
+
     leftDataSub = leftStream?.listen((data) {
-      if (kDebugMode) debugPrint('✓ Left sensor data received');
+      if (!leftLogged && kDebugMode) {
+        leftLogged = true;
+        debugPrint('✓ Left sensor data received');
+      }
       leftDataReceived = true;
       if (rightDataReceived && !dataCompleter.isCompleted) {
         dataCompleter.complete(true);
@@ -237,7 +245,10 @@ class _ConnectionPageState extends State<ConnectionPage> {
     });
 
     rightDataSub = rightStream?.listen((data) {
-      if (kDebugMode) debugPrint('✓ Right sensor data received');
+      if (!rightLogged && kDebugMode) {
+        rightLogged = true;
+        debugPrint('✓ Right sensor data received');
+      }
       rightDataReceived = true;
       if (leftDataReceived && !dataCompleter.isCompleted) {
         dataCompleter.complete(true);

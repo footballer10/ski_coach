@@ -406,6 +406,8 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final error = _analysisResults!['error'] as String?;
     if (error != null) {
       final isSensorDisconnect = _analysisResults!['isSensorDisconnect'] == true;
+      // Only show reconnect button if both sensors are NOT currently connected
+      final bothConnected = widget.bleMgr.isConnected(widget.leftId) && widget.bleMgr.isConnected(widget.rightId);
       return ResultsView(
         leftSampleCount: 0,
         rightSampleCount: 0,
@@ -418,6 +420,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         errorMessage: error,
         onNewRun: _resetToRecording,
         onReconnect: isSensorDisconnect ? widget.onDisconnect : null,
+        showReconnectButton: isSensorDisconnect && !bothConnected,
       );
     }
 
@@ -442,6 +445,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       turnDurationsSeconds: turnDurations,
       edgeAngles: edgeAngles,
       onNewRun: widget.onRecordAgain,
+      showReconnectButton: false,
     );
   }
 

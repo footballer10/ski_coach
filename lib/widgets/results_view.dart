@@ -15,6 +15,7 @@ class ResultsView extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
+  final bool showReconnectButton;
 
   const ResultsView({
     super.key,
@@ -30,6 +31,7 @@ class ResultsView extends StatefulWidget {
     this.errorMessage,
     required this.onNewRun,
     this.onReconnect,
+    this.showReconnectButton = true,
   });
 
   @override
@@ -165,7 +167,7 @@ class _ResultsViewState extends State<ResultsView> {
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                if (widget.onReconnect != null)
+                if (widget.onReconnect != null && widget.showReconnectButton)
                   ElevatedButton.icon(
                     onPressed: widget.onReconnect,
                     icon: const Icon(Icons.bluetooth_searching),
@@ -176,7 +178,7 @@ class _ResultsViewState extends State<ResultsView> {
                       foregroundColor: Colors.white,
                     ),
                   ),
-                if (widget.onReconnect != null) const SizedBox(height: 8),
+                if (widget.onReconnect != null && widget.showReconnectButton) const SizedBox(height: 8),
                 ElevatedButton.icon(
                   onPressed: widget.onNewRun,
                   icon: const Icon(Icons.refresh),
