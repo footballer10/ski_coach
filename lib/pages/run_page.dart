@@ -29,12 +29,12 @@ class RunPage extends StatefulWidget {
   });
 
   @override
-  State<RunPage> createState() => _RunPageState();
+  State<RunPage> createState() => RunPageState();
 }
 
 enum RunState { recording, processing, results }
 
-class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
+ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -53,6 +53,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   DateTime? _lastRightData;
   bool _disconnectHandled = false; // Prevent multiple disconnect triggers
   bool _disconnectedWhileRecording = false; // Track if disconnect happened during recording
+  bool _needsResubscribeOnReconnect = false; // Idle disconnect requires resubscribe
   static const _dataTimeout = Duration(seconds: 3);
 
   @override
@@ -213,11 +214,15 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     _leftWatchdog?.cancel();
     _rightWatchdog?.cancel();
     
+    final wasRecording = _recording;
     // Stop recording if active
-    if (_recording) {
+    if (wasRecording) {
       debugPrint('🎿 RunPage: Stopping recording due to disconnect');
       widget.bleMgr.stopRecording();
       _disconnectedWhileRecording = true;
+    } else {
+      // Mark that we need to resubscribe when sensors come back
+      _needsResubscribeOnReconnect = true;
     }
     
     // Cancel subscriptions
@@ -226,11 +231,24 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     _leftSub = null;
     _rightSub = null;
     
-    // Do not overwrite current results view; just stop recording and show reconnect
-    debugPrint('🎿 RunPage: Preparing reconnect overlay (preserving current page)');
-    setState(() {
-      _recording = false;
-    });
+    if (wasRecording) {
+      // Show error page for recording disconnect (preserve as results page)
+      debugPrint('🎿 RunPage: Setting error results state for recording disconnect');
+      setState(() {
+        _recording = false;
+        _state = RunState.results;
+        _analysisResults = {
+          'error': message,
+          'isSensorDisconnect': true,
+        };
+      });
+    } else {
+      // Preserve current recording screen but mark not recording
+      debugPrint('🎿 RunPage: Idle disconnect - will resubscribe after reconnect');
+      setState(() {
+        _recording = false;
+      });
+    }
     // Bring up reconnect modal immediately (idempotent via AppController)
     debugPrint('🎿 RunPage: About to call widget.onDisconnect()');
     widget.onDisconnect();
@@ -241,6 +259,7 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     // Reset disconnect flags
     _disconnectHandled = false;
     _disconnectedWhileRecording = false;
+    _needsResubscribeOnReconnect = false;
     
     // Resubscribe to samples when resetting
     _subscribeToSamples();
@@ -256,6 +275,27 @@ class _RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       _lastRightData = null;
     });
   }
+
+  // Called by controller after successful reconnect
+  void onSensorsReconnected() {
+    debugPrint('🎿 RunPage: onSensorsReconnected invoked');
+    // Reset disconnect guard so future disconnects are detected
+    _disconnectHandled = false;
+    if (_needsResubscribeOnReconnect) {
+      debugPrint('🎿 RunPage: Resubscribing after idle disconnect');
+      _needsResubscribeOnReconnect = false;
+      _subscribeToSamples();
+      _startWatchdogs();
+      setState(() { /* ensure UI rebuild */ });
+    }
+    if (_disconnectedWhileRecording) {
+      // We already transformed page into error state; controller will add new run page separately
+      debugPrint('🎿 RunPage: Recording disconnect previously handled (error page preserved)');
+      _disconnectedWhileRecording = false; // prevent duplicate handling
+    }
+  }
+
+  bool get hasRecordingDisconnectError => _analysisResults != null && _analysisResults!['isSensorDisconnect'] == true;
 
   Future<void> _startRecording() async {
     // Use BleManager's built-in recording

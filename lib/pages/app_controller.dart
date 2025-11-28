@@ -13,6 +13,7 @@ class AppController extends StatefulWidget {
 class _AppControllerState extends State<AppController> {
   final PageController _pageController = PageController();
   List<Widget> _runPages = [];
+  final List<GlobalKey<RunPageState>> _runPageKeys = [];
   
   dynamic _bleMgr;
   String? _leftId;
@@ -48,7 +49,7 @@ class _AppControllerState extends State<AppController> {
     
     // If this is the first connection, add the first run page (don't auto-start)
     if (_runPages.isEmpty) {
-      final pageKey = UniqueKey();
+      final pageKey = GlobalKey<RunPageState>();
       final newPage = RunPage(
         key: pageKey,
         bleMgr: bleMgr,
@@ -67,6 +68,7 @@ class _AppControllerState extends State<AppController> {
       
       setState(() {
         _runPages.add(newPage);
+        _runPageKeys.add(pageKey);
       });
     }
     
@@ -104,9 +106,10 @@ class _AppControllerState extends State<AppController> {
             if (!_showArrows && _runPages.isNotEmpty) {
               setState(() => _showArrows = true);
             }
-            // Trigger rebuild of all RunPages with new connection info
-            // This will cause didUpdateWidget to fire on existing pages
-            _rebuildRunPages();
+            _notifyRunPagesReconnected();
+            if (_anyRecordingDisconnectError()) {
+              _addNewRunPage();
+            }
           },
         ),
       ),
@@ -117,31 +120,24 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
-  void _rebuildRunPages() {
-    // Rebuild all run pages with updated connection info
-    setState(() {
-      _runPages = _runPages.map((oldPage) {
-        // Preserve the key but update connection parameters
-        return RunPage(
-          key: oldPage.key,
-          bleMgr: _bleMgr!,
-          leftId: _leftId!,
-          rightId: _rightId!,
-          onRecordAgain: _addNewRunPage,
-          onDisconnect: _onSensorsDisconnected,
-          autoStart: false,
-          onResultsShown: () {
-            if (!_showArrows) {
-              setState(() => _showArrows = true);
-            }
-          },
-        );
-      }).toList();
-    });
+  void _notifyRunPagesReconnected() {
+    for (final key in _runPageKeys) {
+      key.currentState?.onSensorsReconnected();
+    }
+  }
+
+  bool _anyRecordingDisconnectError() {
+    for (final key in _runPageKeys) {
+      final state = key.currentState;
+      if (state != null && state.mounted && state.hasRecordingDisconnectError) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _addNewRunPage() {
-    final pageKey = UniqueKey();
+    final pageKey = GlobalKey<RunPageState>();
     final newPage = RunPage(
       key: pageKey,
       bleMgr: _bleMgr,
@@ -162,6 +158,7 @@ class _AppControllerState extends State<AppController> {
     
     setState(() {
       _runPages.add(newPage);
+      _runPageKeys.add(pageKey);
     });
     
     // Jump to the new page and update current page tracker immediately
