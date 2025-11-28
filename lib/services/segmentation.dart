@@ -67,7 +67,7 @@ class TurnSegmentation {
     }
     
     // Detect yaw peaks (local maxima/minima = turn points)
-    final peaks = _detectYawPeaks(smoothedYaw, params);
+    final peaks = _detectYawPeaks(smoothedYaw, unwrappedYaw, params);
 
     if (kDebugMode) {
       debugPrint('🎿 Segmentation: Detected ${peaks.length} yaw peaks (turn points)');
@@ -233,34 +233,40 @@ class TurnSegmentation {
     return candidates.first;
   }
 
-  static List<_Peak> _detectYawPeaks(List<_AnglePoint> pts, SegmentationParams p) {
+  static List<_Peak> _detectYawPeaks(
+    List<_AnglePoint> pts,
+    List<double> unwrapped,
+    SegmentationParams p,
+  ) {
     // Detect local maxima and minima in yaw signal
     // A peak is a local maximum (right turn), valley is local minimum (left turn)
-    if (pts.length < 3) return [];
+    if (pts.length < 3 || pts.length != unwrapped.length) {
+      return [];
+    }
     
     final peaks = <_Peak>[];
     DateTime? lastPeakTime;
     
     const prominenceWindow = 20; // samples to inspect on each side for prominence
     for (int i = 1; i < pts.length - 1; i++) {
-      final prev = pts[i - 1].angle;
-      final curr = pts[i].angle;
-      final next = pts[i + 1].angle;
+      final currWrapped = pts[i].angle;
+      final prevUnwrapped = unwrapped[i - 1];
+      final currUnwrapped = unwrapped[i];
+      final nextUnwrapped = unwrapped[i + 1];
       final t = pts[i].time;
       
-      // Handle wraparound when comparing angles
-      final diffPrev = _angleDiff(curr, prev);
-      final diffNext = _angleDiff(next, curr);
+      final diffPrev = currUnwrapped - prevUnwrapped;
+      final diffNext = nextUnwrapped - currUnwrapped;
       
       bool isLocalMax = diffPrev > 0 && diffNext < 0;
       bool isLocalMin = diffPrev < 0 && diffNext > 0;
       
       if (isLocalMax || isLocalMin) {
         if (kDebugMode) {
-          debugPrint('      peak-candidate idx=$i time=${t.toIso8601String()} yaw=${curr.toStringAsFixed(2)}° type=${isLocalMax ? 'MAX' : 'MIN'} diffPrev=${diffPrev.toStringAsFixed(2)} diffNext=${diffNext.toStringAsFixed(2)}');
+          debugPrint('      peak-candidate idx=$i time=${t.toIso8601String()} yaw=${currWrapped.toStringAsFixed(2)}° type=${isLocalMax ? 'MAX' : 'MIN'} diffPrev=${diffPrev.toStringAsFixed(2)} diffNext=${diffNext.toStringAsFixed(2)}');
         }
-        final leftSwing = _swingMagnitude(pts, i, prominenceWindow, toLeft: true);
-        final rightSwing = _swingMagnitude(pts, i, prominenceWindow, toLeft: false);
+        final leftSwing = _swingMagnitude(unwrapped, i, prominenceWindow, toLeft: true);
+        final rightSwing = _swingMagnitude(unwrapped, i, prominenceWindow, toLeft: false);
         final prominence = (leftSwing == 0 || rightSwing == 0)
             ? math.max(leftSwing, rightSwing)
             : math.min(leftSwing, rightSwing);
@@ -280,7 +286,7 @@ class TurnSegmentation {
           continue;
         }
         
-        peaks.add(_Peak(time: t, yaw: curr, isPeak: isLocalMax, index: i));
+        peaks.add(_Peak(time: t, yaw: currWrapped, isPeak: isLocalMax, index: i));
         lastPeakTime = t;
         if (kDebugMode) {
           debugPrint('         ↳ accepted as peak index=${peaks.length - 1}');
@@ -308,18 +314,18 @@ class TurnSegmentation {
   }
 
   static double _swingMagnitude(
-    List<_AnglePoint> pts,
+    List<double> unwrappedYaw,
     int center,
     int window, {
     required bool toLeft,
   }) {
-    if (pts.isEmpty) return 0;
-    final base = pts[center].angle;
+    if (unwrappedYaw.isEmpty) return 0;
+    final base = unwrappedYaw[center];
     double swing = 0.0;
     int steps = 0;
     int j = toLeft ? center - 1 : center + 1;
-    while (j >= 0 && j < pts.length && steps < window) {
-      swing = math.max(swing, _angleDiff(base, pts[j].angle).abs());
+    while (j >= 0 && j < unwrappedYaw.length && steps < window) {
+      swing = math.max(swing, (unwrappedYaw[j] - base).abs());
       steps++;
       j += toLeft ? -1 : 1;
     }
