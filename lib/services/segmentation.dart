@@ -30,8 +30,8 @@ class SegmentationParams {
   final Duration minGapBetweenPeaks; // debounce rapid oscillations
 
   const SegmentationParams({
-    this.minPeakChangeDeg = 10.0, // must change at least 10° from valley to peak
-    this.minGapBetweenPeaks = const Duration(milliseconds: 200), // debounce noise
+    this.minPeakChangeDeg = 18.0, // require ~18° swing between valley & peak to count
+    this.minGapBetweenPeaks = const Duration(milliseconds: 250), // slightly longer debounce
   });
 }
 
@@ -168,6 +168,7 @@ class TurnSegmentation {
     final peaks = <_Peak>[];
     DateTime? lastPeakTime;
     
+    const prominenceWindow = 20; // samples to inspect on each side for prominence
     for (int i = 1; i < pts.length - 1; i++) {
       final prev = pts[i - 1].angle;
       final curr = pts[i].angle;
@@ -182,14 +183,15 @@ class TurnSegmentation {
       bool isLocalMin = diffPrev < 0 && diffNext > 0;
       
       if (isLocalMax || isLocalMin) {
-        // Check if change is significant enough
-        // Look back and forward to find the valley/peak magnitude
-        double magnitude = 0.0;
-        for (int j = math.max(0, i - 10); j < math.min(pts.length, i + 10); j++) {
-          magnitude = math.max(magnitude, _angleDiff(curr, pts[j].angle).abs());
+        final leftSwing = _swingMagnitude(pts, i, prominenceWindow, toLeft: true);
+        final rightSwing = _swingMagnitude(pts, i, prominenceWindow, toLeft: false);
+        final prominence = (leftSwing == 0 || rightSwing == 0)
+            ? math.max(leftSwing, rightSwing)
+            : math.min(leftSwing, rightSwing);
+
+        if (prominence < p.minPeakChangeDeg) {
+          continue; // not enough yaw change on both sides, treat as noise
         }
-        
-        if (magnitude < p.minPeakChangeDeg) continue; // too small, likely noise
         
         // Debounce
         if (lastPeakTime != null && t.difference(lastPeakTime) < p.minGapBetweenPeaks) {
@@ -214,6 +216,25 @@ class TurnSegmentation {
       diff += 360;
     }
     return diff;
+  }
+
+  static double _swingMagnitude(
+    List<_AnglePoint> pts,
+    int center,
+    int window, {
+    required bool toLeft,
+  }) {
+    if (pts.isEmpty) return 0;
+    final base = pts[center].angle;
+    double swing = 0.0;
+    int steps = 0;
+    int j = toLeft ? center - 1 : center + 1;
+    while (j >= 0 && j < pts.length && steps < window) {
+      swing = math.max(swing, _angleDiff(base, pts[j].angle).abs());
+      steps++;
+      j += toLeft ? -1 : 1;
+    }
+    return swing;
   }
 }
 
