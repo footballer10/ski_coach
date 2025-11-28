@@ -112,8 +112,10 @@ class _AppControllerState extends State<AppController> {
             final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
             final currentState = currentKey?.currentState;
             if (currentState != null && currentState.mounted) {
-              // If it is not already in results due to a recording disconnect, show post-reconnect error
-              currentState.showPostReconnectErrorStartNewRun();
+              // Only show post-reconnect error if page was interrupted during pre/recording or processing, not if it had valid summary results
+              if (currentState.shouldShowPostReconnectError) {
+                currentState.showPostReconnectErrorStartNewRun();
+              }
             }
             // Notify pages to resubscribe/reset guards
             _notifyRunPagesReconnected();
@@ -133,7 +135,10 @@ class _AppControllerState extends State<AppController> {
           final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
           final currentState = currentKey?.currentState;
           if (currentState != null && currentState.mounted) {
-            currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
+            // Only convert page if not a valid summary results page (avoid losing analysis)
+            if (!currentState.isSummaryWithValidResults) {
+              currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
+            }
           }
         }
       } catch (_) {

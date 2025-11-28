@@ -805,7 +805,7 @@ class _ResultsViewState extends State<ResultsView> {
                 SizedBox(
                   height: 28,
                   child: DropdownButtonFormField<String>(
-                    value: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                    initialValue: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
                     isDense: true,
                     isExpanded: true,
                     decoration: const InputDecoration(
