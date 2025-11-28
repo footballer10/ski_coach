@@ -27,14 +27,10 @@ class TurnSegment {
 
 class SegmentationParams {
   final double minPeakChangeDeg; // minimum yaw change from valley to peak to count as a turn
-  final Duration minGapBetweenPeaks; // debounce rapid oscillations
-  final Duration minApproachTime; // minimum time moving toward peak on each side
   final int smoothingWindow; // number of samples for moving average smoothing
 
   const SegmentationParams({
-    this.minPeakChangeDeg = 8.0, // reduced to allow smaller quick turns
-    this.minGapBetweenPeaks = const Duration(milliseconds: 150), // reduced for quick turns
-    this.minApproachTime = const Duration(milliseconds: 100), // ensure sustained movement
+    this.minPeakChangeDeg = 10.0, // hysteresis threshold (deg) for switching
     this.smoothingWindow = 5,
   });
 }
@@ -78,23 +74,14 @@ class TurnSegmentation {
       }
     }
 
-    // Build segments from consecutive peaks
+    // Build segments from consecutive peaks (alternation is inherent to detector)
     final segments = <TurnSegment>[];
-    int rejectedApproach = 0;
-    int rejectedAlternation = 0;
     
     for (int k = 0; k + 1 < peaks.length; k++) {
       final a = peaks[k];
       final b = peaks[k + 1];
 
-      // Ensure peaks alternate between max and min (no two lefts or two rights in a row)
-      if (a.isPeak == b.isPeak) {
-        rejectedAlternation++;
-        if (kDebugMode) {
-          debugPrint('   ❌ Segment ${k + 1}: rejected (peaks don\'t alternate: both are ${a.isPeak ? "max" : "min"})');
-        }
-        continue;
-      }
+      // No explicit alternation check; detector already alternates max/min
 
       final startIdxLeft = _nearestIndex(left, a.time);
       final startIdxRight = _nearestIndex(right, a.time);
@@ -110,23 +97,7 @@ class TurnSegmentation {
         continue;
       }
 
-      // Check that yaw moved toward the upcoming peak for at least minApproachTime
-      final approach = _hasApproachTime(
-        unwrappedYaw,
-        smoothedYaw,
-        startYawIdx,
-        endYawIdx,
-        b.isPeak,
-        params.minApproachTime,
-      );
-      if (!approach.satisfied) {
-        rejectedApproach++;
-        if (kDebugMode) {
-          final targetLabel = b.isPeak ? 'max' : 'min';
-          debugPrint('   ❌ Segment ${k + 1}: rejected (insufficient approach toward $targetLabel: ${approach.towardsPeak.inMilliseconds}ms < ${params.minApproachTime.inMilliseconds}ms)');
-        }
-        continue;
-      }
+      // No approach-time requirement; we simply pair consecutive peaks
 
       // Find maximum absolute pitch during this turn segment
       double maxEdgeAngle = 0.0;
@@ -163,9 +134,7 @@ class TurnSegmentation {
       segments.add(seg);
     }
     
-    if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Rejection summary: approach=$rejectedApproach, alternation=$rejectedAlternation');
-    }
+      // No rejection summary needed; simple consecutive pairing in use
     
     if (kDebugMode) {
       debugPrint('🎿 Segmentation: Created ${segments.length} turn segments');
@@ -388,58 +357,7 @@ class TurnSegmentation {
     return maxVal - minVal;
   }
 
-  /// Check that yaw moved toward the target peak for at least minApproachTime
-  static _ApproachCheck _hasApproachTime(
-    List<double> unwrappedYaw,
-    List<_AnglePoint> smoothedYaw,
-    int startIdx,
-    int endIdx,
-    bool targetIsPeak,
-    Duration minApproachTime,
-  ) {
-    if (unwrappedYaw.isEmpty || startIdx >= endIdx || smoothedYaw.isEmpty) {
-      return _ApproachCheck(
-        satisfied: false,
-        left: Duration.zero,
-        right: Duration.zero,
-        towardsPeak: Duration.zero,
-      );
-    }
-
-    const double trendThreshold = 0.5;
-    DateTime? approachStart;
-    Duration approachDuration = Duration.zero;
-    double prev = unwrappedYaw[startIdx];
-
-    for (int i = startIdx + 1; i <= endIdx; i++) {
-      final delta = unwrappedYaw[i] - prev;
-      final movingToward = targetIsPeak ? delta > trendThreshold : delta < -trendThreshold;
-
-      if (movingToward) {
-        approachStart ??= smoothedYaw[i - 1].time;
-        approachDuration = smoothedYaw[i].time.difference(approachStart);
-        if (approachDuration >= minApproachTime) {
-          break;
-        }
-      } else {
-        approachStart = null;
-      }
-
-      prev = unwrappedYaw[i];
-    }
-
-    if (kDebugMode) {
-      final dirLabel = targetIsPeak ? 'toward max' : 'toward min';
-      debugPrint('      approach-check: $dirLabel duration=${approachDuration.inMilliseconds}ms required=${minApproachTime.inMilliseconds}ms');
-    }
-
-    return _ApproachCheck(
-      satisfied: approachDuration >= minApproachTime,
-      left: targetIsPeak ? approachDuration : Duration.zero,
-      right: targetIsPeak ? Duration.zero : approachDuration,
-      towardsPeak: approachDuration,
-    );
-  }
+  // Approach-time logic removed per simplified design
 
   static int? _indexForTime(List<_AnglePoint> pts, DateTime time) {
     int lo = 0;
@@ -471,18 +389,7 @@ class TurnSegmentation {
   }
 }
 
-class _ApproachCheck {
-  final bool satisfied;
-  final Duration left;
-  final Duration right;
-  final Duration towardsPeak;
-  _ApproachCheck({
-    required this.satisfied,
-    required this.left,
-    required this.right,
-    required this.towardsPeak,
-  });
-}
+// _ApproachCheck removed per simplified design
 
 class _AnglePoint {
   final DateTime time;
