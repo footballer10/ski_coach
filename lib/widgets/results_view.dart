@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:ski_coach/services/scoring.dart';
+import 'package:ski_coach/models/analysis_results.dart';
 
 /// Displays run analysis results with navigation through categories and turns
 class ResultsView extends StatefulWidget {
-  final int leftSampleCount;
-  final int rightSampleCount;
-  final List<List<int>> leftSegments;
-  final List<List<int>> rightSegments;
-    final int runDurationSeconds;
-    final DateTime? runStartTime;
-  final int turnCount;
-  final List<double> turnDurationsSeconds;
-  final List<double> edgeAngles;
+  final AnalysisResults? results; // null if showing error
   final String? errorMessage;
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
@@ -20,15 +14,7 @@ class ResultsView extends StatefulWidget {
 
   const ResultsView({
     super.key,
-    required this.leftSampleCount,
-    required this.rightSampleCount,
-    required this.leftSegments,
-    required this.rightSegments,
-      this.runDurationSeconds = 0,
-      this.runStartTime,
-    this.turnCount = 0,
-    this.turnDurationsSeconds = const [],
-    this.edgeAngles = const [],
+    this.results,
     this.errorMessage,
     required this.onNewRun,
     this.onReconnect,
@@ -62,8 +48,17 @@ class _ResultsViewState extends State<ResultsView> {
   ];
 
   List<String> get _turns {
-    final count = widget.turnCount > 0 ? widget.turnCount : 5;
-    return ['All Turns', ...List.generate(count, (i) => 'Turn ${i + 1}')];
+    final count = (widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5;
+    return [
+      'All Turns',
+      ...List.generate(count, (i) {
+        final dirs = widget.results?.turnDirections ?? const [];
+        final direction = i < dirs.length 
+            ? (dirs[i] == 1 ? '(R)' : '(L)')
+            : '';
+        return 'Turn ${i + 1} $direction'.trim();
+      })
+    ];
   }
 
   ViewMode get _viewMode {
@@ -77,16 +72,19 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   double _scoreForDuration(double x) {
-    // 100 · 0.1205^((ln(x / 2))^2)
-    if (x <= 0) return 0.0;
-    final v = 100.0 * (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
-    return v.isFinite ? v : 0.0;
+    return Scoring.duration(x);
   }
 
   double _scoreForEdgeAngle(double x) {
-    // 102.552 · (0.99818^((x - 45)^2)) - 2.552
-    final v = 102.552 * math.pow(0.99818, math.pow(x - 45.0, 2)) - 2.552;
-    return v.isFinite ? v.clamp(0.0, 100.0) : 0.0;
+    return Scoring.edgeAngle(x);
+  }
+
+  double _scoreForParallelness(double x) {
+    return Scoring.parallel(x);
+  }
+  
+  double _scoreForSmoothnessSD(double x) {
+    return Scoring.smoothness(x);
   }
 
   void _pushNavigation() {
@@ -350,11 +348,12 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCompactSummary({bool includeSimilarity = false}) {
-      final durationStr = widget.runDurationSeconds > 0 
-          ? '${widget.runDurationSeconds}s'
+        final duration = widget.results?.runDurationSeconds ?? 0;
+        final durationStr = duration > 0 
+          ? '${duration}s'
           : '—';
-      final startTimeStr = widget.runStartTime != null
-          ? '${widget.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.runStartTime!.minute.toString().padLeft(2, '0')}'
+        final startTimeStr = widget.results?.runStartTime != null
+          ? '${widget.results!.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.results!.runStartTime!.minute.toString().padLeft(2, '0')}'
           : '—';
     
     return Padding(
@@ -365,11 +364,15 @@ class _ResultsViewState extends State<ResultsView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _summaryItem('Turns', '${widget.turnCount > 0 ? widget.turnCount : (_turns.length - 1)}'),
+              _summaryItem('Turns', '${(widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : (_turns.length - 1)}'),
                 _summaryItem('Duration', durationStr),
                 _summaryItem('Start', startTimeStr),
-              _summaryItem('Score', '—', prominent: true),
-              if (includeSimilarity) _summaryItem('Similarity', '—'),
+              _summaryItem('Score', widget.results?.overallScore != null ? widget.results!.overallScore!.toStringAsFixed(1) : '—', prominent: true),
+              if (includeSimilarity)
+                _summaryItem(
+                  'Symmetry',
+                  widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—',
+                ),
             ],
           ),
         ),
@@ -389,13 +392,13 @@ class _ResultsViewState extends State<ResultsView> {
 
   Widget _buildLeftPane({bool includeSimilarity = false}) {
     final items = _categories.skip(1).toList();
-    if (includeSimilarity) items.add('Turn Similarity');
+    if (includeSimilarity) items.add('Turn Symmetry');
     
     // Precompute Turn Duration average value and score
     String turnDurationVal = '—';
     String turnDurationScore = '—';
-    if (widget.turnDurationsSeconds.isNotEmpty) {
-      final durations = widget.turnDurationsSeconds;
+      final durations = widget.results?.turnDurationsSeconds ?? const [];
+      if (durations.isNotEmpty) {
       final avg = durations.reduce((a,b) => a + b) / durations.length;
       turnDurationVal = '${avg.toStringAsFixed(3)}s';
       double scoreSum = 0.0;
@@ -409,8 +412,8 @@ class _ResultsViewState extends State<ResultsView> {
     // Precompute Edge Angle average value and score
     String edgeAngleVal = '—';
     String edgeAngleScore = '—';
-    if (widget.edgeAngles.isNotEmpty) {
-      final angles = widget.edgeAngles;
+      final angles = widget.results?.edgeAngles ?? const [];
+      if (angles.isNotEmpty) {
       final avg = angles.reduce((a,b) => a + b) / angles.length;
       edgeAngleVal = '${avg.toStringAsFixed(1)}°';
       double scoreSum = 0.0;
@@ -433,10 +436,12 @@ class _ResultsViewState extends State<ResultsView> {
                     ? 'Val: $turnDurationVal | Score: $turnDurationScore'
                     : cat == 'Edge Angle'
                         ? 'Val: $edgeAngleVal | Score: $edgeAngleScore'
+                        : cat == 'Turn Symmetry'
+                          ? 'Val: ${widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—'} | Score: ${widget.results?.turnSymmetryScore != null ? widget.results!.turnSymmetryScore!.toStringAsFixed(1) : '—'}'
                         : 'Val: — | Score: —',
                 style: const TextStyle(fontSize: 11),
               ),
-              onTap: cat == 'Turn Similarity' ? null : () => _selectCategory(cat),
+              onTap: cat == 'Turn Symmetry' ? null : () => _selectCategory(cat),
             )),
       ],
     );
@@ -449,7 +454,7 @@ class _ResultsViewState extends State<ResultsView> {
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Column(
-            children: List.generate(widget.turnCount > 0 ? widget.turnCount : 5, (i) {
+            children: List.generate((widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5, (i) {
               final turnLabel = 'Turn ${i + 1}';
               final isSelected = _selectedTurn == turnLabel;
               return Expanded(
@@ -473,10 +478,10 @@ class _ResultsViewState extends State<ResultsView> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            (i < widget.turnDurationsSeconds.length)
-                                ? '${widget.turnDurationsSeconds[i].toStringAsFixed(3)}s'
-                                : '—',
+                            Text(
+                            (i < (widget.results?.turnDurationsSeconds.length ?? 0))
+                              ? '${widget.results!.turnDurationsSeconds[i].toStringAsFixed(3)}s'
+                              : '—',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -521,41 +526,15 @@ class _ResultsViewState extends State<ResultsView> {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Card(
-            color: Colors.blue[50],
-            child: const Padding(
-              padding: EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('AI Feedback', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 4),
-                  Text('[Placeholder: AI-generated feedback]', style: TextStyle(fontSize: 12)),
-                ],
-              ),
-            ),
-          ),
-        ),
+        // Footer reserved for future insights cards
       ],
     );
   }
 
-  // Old wide summary card replaced by compact summary
-
-  // Old wide visualization replaced by right pane vertical blocks
-
-  // Color handled via isSelected flag
-
-  // _buildCategoryOverview replaced by _buildLeftPane
-
-  // _buildCategoryRow replaced by compact list tiles in _buildLeftPane
-
-  // _buildFeedbackSection omitted for compact layout
+  // Compact layout based on summary + panes
 
   Widget _buildCategoryAllTurns() {
-    final actualTurnCount = widget.turnCount > 0 ? widget.turnCount : 5;
+    final actualTurnCount = (widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -569,17 +548,17 @@ class _ResultsViewState extends State<ResultsView> {
               child: Column(
                 children: List.generate(actualTurnCount, (i) {
                   final turnLabel = 'Turn ${i + 1}';
-                  final turnDuration = (i < widget.turnDurationsSeconds.length)
-                      ? '${widget.turnDurationsSeconds[i].toStringAsFixed(3)}s'
+                    final turnDuration = (i < (widget.results?.turnDurationsSeconds.length ?? 0))
+                      ? '${widget.results!.turnDurationsSeconds[i].toStringAsFixed(3)}s'
                       : '—';
-                  final turnDurationScore = (i < widget.turnDurationsSeconds.length)
-                      ? _scoreForDuration(widget.turnDurationsSeconds[i]).toStringAsFixed(1)
+                    final turnDurationScore = (i < (widget.results?.turnDurationsSeconds.length ?? 0))
+                      ? _scoreForDuration(widget.results!.turnDurationsSeconds[i]).toStringAsFixed(1)
                       : '—';
-                  final edgeAngle = (i < widget.edgeAngles.length)
-                      ? '${widget.edgeAngles[i].toStringAsFixed(1)}°'
+                    final edgeAngle = (i < (widget.results?.edgeAngles.length ?? 0))
+                      ? '${widget.results!.edgeAngles[i].toStringAsFixed(1)}°'
                       : '—';
-                  final edgeAngleScore = (i < widget.edgeAngles.length)
-                      ? _scoreForEdgeAngle(widget.edgeAngles[i]).toStringAsFixed(1)
+                    final edgeAngleScore = (i < (widget.results?.edgeAngles.length ?? 0))
+                      ? _scoreForEdgeAngle(widget.results!.edgeAngles[i]).toStringAsFixed(1)
                       : '—';
                   return GestureDetector(
                     onTap: () => _selectCategoryAndTurn(_selectedCategory, turnLabel),
@@ -635,7 +614,7 @@ class _ResultsViewState extends State<ResultsView> {
 
     if (_selectedCategory == 'Turn Duration') {
       optimalText = '2.000s';
-      final durations = widget.turnDurationsSeconds;
+      final durations = widget.results?.turnDurationsSeconds ?? const [];
       if (_selectedTurn == 'All Turns') {
         if (durations.isNotEmpty) {
           final avg = durations.reduce((a,b) => a + b) / durations.length;
@@ -664,7 +643,7 @@ class _ResultsViewState extends State<ResultsView> {
       }
     } else if (_selectedCategory == 'Edge Angle') {
       optimalText = '45.0°';
-      final angles = widget.edgeAngles;
+      final angles = widget.results?.edgeAngles ?? const [];
       if (_selectedTurn == 'All Turns') {
         if (angles.isNotEmpty) {
           final avg = angles.reduce((a,b) => a + b) / angles.length;
@@ -709,7 +688,7 @@ class _ResultsViewState extends State<ResultsView> {
   // Removed old color-coded visualization in favor of compact GPS card
 
   Widget _buildDotPlot() {
-    final turnCount = widget.leftSegments.length;
+    final turnCount = widget.results?.leftSegments.length ?? 0;
     
     return Card(
       child: Padding(
@@ -769,14 +748,46 @@ class _ResultsViewState extends State<ResultsView> {
     
     String valueText = '—';
     String scoreText = '—';
-    if (metric == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
-      final x = widget.turnDurationsSeconds[selectedTurnIndex];
+    if (metric == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
+      final x = widget.results!.turnDurationsSeconds[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(3)}s';
       scoreText = _scoreForDuration(x).toStringAsFixed(1);
-    } else if (metric == 'Edge Angle' && selectedTurnIndex != null && selectedTurnIndex < widget.edgeAngles.length) {
-      final x = widget.edgeAngles[selectedTurnIndex];
+    } else if (metric == 'Edge Angle' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.edgeAngles.length ?? 0)) {
+      final x = widget.results!.edgeAngles[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(1)}°';
       scoreText = _scoreForEdgeAngle(x).toStringAsFixed(1);
+    } else if (metric == 'Parallel Ski Control' && selectedTurnIndex != null) {
+      final phase = _parallelPhase;
+      double? parallelVal;
+      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
+        parallelVal = widget.results!.parallelAvg[selectedTurnIndex];
+      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
+        parallelVal = widget.results!.parallelBeginning[selectedTurnIndex];
+      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
+        parallelVal = widget.results!.parallelMiddle[selectedTurnIndex];
+      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
+        parallelVal = widget.results!.parallelEnd[selectedTurnIndex];
+      }
+      if (parallelVal != null) {
+        valueText = '${parallelVal.toStringAsFixed(1)}°';
+        scoreText = _scoreForParallelness(parallelVal).toStringAsFixed(1);
+      }
+    } else if (metric == 'Smoothness' && selectedTurnIndex != null) {
+      final phase = _smoothnessPhase;
+      double? smoothVal;
+      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.smoothAvg.length ?? 0)) {
+        smoothVal = widget.results!.smoothAvg[selectedTurnIndex];
+      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.smoothBeginning.length ?? 0)) {
+        smoothVal = widget.results!.smoothBeginning[selectedTurnIndex];
+      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.smoothMiddle.length ?? 0)) {
+        smoothVal = widget.results!.smoothMiddle[selectedTurnIndex];
+      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.smoothEnd.length ?? 0)) {
+        smoothVal = widget.results!.smoothEnd[selectedTurnIndex];
+      }
+      if (smoothVal != null) {
+        valueText = '${smoothVal.toStringAsFixed(1)}°/s SD';
+        scoreText = _scoreForSmoothnessSD(smoothVal).toStringAsFixed(1);
+      }
     }
     
     return GestureDetector(
@@ -854,14 +865,16 @@ class _ResultsViewState extends State<ResultsView> {
       }
     }
     
-    String valueText = '[Placeholder]';
-    String scoreText = '[Placeholder]';
-    if (_selectedCategory == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < widget.turnDurationsSeconds.length) {
-      valueText = '${widget.turnDurationsSeconds[selectedTurnIndex].toStringAsFixed(3)}s';
-      scoreText = _scoreForDuration(widget.turnDurationsSeconds[selectedTurnIndex]).toStringAsFixed(1);
-    } else if (_selectedCategory == 'Edge Angle' && selectedTurnIndex != null && selectedTurnIndex < widget.edgeAngles.length) {
-      valueText = '${widget.edgeAngles[selectedTurnIndex].toStringAsFixed(1)}°';
-      scoreText = _scoreForEdgeAngle(widget.edgeAngles[selectedTurnIndex]).toStringAsFixed(1);
+    String valueText = '—';
+    String scoreText = '—';
+    if (_selectedCategory == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
+      final x = widget.results!.turnDurationsSeconds[selectedTurnIndex];
+      valueText = '${x.toStringAsFixed(3)}s';
+      scoreText = _scoreForDuration(x).toStringAsFixed(1);
+    } else if (_selectedCategory == 'Edge Angle' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.edgeAngles.length ?? 0)) {
+      final x = widget.results!.edgeAngles[selectedTurnIndex];
+      valueText = '${x.toStringAsFixed(1)}°';
+      scoreText = _scoreForEdgeAngle(x).toStringAsFixed(1);
     }
     
     return SingleChildScrollView(
@@ -879,7 +892,7 @@ class _ResultsViewState extends State<ResultsView> {
                   const SizedBox(height: 4),
                   Text('Score: $scoreText', style: const TextStyle(fontSize: 14)),
                   const SizedBox(height: 8),
-                  const Text('[Dot plot placeholder]', style: TextStyle(fontStyle: FontStyle.italic)),
+                  const Text('[Dot plot]', style: TextStyle(fontStyle: FontStyle.italic)),
                 ],
               ),
             ),

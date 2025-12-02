@@ -1,3 +1,12 @@
+/// Turn segmentation and per-turn metrics.
+///
+/// Pipeline:
+/// - Correct angle jumps (>10°) for both sensors
+/// - Average yaw between sensors; unwrap and smooth
+/// - Detect alternating max/min yaw peaks (turn points) via hysteresis
+/// - Build segments between consecutive peaks
+/// - Compute metrics: max edge angle, parallelness (avg + thirds), smoothness SD (thirds)
+library segmentation;
 import '../models/imu_sample.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
@@ -11,6 +20,14 @@ class TurnSegment {
   final int endIndexRight;
   final int direction; // -1 left, +1 right
   final double maxEdgeAngle; // maximum absolute pitch during turn (from either sensor)
+  final double avgParallelness; // average ski parallelness (degrees difference, calibrated)
+  final double beginningParallelness; // average parallelness in first third
+  final double middleParallelness; // average parallelness in middle third
+  final double endParallelness; // average parallelness in final third
+  final double beginningSmoothnessSD; // standard deviation of angular velocity in first third
+  final double middleSmoothnessSD; // standard deviation of angular velocity in middle third
+  final double endSmoothnessSD; // standard deviation of angular velocity in final third
+  final double avgSmoothnessSD; // average of the three smoothness SDs
   double get durationSeconds => endTime.difference(startTime).inMilliseconds / 1000.0;
 
   TurnSegment({
@@ -22,6 +39,14 @@ class TurnSegment {
     required this.endIndexRight,
     required this.direction,
     required this.maxEdgeAngle,
+    required this.avgParallelness,
+    required this.beginningParallelness,
+    required this.middleParallelness,
+    required this.endParallelness,
+    required this.beginningSmoothnessSD,
+    required this.middleSmoothnessSD,
+    required this.endSmoothnessSD,
+    required this.avgSmoothnessSD,
   });
 }
 
@@ -40,13 +65,19 @@ class TurnSegmentation {
     required List<ImuSample> left,
     required List<ImuSample> right,
     SegmentationParams params = const SegmentationParams(),
+    double? yawOffset, // Calibrated offset (right - left) from connection
+    double samplingRate = 100.0, // Sampling rate in Hz (default 100Hz)
   }) {
     if (kDebugMode) {
       debugPrint('🎿 Segmentation: Processing ${left.length} left samples, ${right.length} right samples');
     }
     
+    // Correct sudden angle jumps (>10°) in all angles for both sensors
+    final correctedLeft = _correctAngleJumps(left);
+    final correctedRight = _correctAngleJumps(right);
+    
     // Average yaw from both sensors at aligned timestamps
-    final avgYaw = _averageYawSignals(left, right);
+    final avgYaw = _averageYawSignals(correctedLeft, correctedRight);
     final unwrappedAvgYaw = _unwrapYaw(avgYaw);
     final smoothedYaw = _smoothYaw(avgYaw, unwrappedAvgYaw, params.smoothingWindow);
     final unwrappedYaw = _unwrapYaw(smoothedYaw);
@@ -83,10 +114,10 @@ class TurnSegmentation {
 
       // No explicit alternation check; detector already alternates max/min
 
-      final startIdxLeft = _nearestIndex(left, a.time);
-      final startIdxRight = _nearestIndex(right, a.time);
-      final endIdxLeft = _nearestIndex(left, b.time);
-      final endIdxRight = _nearestIndex(right, b.time);
+      final startIdxLeft = _nearestIndex(correctedLeft, a.time);
+      final startIdxRight = _nearestIndex(correctedRight, a.time);
+      final endIdxLeft = _nearestIndex(correctedLeft, b.time);
+      final endIdxRight = _nearestIndex(correctedRight, b.time);
       final startYawIdx = _indexForTime(smoothedYaw, a.time);
       final endYawIdx = _indexForTime(smoothedYaw, b.time);
 
@@ -101,12 +132,91 @@ class TurnSegmentation {
 
       // Find maximum absolute pitch during this turn segment
       double maxEdgeAngle = 0.0;
-      for (int i = startIdxLeft; i <= endIdxLeft && i < left.length; i++) {
-        maxEdgeAngle = math.max(maxEdgeAngle, left[i].pitch.abs());
+      for (int i = startIdxLeft; i <= endIdxLeft && i < correctedLeft.length; i++) {
+        maxEdgeAngle = math.max(maxEdgeAngle, correctedLeft[i].pitch.abs());
       }
-      for (int i = startIdxRight; i <= endIdxRight && i < right.length; i++) {
-        maxEdgeAngle = math.max(maxEdgeAngle, right[i].pitch.abs());
+      for (int i = startIdxRight; i <= endIdxRight && i < correctedRight.length; i++) {
+        maxEdgeAngle = math.max(maxEdgeAngle, correctedRight[i].pitch.abs());
       }
+      
+      // Compute ski parallelness: difference in yaw angles accounting for calibration
+      double sumParallelness = 0.0;
+      int parallelnessCount = 0;
+      final calibratedOffset = yawOffset ?? 0.0;
+      
+      // Also track parallelness for turn thirds
+      double sumBeginning = 0.0, sumMiddle = 0.0, sumEnd = 0.0;
+      int countBeginning = 0, countMiddle = 0, countEnd = 0;
+      
+      final turnDuration = b.time.difference(a.time);
+      final thirdDuration = turnDuration ~/ 3;
+      final middleStart = a.time.add(thirdDuration);
+      final endStart = a.time.add(thirdDuration * 2);
+      
+      for (int i = 0; i < math.min(correctedLeft.length, correctedRight.length); i++) {
+        if (i >= startIdxLeft && i <= endIdxLeft && i >= startIdxRight && i <= endIdxRight) {
+          final leftSample = correctedLeft[i];
+          final rightSample = correctedRight[i];
+          
+          // Use stored parallelness if available, otherwise compute it
+          double parallelness;
+          if (leftSample.parallelness != null) {
+            parallelness = leftSample.parallelness!;
+          } else if (rightSample.parallelness != null) {
+            parallelness = rightSample.parallelness!;
+          } else {
+            // Fallback: compute from yaw values
+            final actualDiff = rightSample.yaw - leftSample.yaw;
+            parallelness = (actualDiff - calibratedOffset).abs();
+          }
+          
+          sumParallelness += parallelness;
+          parallelnessCount++;
+          
+          // Determine which third this sample belongs to
+          final sampleTime = leftSample.timestamp;
+          if (sampleTime.isBefore(middleStart)) {
+            sumBeginning += parallelness;
+            countBeginning++;
+          } else if (sampleTime.isBefore(endStart)) {
+            sumMiddle += parallelness;
+            countMiddle++;
+          } else {
+            sumEnd += parallelness;
+            countEnd++;
+          }
+        }
+      }
+      
+      final avgParallelness = parallelnessCount > 0 ? sumParallelness / parallelnessCount : 0.0;
+      final beginningParallelness = countBeginning > 0 ? sumBeginning / countBeginning : 0.0;
+      final middleParallelness = countMiddle > 0 ? sumMiddle / countMiddle : 0.0;
+      final endParallelness = countEnd > 0 ? sumEnd / countEnd : 0.0;
+      
+      // Compute smoothness: standard deviation of angular velocity for each third
+      // Angular velocity = change in yaw * sampling rate
+      final angularVelocitiesBeginning = <double>[];
+      final angularVelocitiesMiddle = <double>[];
+      final angularVelocitiesEnd = <double>[];
+      
+      for (int i = startYawIdx; i < endYawIdx; i++) {
+        final yawChange = unwrappedYaw[i + 1] - unwrappedYaw[i];
+        final angularVelocity = yawChange * samplingRate;
+        final sampleTime = smoothedYaw[i].time;
+        
+        if (sampleTime.isBefore(middleStart)) {
+          angularVelocitiesBeginning.add(angularVelocity);
+        } else if (sampleTime.isBefore(endStart)) {
+          angularVelocitiesMiddle.add(angularVelocity);
+        } else {
+          angularVelocitiesEnd.add(angularVelocity);
+        }
+      }
+      
+      final beginningSmoothnessSD = _standardDeviation(angularVelocitiesBeginning);
+      final middleSmoothnessSD = _standardDeviation(angularVelocitiesMiddle);
+      final endSmoothnessSD = _standardDeviation(angularVelocitiesEnd);
+      final avgSmoothnessSD = (beginningSmoothnessSD + middleSmoothnessSD + endSmoothnessSD) / 3.0;
 
       final duration = b.time.difference(a.time);
       final yawSwing = _yawSwing(unwrappedYaw, startYawIdx, endYawIdx);
@@ -118,7 +228,7 @@ class TurnSegmentation {
       }
       
       if (kDebugMode) {
-        debugPrint('   ✅ Segment ${k + 1}: accepted (duration=${duration.inMilliseconds}ms, swing=${yawSwing.toStringAsFixed(1)}°, edge=${maxEdgeAngle.toStringAsFixed(1)}°)');
+        debugPrint('   ✅ Segment ${k + 1}: accepted (duration=${duration.inMilliseconds}ms, swing=${yawSwing.toStringAsFixed(1)}°, edge=${maxEdgeAngle.toStringAsFixed(1)}°, parallel=[beg:${beginningParallelness.toStringAsFixed(1)}° mid:${middleParallelness.toStringAsFixed(1)}° end:${endParallelness.toStringAsFixed(1)}°])');
       }
 
       final seg = TurnSegment(
@@ -130,6 +240,14 @@ class TurnSegmentation {
         endIndexRight: endIdxRight,
         direction: b.isPeak ? 1 : -1, // peak = right turn, valley = left turn
         maxEdgeAngle: maxEdgeAngle,
+        avgParallelness: avgParallelness,
+        beginningParallelness: beginningParallelness,
+        middleParallelness: middleParallelness,
+        endParallelness: endParallelness,
+        beginningSmoothnessSD: beginningSmoothnessSD,
+        middleSmoothnessSD: middleSmoothnessSD,
+        endSmoothnessSD: endSmoothnessSD,
+        avgSmoothnessSD: avgSmoothnessSD,
       );
       segments.add(seg);
     }
@@ -139,7 +257,7 @@ class TurnSegmentation {
     if (kDebugMode) {
       debugPrint('🎿 Segmentation: Created ${segments.length} turn segments');
       for (int i = 0; i < segments.length; i++) {
-        debugPrint('   Turn ${i + 1}: ${segments[i].durationSeconds}s, edge=${segments[i].maxEdgeAngle.toStringAsFixed(1)}° (dir=${segments[i].direction})');
+        debugPrint('   Turn ${i + 1}: ${segments[i].durationSeconds}s, edge=${segments[i].maxEdgeAngle.toStringAsFixed(1)}°, parallel=[avg:${segments[i].avgParallelness.toStringAsFixed(1)}° beg:${segments[i].beginningParallelness.toStringAsFixed(1)}° mid:${segments[i].middleParallelness.toStringAsFixed(1)}° end:${segments[i].endParallelness.toStringAsFixed(1)}°] (dir=${segments[i].direction})');
       }
     }
     
@@ -386,6 +504,72 @@ class TurnSegmentation {
     }
     candidates.sort((a, b) => pts[a].time.difference(time).abs().compareTo(pts[b].time.difference(time).abs()));
     return candidates.first;
+  }
+
+  /// Correct sudden angle jumps (>10°) in yaw, pitch, and roll for a sensor
+  static List<ImuSample> _correctAngleJumps(List<ImuSample> samples) {
+    if (samples.isEmpty) return samples;
+    
+    final corrected = <ImuSample>[];
+    corrected.add(samples[0]);
+    
+    double yawOffset = 0.0;
+    double pitchOffset = 0.0;
+    double rollOffset = 0.0;
+    
+    for (int i = 1; i < samples.length; i++) {
+      final prev = samples[i - 1];
+      final curr = samples[i];
+      
+      // Check for jumps in each angle
+      final yawDiff = _angleDiff(curr.yaw, prev.yaw);
+      final pitchDiff = curr.pitch - prev.pitch;
+      final rollDiff = curr.roll - prev.roll;
+      
+      // If jump > 10°, accumulate offset to undo it
+      if (yawDiff.abs() > 10.0) {
+        yawOffset += yawDiff;
+      }
+      if (pitchDiff.abs() > 10.0) {
+        pitchOffset += pitchDiff;
+      }
+      if (rollDiff.abs() > 10.0) {
+        rollOffset += rollDiff;
+      }
+      
+      // Apply accumulated offsets
+      corrected.add(ImuSample(
+        timestamp: curr.timestamp,
+        ax: curr.ax,
+        ay: curr.ay,
+        az: curr.az,
+        gx: curr.gx,
+        gy: curr.gy,
+        gz: curr.gz,
+        yaw: _wrapAngle(curr.yaw - yawOffset),
+        pitch: curr.pitch - pitchOffset,
+        roll: curr.roll - rollOffset,
+      ));
+    }
+    
+    if (kDebugMode) {
+      if (yawOffset.abs() > 0.1 || pitchOffset.abs() > 0.1 || rollOffset.abs() > 0.1) {
+        debugPrint('      angle-jump correction: yaw offset=${yawOffset.toStringAsFixed(2)}°, pitch offset=${pitchOffset.toStringAsFixed(2)}°, roll offset=${rollOffset.toStringAsFixed(2)}°');
+      }
+    }
+    
+    return corrected;
+  }
+  
+  /// Calculate standard deviation of a list of values
+  static double _standardDeviation(List<double> values) {
+    if (values.isEmpty) return 0.0;
+    if (values.length == 1) return 0.0;
+    
+    final mean = values.reduce((a, b) => a + b) / values.length;
+    final squaredDiffs = values.map((v) => math.pow(v - mean, 2)).toList();
+    final variance = squaredDiffs.reduce((a, b) => a + b) / values.length;
+    return math.sqrt(variance);
   }
 }
 

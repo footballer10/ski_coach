@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ski_coach/services/scoring.dart';
+import 'package:ski_coach/models/analysis_results.dart';
 import '../models/imu_sample.dart';
+import '../services/ble_manager.dart';
 import '../services/segmentation.dart';
 import '../widgets/results_view.dart';
 
@@ -376,9 +379,23 @@ enum RunState { recording, processing, results }
     // Segment turns using roll zero-crossings on both sensors
     List<ImuSample> leftImu = leftSamples.cast<ImuSample>();
     List<ImuSample> rightImu = rightSamples.cast<ImuSample>();
-    final segments = TurnSegmentation.segment(left: leftImu, right: rightImu);
+    final yawOffset = BleManager().yawOffset;
+    final segments = TurnSegmentation.segment(
+      left: leftImu, 
+      right: rightImu,
+      yawOffset: yawOffset,
+    );
     final turnDurations = segments.map((s) => s.durationSeconds).toList();
     final edgeAngles = segments.map((s) => s.maxEdgeAngle).toList();
+    final turnDirections = segments.map((s) => s.direction).toList();
+    final parallelBeginning = segments.map((s) => s.beginningParallelness).toList();
+    final parallelMiddle = segments.map((s) => s.middleParallelness).toList();
+    final parallelEnd = segments.map((s) => s.endParallelness).toList();
+    final parallelAvg = segments.map((s) => s.avgParallelness).toList();
+    final smoothBeginning = segments.map((s) => s.beginningSmoothnessSD).toList();
+    final smoothMiddle = segments.map((s) => s.middleSmoothnessSD).toList();
+    final smoothEnd = segments.map((s) => s.endSmoothnessSD).toList();
+    final smoothAvg = segments.map((s) => s.avgSmoothnessSD).toList();
 
     debugPrint('🎿 RunPage: Segmentation complete - ${segments.length} turns, durations: $turnDurations, edges: $edgeAngles');
 
@@ -391,6 +408,32 @@ enum RunState { recording, processing, results }
         _state = RunState.results;
       });
       return;
+    }
+
+    // Compute turn symmetry (main page only)
+    double? turnSymmetryRatio;
+    double? turnSymmetryScore;
+    if (turnDirections.isNotEmpty && turnDurations.isNotEmpty) {
+      final leftDurations = <double>[];
+      final rightDurations = <double>[];
+      for (int i = 0; i < turnDirections.length && i < turnDurations.length; i++) {
+        if (turnDirections[i] == -1) {
+          leftDurations.add(turnDurations[i]);
+        } else if (turnDirections[i] == 1) {
+          rightDurations.add(turnDurations[i]);
+        }
+      }
+      if (leftDurations.isNotEmpty && rightDurations.isNotEmpty) {
+        final leftAvg = leftDurations.reduce((a,b)=>a+b) / leftDurations.length;
+        final rightAvg = rightDurations.reduce((a,b)=>a+b) / rightDurations.length;
+        final bigger = leftAvg > rightAvg ? leftAvg : rightAvg;
+        final smaller = leftAvg > rightAvg ? rightAvg : leftAvg;
+        final ratio = bigger / smaller;
+        turnSymmetryRatio = ratio.isFinite ? ratio : null;
+        if (turnSymmetryRatio != null && turnSymmetryRatio > 0) {
+          turnSymmetryScore = Scoring.symmetry(turnSymmetryRatio);
+        }
+      }
     }
 
     // Simulate analysis delay
@@ -408,6 +451,17 @@ enum RunState { recording, processing, results }
         'turnCount': segments.length,
         'turnDurations': turnDurations,
         'edgeAngles': edgeAngles,
+        'turnDirections': turnDirections,
+        'parallelBeginning': parallelBeginning,
+        'parallelMiddle': parallelMiddle,
+        'parallelEnd': parallelEnd,
+        'parallelAvg': parallelAvg,
+        'smoothBeginning': smoothBeginning,
+        'smoothMiddle': smoothMiddle,
+        'smoothEnd': smoothEnd,
+        'smoothAvg': smoothAvg,
+        'turnSymmetryRatio': turnSymmetryRatio,
+        'turnSymmetryScore': turnSymmetryScore,
     };
 
     debugPrint('🎿 RunPage: Results prepared - turnCount=${results['turnCount']}, turnDurations=${results['turnDurations']}');
@@ -418,7 +472,6 @@ enum RunState { recording, processing, results }
       _analysisResults = results;
       _state = RunState.results;
     });
-    
     // Notify parent that results are shown
     widget.onResultsShown?.call();
   }
@@ -499,21 +552,14 @@ enum RunState { recording, processing, results }
       final bothConnected = widget.bleMgr.isConnected(widget.leftId) && widget.bleMgr.isConnected(widget.rightId);
       final reconnectOnly = _analysisResults!['reconnectOnly'] == true;
       final startAnotherRun = _analysisResults!['startAnotherRun'] == true;
-      return ResultsView(
-        leftSampleCount: 0,
-        rightSampleCount: 0,
-        leftSegments: const [],
-        rightSegments: const [],
-        runDurationSeconds: 0,
-        runStartTime: null,
-        turnCount: 0,
-        turnDurationsSeconds: const [],
-        errorMessage: error,
-        onNewRun: _resetToRecording,
-        onReconnect: isSensorDisconnect ? widget.onDisconnect : null,
-        showReconnectButton: reconnectOnly ? true : (isSensorDisconnect && !bothConnected),
-        showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
-      );
+       return ResultsView(
+         results: null,
+         errorMessage: error,
+         onNewRun: _resetToRecording,
+         onReconnect: isSensorDisconnect ? widget.onDisconnect : null,
+         showReconnectButton: reconnectOnly ? true : (isSensorDisconnect && !bothConnected),
+         showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
+       );
     }
 
     final leftCount = _analysisResults!['leftSampleCount'] ?? 0;
@@ -525,17 +571,66 @@ enum RunState { recording, processing, results }
     final turnCount = _analysisResults!['turnCount'] ?? 0;
     final turnDurations = (_analysisResults!['turnDurations'] as List?)?.cast<double>() ?? [];
     final edgeAngles = (_analysisResults!['edgeAngles'] as List?)?.cast<double>() ?? [];
+    final turnDirections = (_analysisResults!['turnDirections'] as List?)?.cast<int>() ?? [];
+    final parallelBeginning = (_analysisResults!['parallelBeginning'] as List?)?.cast<double>() ?? [];
+    final parallelMiddle = (_analysisResults!['parallelMiddle'] as List?)?.cast<double>() ?? [];
+    final parallelEnd = (_analysisResults!['parallelEnd'] as List?)?.cast<double>() ?? [];
+    final parallelAvg = (_analysisResults!['parallelAvg'] as List?)?.cast<double>() ?? [];
+    final smoothBeginning = (_analysisResults!['smoothBeginning'] as List?)?.cast<double>() ?? [];
+    final smoothMiddle = (_analysisResults!['smoothMiddle'] as List?)?.cast<double>() ?? [];
+    final smoothEnd = (_analysisResults!['smoothEnd'] as List?)?.cast<double>() ?? [];
+    final smoothAvg = (_analysisResults!['smoothAvg'] as List?)?.cast<double>() ?? [];
+    final turnSymmetryRatio = _analysisResults!['turnSymmetryRatio'] as double?;
+    final turnSymmetryScore = _analysisResults!['turnSymmetryScore'] as double?;
 
-    return ResultsView(
+    // Compute overall score: average of 5 categories
+    double? overallScore;
+    double sum = 0.0;
+    int count = 0;
+    if (turnDurations.isNotEmpty) {
+      final ds = turnDurations.map((x) => Scoring.duration(x)).toList();
+      sum += ds.reduce((a,b)=>a+b) / ds.length; count++;
+    }
+    if (edgeAngles.isNotEmpty) {
+      final es = edgeAngles.map((x) => Scoring.edgeAngle(x)).toList();
+      sum += es.reduce((a,b)=>a+b) / es.length; count++;
+    }
+    if (parallelAvg.isNotEmpty) {
+      final ps = parallelAvg.map((x) => Scoring.parallel(x)).toList();
+      sum += ps.reduce((a,b)=>a+b) / ps.length; count++;
+    }
+    if (smoothAvg.isNotEmpty) {
+      final ss = smoothAvg.map((x) => Scoring.smoothness(x)).toList();
+      sum += ss.reduce((a,b)=>a+b) / ss.length; count++;
+    }
+    if (turnSymmetryScore != null) { sum += turnSymmetryScore; count++; }
+    if (count > 0) overallScore = sum / count;
+
+    final resultsModel = AnalysisResults(
       leftSampleCount: leftCount,
       rightSampleCount: rightCount,
       leftSegments: leftSegments,
       rightSegments: rightSegments,
-        runDurationSeconds: duration,
-        runStartTime: startTime,
+      runDurationSeconds: duration,
+      runStartTime: startTime,
       turnCount: turnCount,
       turnDurationsSeconds: turnDurations,
       edgeAngles: edgeAngles,
+      turnDirections: turnDirections,
+      parallelBeginning: parallelBeginning,
+      parallelMiddle: parallelMiddle,
+      parallelEnd: parallelEnd,
+      parallelAvg: parallelAvg,
+      smoothBeginning: smoothBeginning,
+      smoothMiddle: smoothMiddle,
+      smoothEnd: smoothEnd,
+      smoothAvg: smoothAvg,
+      turnSymmetryRatio: turnSymmetryRatio,
+      turnSymmetryScore: turnSymmetryScore,
+      overallScore: overallScore,
+    );
+    return ResultsView(
+      results: resultsModel,
       onNewRun: widget.onRecordAgain,
       showReconnectButton: false,
     );

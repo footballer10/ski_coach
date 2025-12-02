@@ -34,6 +34,12 @@ class BleManager {
   bool _isRecording = false;
   DateTime? _recordingStartTime;
 
+  // Yaw calibration: offset between left and right sensors at connection
+  double? _yawOffsetRightMinusLeft;
+
+  /// Get the calibrated yaw offset (right - left) established at connection
+  double? get yawOffset => _yawOffsetRightMinusLeft;
+
   /// Stream of BLE status (ready, unauthorized, etc)
   Stream<BleStatus> get statusStream => _ble.statusStream;
 
@@ -171,6 +177,7 @@ class BleManager {
     _isRecording = true;
     _recordingStartTime = DateTime.now();
     _recordedSamples.clear();
+    _yawOffsetRightMinusLeft = null; // Reset calibration for new recording
     if (kDebugMode) debugPrint('🔴 RECORDING STARTED at $_recordingStartTime');
   }
 
@@ -396,7 +403,35 @@ class BleManager {
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
       
-      // Create ImuSample for storage
+      // Calibrate yaw offset on first samples from both sensors
+      if (_yawOffsetRightMinusLeft == null && _isRecording) {
+        final leftSamples = _recordedSamples['left'];
+        final rightSamples = _recordedSamples['right'];
+        if (leftSamples != null && leftSamples.isNotEmpty && 
+            rightSamples != null && rightSamples.isNotEmpty) {
+          _yawOffsetRightMinusLeft = rightSamples.first.yaw - leftSamples.first.yaw;
+          if (kDebugMode) {
+            debugPrint('🎯 Yaw calibration: right=${rightSamples.first.yaw.toStringAsFixed(2)}° left=${leftSamples.first.yaw.toStringAsFixed(2)}° offset=${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
+          }
+        }
+      }
+      
+      // Compute parallelness if we have a calibrated offset and paired sample
+      double? parallelness;
+      if (_yawOffsetRightMinusLeft != null && _isRecording) {
+        final otherDeviceId = deviceId == 'left' ? 'right' : 'left';
+        final otherSamples = _recordedSamples[otherDeviceId];
+        if (otherSamples != null && otherSamples.isNotEmpty) {
+          // Find the most recent sample from the other device
+          final otherYaw = otherSamples.last.yaw;
+          final actualDiff = deviceId == 'left' 
+              ? otherYaw - map['yaw']!  // right - left
+              : map['yaw']! - otherYaw; // right - left
+          parallelness = (actualDiff - _yawOffsetRightMinusLeft!).abs();
+        }
+      }
+      
+      // Create ImuSample for storage with parallelness
       final imuSample = ImuSample(
         timestamp: timestamp,
         ax: map['ax']!,
@@ -408,6 +443,7 @@ class BleManager {
         roll: map['roll']!,
         pitch: map['pitch']!,
         yaw: map['yaw']!,
+        parallelness: parallelness,
       );
       
       // Store sample if recording

@@ -3,6 +3,7 @@ class ImuSample {
   final double ax, ay, az;
   final double gx, gy, gz;
   final double roll, pitch, yaw;
+  final double? parallelness; // Ski parallelness (if paired sample exists)
 
   ImuSample({
     required this.timestamp,
@@ -15,6 +16,7 @@ class ImuSample {
     required this.roll,
     required this.pitch,
     required this.yaw,
+    this.parallelness,
   });
 
   /// Convert to map for easy processing
@@ -29,5 +31,6 @@ class ImuSample {
     'roll': roll,
     'pitch': pitch,
     'yaw': yaw,
+    if (parallelness != null) 'parallelness': parallelness,
   };
 }
