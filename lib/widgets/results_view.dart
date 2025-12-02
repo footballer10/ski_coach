@@ -43,8 +43,8 @@ class _ResultsViewState extends State<ResultsView> {
     'All Categories',
     'Turn Duration',
     'Edge Angle',
-    'Parallel Ski Control',
-    'Smoothness',
+    'Parallel',
+    'Smooth',
   ];
 
   List<String> get _turns {
@@ -219,8 +219,8 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildNavigationBar() {
-    final showThirdDropdown = (_selectedCategory == 'Parallel Ski Control' || _selectedCategory == 'Smoothness') && _selectedTurn == 'All Turns';
-    final showThirdDropdownCategoryTurn = (_selectedCategory == 'Parallel Ski Control' || _selectedCategory == 'Smoothness') && _selectedTurn != 'All Turns';
+    final showThirdDropdown = (_selectedCategory == 'Parallel' || _selectedCategory == 'Smooth') && _selectedTurn == 'All Turns';
+    final showThirdDropdownCategoryTurn = (_selectedCategory == 'Parallel' || _selectedCategory == 'Smooth') && _selectedTurn != 'All Turns';
     
     return SafeArea(
       child: Padding(
@@ -285,7 +285,7 @@ class _ResultsViewState extends State<ResultsView> {
           if (showThirdDropdownCategoryTurn)
             Expanded(
               child: DropdownButtonFormField<String>(
-                initialValue: _selectedCategory == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                initialValue: _selectedCategory == 'Parallel' ? _parallelPhase : _smoothnessPhase,
                 decoration: const InputDecoration(
                   labelText: 'Third',
                   border: OutlineInputBorder(),
@@ -305,7 +305,7 @@ class _ResultsViewState extends State<ResultsView> {
                   if (value != null) {
                     _pushNavigation();
                     setState(() {
-                      if (_selectedCategory == 'Parallel Ski Control') {
+                      if (_selectedCategory == 'Parallel') {
                         _parallelPhase = value;
                       } else {
                         _smoothnessPhase = value;
@@ -424,6 +424,36 @@ class _ResultsViewState extends State<ResultsView> {
       edgeAngleScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
     }
     
+    // Precompute Parallelness average value and score
+    String parallelVal = '—';
+    String parallelScore = '—';
+      final parallels = widget.results?.parallelAvg ?? const [];
+      if (parallels.isNotEmpty) {
+      final avg = parallels.reduce((a,b) => a + b) / parallels.length;
+      parallelVal = '${avg.toStringAsFixed(1)}°';
+      double scoreSum = 0.0;
+      for (final x in parallels) {
+        scoreSum += _scoreForParallelness(x);
+      }
+      final avgScore = scoreSum / parallels.length;
+      parallelScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
+    }
+    
+    // Precompute Smoothness average value and score
+    String smoothVal = '—';
+    String smoothScore = '—';
+      final smooths = widget.results?.smoothAvg ?? const [];
+      if (smooths.isNotEmpty) {
+      final avg = smooths.reduce((a,b) => a + b) / smooths.length;
+      smoothVal = '${avg.toStringAsFixed(1)}°/s';
+      double scoreSum = 0.0;
+      for (final x in smooths) {
+        scoreSum += _scoreForSmoothnessSD(x);
+      }
+      final avgScore = scoreSum / smooths.length;
+      smoothScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
+    }
+    
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
       children: [
@@ -436,9 +466,13 @@ class _ResultsViewState extends State<ResultsView> {
                     ? 'Val: $turnDurationVal | Score: $turnDurationScore'
                     : cat == 'Edge Angle'
                         ? 'Val: $edgeAngleVal | Score: $edgeAngleScore'
-                        : cat == 'Turn Symmetry'
-                          ? 'Val: ${widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—'} | Score: ${widget.results?.turnSymmetryScore != null ? widget.results!.turnSymmetryScore!.toStringAsFixed(1) : '—'}'
-                        : 'Val: — | Score: —',
+                        : cat == 'Parallel'
+                            ? 'Val: $parallelVal | Score: $parallelScore'
+                            : cat == 'Smooth'
+                                ? 'Val: $smoothVal | Score: $smoothScore'
+                                : cat == 'Turn Symmetry'
+                                    ? 'Val: ${widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—'} | Score: ${widget.results?.turnSymmetryScore != null ? widget.results!.turnSymmetryScore!.toStringAsFixed(1) : '—'}'
+                                    : 'Val: — | Score: —',
                 style: const TextStyle(fontSize: 11),
               ),
               onTap: cat == 'Turn Symmetry' ? null : () => _selectCategory(cat),
@@ -479,8 +513,8 @@ class _ResultsViewState extends State<ResultsView> {
                           ),
                           const SizedBox(height: 2),
                             Text(
-                            (i < (widget.results?.turnDurationsSeconds.length ?? 0))
-                              ? '${widget.results!.turnDurationsSeconds[i].toStringAsFixed(3)}s'
+                            (i < (widget.results?.turnScores.length ?? 0))
+                              ? widget.results!.turnScores[i].toStringAsFixed(1)
                               : '—',
                             style: const TextStyle(
                               color: Colors.white,
@@ -560,6 +594,46 @@ class _ResultsViewState extends State<ResultsView> {
                     final edgeAngleScore = (i < (widget.results?.edgeAngles.length ?? 0))
                       ? _scoreForEdgeAngle(widget.results!.edgeAngles[i]).toStringAsFixed(1)
                       : '—';
+                    
+                    // Parallelness (based on selected phase)
+                    String parallelText = '—';
+                    String parallelScoreText = '—';
+                    if (_selectedCategory == 'Parallel') {
+                      double? val;
+                      if (_categoryPageThird == 'Whole Turn' && i < (widget.results?.parallelAvg.length ?? 0)) {
+                        val = widget.results!.parallelAvg[i];
+                      } else if (_categoryPageThird == 'First Third' && i < (widget.results?.parallelBeginning.length ?? 0)) {
+                        val = widget.results!.parallelBeginning[i];
+                      } else if (_categoryPageThird == 'Middle Third' && i < (widget.results?.parallelMiddle.length ?? 0)) {
+                        val = widget.results!.parallelMiddle[i];
+                      } else if (_categoryPageThird == 'Final Third' && i < (widget.results?.parallelEnd.length ?? 0)) {
+                        val = widget.results!.parallelEnd[i];
+                      }
+                      if (val != null) {
+                        parallelText = '${val.toStringAsFixed(1)}°';
+                        parallelScoreText = _scoreForParallelness(val).toStringAsFixed(1);
+                      }
+                    }
+                    
+                    // Smoothness (based on selected phase)
+                    String smoothText = '—';
+                    String smoothScoreText = '—';
+                    if (_selectedCategory == 'Smooth') {
+                      double? val;
+                      if (_categoryPageThird == 'Whole Turn' && i < (widget.results?.smoothAvg.length ?? 0)) {
+                        val = widget.results!.smoothAvg[i];
+                      } else if (_categoryPageThird == 'First Third' && i < (widget.results?.smoothBeginning.length ?? 0)) {
+                        val = widget.results!.smoothBeginning[i];
+                      } else if (_categoryPageThird == 'Middle Third' && i < (widget.results?.smoothMiddle.length ?? 0)) {
+                        val = widget.results!.smoothMiddle[i];
+                      } else if (_categoryPageThird == 'Final Third' && i < (widget.results?.smoothEnd.length ?? 0)) {
+                        val = widget.results!.smoothEnd[i];
+                      }
+                      if (val != null) {
+                        smoothText = '${val.toStringAsFixed(1)}°/s';
+                        smoothScoreText = _scoreForSmoothnessSD(val).toStringAsFixed(1);
+                      }
+                    }
                   return GestureDetector(
                     onTap: () => _selectCategoryAndTurn(_selectedCategory, turnLabel),
                     child: Container(
@@ -588,6 +662,20 @@ class _ResultsViewState extends State<ResultsView> {
                               const SizedBox(width: 8),
                               Text(
                                 '$edgeAngle | Score: $edgeAngleScore',
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              ),
+                            ],
+                            if (_selectedCategory == 'Parallel') ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '$parallelText | Score: $parallelScoreText',
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              ),
+                            ],
+                            if (_selectedCategory == 'Smooth') ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '$smoothText | Score: $smoothScoreText',
                                 style: const TextStyle(color: Colors.white70, fontSize: 12),
                               ),
                             ],
@@ -638,6 +726,84 @@ class _ResultsViewState extends State<ResultsView> {
             valueText = '${x.toStringAsFixed(3)}s';
             final score = 100.0 * (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
             scoreText = score.isFinite ? score.toStringAsFixed(1) : '—';
+          }
+        }
+      }
+    } else if (_selectedCategory == 'Parallel') {
+      optimalText = '0.0°';
+      final phase = _categoryPageThird;
+      List<double> vals = const [];
+      if (_selectedTurn == 'All Turns') {
+        if (phase == 'Whole Turn') vals = widget.results?.parallelAvg ?? const [];
+        else if (phase == 'First Third') vals = widget.results?.parallelBeginning ?? const [];
+        else if (phase == 'Middle Third') vals = widget.results?.parallelMiddle ?? const [];
+        else if (phase == 'Final Third') vals = widget.results?.parallelEnd ?? const [];
+        if (vals.isNotEmpty) {
+          final avg = vals.reduce((a,b) => a + b) / vals.length;
+          valueText = '${avg.toStringAsFixed(1)}°';
+          double scoreSum = 0.0;
+          for (final x in vals) {
+            scoreSum += _scoreForParallelness(x);
+          }
+          final avgScore = scoreSum / vals.length;
+          scoreText = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
+        }
+      } else {
+        final match = RegExp(r'Turn (\d+)').firstMatch(_selectedTurn);
+        if (match != null) {
+          final idx = int.parse(match.group(1)!) - 1;
+          double? val;
+          if (phase == 'Whole Turn' && idx < (widget.results?.parallelAvg.length ?? 0)) {
+            val = widget.results!.parallelAvg[idx];
+          } else if (phase == 'First Third' && idx < (widget.results?.parallelBeginning.length ?? 0)) {
+            val = widget.results!.parallelBeginning[idx];
+          } else if (phase == 'Middle Third' && idx < (widget.results?.parallelMiddle.length ?? 0)) {
+            val = widget.results!.parallelMiddle[idx];
+          } else if (phase == 'Final Third' && idx < (widget.results?.parallelEnd.length ?? 0)) {
+            val = widget.results!.parallelEnd[idx];
+          }
+          if (val != null) {
+            valueText = '${val.toStringAsFixed(1)}°';
+            scoreText = _scoreForParallelness(val).toStringAsFixed(1);
+          }
+        }
+      }
+    } else if (_selectedCategory == 'Smooth') {
+      optimalText = '0.0°/s';
+      final phase = _categoryPageThird;
+      List<double> vals = const [];
+      if (_selectedTurn == 'All Turns') {
+        if (phase == 'Whole Turn') vals = widget.results?.smoothAvg ?? const [];
+        else if (phase == 'First Third') vals = widget.results?.smoothBeginning ?? const [];
+        else if (phase == 'Middle Third') vals = widget.results?.smoothMiddle ?? const [];
+        else if (phase == 'Final Third') vals = widget.results?.smoothEnd ?? const [];
+        if (vals.isNotEmpty) {
+          final avg = vals.reduce((a,b) => a + b) / vals.length;
+          valueText = '${avg.toStringAsFixed(1)}°/s';
+          double scoreSum = 0.0;
+          for (final x in vals) {
+            scoreSum += _scoreForSmoothnessSD(x);
+          }
+          final avgScore = scoreSum / vals.length;
+          scoreText = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
+        }
+      } else {
+        final match = RegExp(r'Turn (\d+)').firstMatch(_selectedTurn);
+        if (match != null) {
+          final idx = int.parse(match.group(1)!) - 1;
+          double? val;
+          if (phase == 'Whole Turn' && idx < (widget.results?.smoothAvg.length ?? 0)) {
+            val = widget.results!.smoothAvg[idx];
+          } else if (phase == 'First Third' && idx < (widget.results?.smoothBeginning.length ?? 0)) {
+            val = widget.results!.smoothBeginning[idx];
+          } else if (phase == 'Middle Third' && idx < (widget.results?.smoothMiddle.length ?? 0)) {
+            val = widget.results!.smoothMiddle[idx];
+          } else if (phase == 'Final Third' && idx < (widget.results?.smoothEnd.length ?? 0)) {
+            val = widget.results!.smoothEnd[idx];
+          }
+          if (val != null) {
+            valueText = '${val.toStringAsFixed(1)}°/s';
+            scoreText = _scoreForSmoothnessSD(val).toStringAsFixed(1);
           }
         }
       }
@@ -717,9 +883,41 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildTurnAllCategories() {
+    // Get current turn index
+    int? selectedTurnIndex;
+    if (_selectedTurn != 'All Turns') {
+      final match = RegExp(r'Turn (\d+)').firstMatch(_selectedTurn);
+      if (match != null) {
+        selectedTurnIndex = int.parse(match.group(1)!) - 1;
+      }
+    }
+    
     return Padding(
       padding: const EdgeInsets.all(12.0),
-      child: GridView.count(
+      child: Column(
+        children: [
+          if (selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnScores.length ?? 0))
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Turn Score: ',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      widget.results!.turnScores[selectedTurnIndex].toStringAsFixed(1),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (selectedTurnIndex != null) const SizedBox(height: 8),
+          Expanded(
+            child: GridView.count(
         crossAxisCount: 2,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
@@ -727,15 +925,18 @@ class _ResultsViewState extends State<ResultsView> {
         children: [
           _buildMetricModule('Turn Duration', 0),
           _buildMetricModule('Edge Angle', 0),
-          _buildMetricModule('Parallel Ski Control', 0),
-          _buildMetricModule('Smoothness', 0),
+          _buildMetricModule('Parallel', 0),
+          _buildMetricModule('Smooth', 0),
+        ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildMetricModule(String metric, int turnIndex) {
-    final showDropdown = (metric == 'Parallel Ski Control' || metric == 'Smoothness');
+    final showDropdown = (metric == 'Parallel' || metric == 'Smooth');
     
     // Extract turn index from _selectedTurn (e.g., "Turn 3" -> 2)
     int? selectedTurnIndex;
@@ -756,7 +957,7 @@ class _ResultsViewState extends State<ResultsView> {
       final x = widget.results!.edgeAngles[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(1)}°';
       scoreText = _scoreForEdgeAngle(x).toStringAsFixed(1);
-    } else if (metric == 'Parallel Ski Control' && selectedTurnIndex != null) {
+    } else if (metric == 'Parallel' && selectedTurnIndex != null) {
       final phase = _parallelPhase;
       double? parallelVal;
       if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
@@ -772,7 +973,7 @@ class _ResultsViewState extends State<ResultsView> {
         valueText = '${parallelVal.toStringAsFixed(1)}°';
         scoreText = _scoreForParallelness(parallelVal).toStringAsFixed(1);
       }
-    } else if (metric == 'Smoothness' && selectedTurnIndex != null) {
+    } else if (metric == 'Smooth' && selectedTurnIndex != null) {
       final phase = _smoothnessPhase;
       double? smoothVal;
       if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.smoothAvg.length ?? 0)) {
@@ -816,7 +1017,7 @@ class _ResultsViewState extends State<ResultsView> {
                 SizedBox(
                   height: 28,
                   child: DropdownButtonFormField<String>(
-                    initialValue: metric == 'Parallel Ski Control' ? _parallelPhase : _smoothnessPhase,
+                    initialValue: metric == 'Parallel' ? _parallelPhase : _smoothnessPhase,
                     isDense: true,
                     isExpanded: true,
                     decoration: const InputDecoration(
@@ -837,7 +1038,7 @@ class _ResultsViewState extends State<ResultsView> {
                       if (value != null) {
                         _pushNavigation();
                         setState(() {
-                          if (metric == 'Parallel Ski Control') {
+                          if (metric == 'Parallel') {
                             _parallelPhase = value;
                           } else {
                             _smoothnessPhase = value;
@@ -875,6 +1076,38 @@ class _ResultsViewState extends State<ResultsView> {
       final x = widget.results!.edgeAngles[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(1)}°';
       scoreText = _scoreForEdgeAngle(x).toStringAsFixed(1);
+    } else if (_selectedCategory == 'Parallel' && selectedTurnIndex != null) {
+      final phase = _parallelPhase;
+      double? val;
+      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
+        val = widget.results!.parallelAvg[selectedTurnIndex];
+      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
+        val = widget.results!.parallelBeginning[selectedTurnIndex];
+      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
+        val = widget.results!.parallelMiddle[selectedTurnIndex];
+      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
+        val = widget.results!.parallelEnd[selectedTurnIndex];
+      }
+      if (val != null) {
+        valueText = '${val.toStringAsFixed(1)}°';
+        scoreText = _scoreForParallelness(val).toStringAsFixed(1);
+      }
+    } else if (_selectedCategory == 'Smooth' && selectedTurnIndex != null) {
+      final phase = _smoothnessPhase;
+      double? val;
+      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.smoothAvg.length ?? 0)) {
+        val = widget.results!.smoothAvg[selectedTurnIndex];
+      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.smoothBeginning.length ?? 0)) {
+        val = widget.results!.smoothBeginning[selectedTurnIndex];
+      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.smoothMiddle.length ?? 0)) {
+        val = widget.results!.smoothMiddle[selectedTurnIndex];
+      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.smoothEnd.length ?? 0)) {
+        val = widget.results!.smoothEnd[selectedTurnIndex];
+      }
+      if (val != null) {
+        valueText = '${val.toStringAsFixed(1)}°/s';
+        scoreText = _scoreForSmoothnessSD(val).toStringAsFixed(1);
+      }
     }
     
     return SingleChildScrollView(

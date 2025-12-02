@@ -69,24 +69,32 @@ class TurnSegmentation {
     double samplingRate = 100.0, // Sampling rate in Hz (default 100Hz)
   }) {
     if (kDebugMode) {
-      debugPrint('📊 Segmentation: ${left.length}L/${right.length}R samples');
+      debugPrint('📊 ============ SEGMENTATION START ============');
+      debugPrint('📊 Input: ${left.length}L/${right.length}R samples');
+      debugPrint('📊 Calibrated yaw offset: ${yawOffset?.toStringAsFixed(2) ?? "null"}°');
     }
     
     // Correct sudden angle jumps (>10°) in all angles for both sensors
-    final correctedLeft = _correctAngleJumps(left);
-    final correctedRight = _correctAngleJumps(right);
+    final correctedLeft = _correctAngleJumps(left, 'LEFT');
+    final correctedRight = _correctAngleJumps(right, 'RIGHT');
     
     // Average yaw from both sensors at aligned timestamps
     final avgYaw = _averageYawSignals(correctedLeft, correctedRight);
-    final unwrappedAvgYaw = _unwrapYaw(avgYaw);
+    final unwrappedAvgYaw = _unwrapYaw(avgYaw, 'AVERAGED_RAW');
     final smoothedYaw = _smoothYaw(avgYaw, unwrappedAvgYaw, params.smoothingWindow);
-    final unwrappedYaw = _unwrapYaw(smoothedYaw);
+    final unwrappedYaw = _unwrapYaw(smoothedYaw, 'SMOOTHED');
     
     // Detect yaw peaks (local maxima/minima = turn points)
     final peaks = _detectYawPeaks(smoothedYaw, unwrappedYaw, params);
 
     if (kDebugMode) {
-      debugPrint('📊 Detected ${peaks.length} peaks');
+      debugPrint('📊 ============ PEAK DETECTION ============');
+      debugPrint('📊 Detected ${peaks.length} peaks/valleys');
+      for (int i = 0; i < peaks.length; i++) {
+        final p = peaks[i];
+        final marker = p.isPeak ? '📈 MAX' : '📉 MIN';
+        debugPrint('   $marker #${i+1}: idx=${p.index}, yaw=${p.yaw.toStringAsFixed(2)}°, time=${p.time.millisecondsSinceEpoch}');
+      }
     }
 
     // Build segments from consecutive peaks (alternation is inherent to detector)
@@ -107,20 +115,48 @@ class TurnSegmentation {
 
       if (startYawIdx == null || endYawIdx == null || startYawIdx >= endYawIdx) {
         if (kDebugMode) {
-          debugPrint('   ❌ Segment ${k + 1}: rejected (invalid yaw indices)');
+          debugPrint('   ❌ Turn ${k + 1}: rejected (invalid yaw indices)');
         }
         continue;
+      }
+      
+      if (kDebugMode) {
+        debugPrint('📊 ============ TURN ${k + 1} ANALYSIS ============');
+        debugPrint('📊 Time range: ${a.time.millisecondsSinceEpoch} to ${b.time.millisecondsSinceEpoch}');
+        debugPrint('📊 Indices: L[$startIdxLeft:$endIdxLeft] R[$startIdxRight:$endIdxRight] Yaw[$startYawIdx:$endYawIdx]');
+        debugPrint('📊 Direction: ${b.isPeak ? "RIGHT" : "LEFT"}');
       }
 
       // No approach-time requirement; we simply pair consecutive peaks
 
       // Find maximum absolute pitch during this turn segment
       double maxEdgeAngle = 0.0;
+      int maxEdgeIdx = -1;
+      String maxEdgeSensor = '';
+      
+      if (kDebugMode) {
+        debugPrint('📊 --- Edge Angle (Pitch) ---');
+      }
+      
       for (int i = startIdxLeft; i <= endIdxLeft && i < correctedLeft.length; i++) {
-        maxEdgeAngle = math.max(maxEdgeAngle, correctedLeft[i].pitch.abs());
+        final pitch = correctedLeft[i].pitch.abs();
+        if (pitch > maxEdgeAngle) {
+          maxEdgeAngle = pitch;
+          maxEdgeIdx = i;
+          maxEdgeSensor = 'LEFT';
+        }
       }
       for (int i = startIdxRight; i <= endIdxRight && i < correctedRight.length; i++) {
-        maxEdgeAngle = math.max(maxEdgeAngle, correctedRight[i].pitch.abs());
+        final pitch = correctedRight[i].pitch.abs();
+        if (pitch > maxEdgeAngle) {
+          maxEdgeAngle = pitch;
+          maxEdgeIdx = i;
+          maxEdgeSensor = 'RIGHT';
+        }
+      }
+      
+      if (kDebugMode) {
+        debugPrint('   🎯 Max edge angle: ${maxEdgeAngle.toStringAsFixed(2)}° at [$maxEdgeIdx] ($maxEdgeSensor)');
       }
       
       // Compute ski parallelness: difference in yaw angles accounting for calibration
@@ -136,6 +172,10 @@ class TurnSegmentation {
       final thirdDuration = turnDuration ~/ 3;
       final middleStart = a.time.add(thirdDuration);
       final endStart = a.time.add(thirdDuration * 2);
+      
+      if (kDebugMode) {
+        debugPrint('📊 --- Parallelness (calibrated offset: ${calibratedOffset.toStringAsFixed(2)}°) ---');
+      }
       
       for (int i = 0; i < math.min(correctedLeft.length, correctedRight.length); i++) {
         if (i >= startIdxLeft && i <= endIdxLeft && i >= startIdxRight && i <= endIdxRight) {
@@ -159,15 +199,23 @@ class TurnSegmentation {
           
           // Determine which third this sample belongs to
           final sampleTime = leftSample.timestamp;
+          String third = '';
           if (sampleTime.isBefore(middleStart)) {
             sumBeginning += parallelness;
             countBeginning++;
+            third = '1st';
           } else if (sampleTime.isBefore(endStart)) {
             sumMiddle += parallelness;
             countMiddle++;
+            third = 'mid';
           } else {
             sumEnd += parallelness;
             countEnd++;
+            third = 'end';
+          }
+          
+          if (kDebugMode && parallelnessCount <= 5) {
+            debugPrint('   [$i] ($third) L_yaw=${leftSample.yaw.toStringAsFixed(2)}°, R_yaw=${rightSample.yaw.toStringAsFixed(2)}°, diff=${parallelness.toStringAsFixed(2)}°');
           }
         }
       }
@@ -177,23 +225,40 @@ class TurnSegmentation {
       final middleParallelness = countMiddle > 0 ? sumMiddle / countMiddle : 0.0;
       final endParallelness = countEnd > 0 ? sumEnd / countEnd : 0.0;
       
+      if (kDebugMode) {
+        debugPrint('   ... (${parallelnessCount} total samples)');
+        debugPrint('   📊 Avg: ${avgParallelness.toStringAsFixed(2)}° | 1st: ${beginningParallelness.toStringAsFixed(2)}° | Mid: ${middleParallelness.toStringAsFixed(2)}° | End: ${endParallelness.toStringAsFixed(2)}°');
+      }
+      
       // Compute smoothness: standard deviation of angular velocity for each third
       // Angular velocity = change in yaw * sampling rate
       final angularVelocitiesBeginning = <double>[];
       final angularVelocitiesMiddle = <double>[];
       final angularVelocitiesEnd = <double>[];
       
+      if (kDebugMode) {
+        debugPrint('📊 --- Smoothness (Angular Velocity SD) ---');
+      }
+      
       for (int i = startYawIdx; i < endYawIdx; i++) {
         final yawChange = unwrappedYaw[i + 1] - unwrappedYaw[i];
         final angularVelocity = yawChange * samplingRate;
         final sampleTime = smoothedYaw[i].time;
         
+        String third = '';
         if (sampleTime.isBefore(middleStart)) {
           angularVelocitiesBeginning.add(angularVelocity);
+          third = '1st';
         } else if (sampleTime.isBefore(endStart)) {
           angularVelocitiesMiddle.add(angularVelocity);
+          third = 'mid';
         } else {
           angularVelocitiesEnd.add(angularVelocity);
+          third = 'end';
+        }
+        
+        if (kDebugMode && i - startYawIdx < 5) {
+          debugPrint('   [$i] ($third) yawChange=${yawChange.toStringAsFixed(4)}°, angVel=${angularVelocity.toStringAsFixed(2)}°/s');
         }
       }
       
@@ -201,6 +266,11 @@ class TurnSegmentation {
       final middleSmoothnessSD = _standardDeviation(angularVelocitiesMiddle);
       final endSmoothnessSD = _standardDeviation(angularVelocitiesEnd);
       final avgSmoothnessSD = (beginningSmoothnessSD + middleSmoothnessSD + endSmoothnessSD) / 3.0;
+      
+      if (kDebugMode) {
+        debugPrint('   ... (${angularVelocitiesBeginning.length + angularVelocitiesMiddle.length + angularVelocitiesEnd.length} total velocity samples)');
+        debugPrint('   📊 SD - Avg: ${avgSmoothnessSD.toStringAsFixed(2)}°/s | 1st: ${beginningSmoothnessSD.toStringAsFixed(2)}°/s | Mid: ${middleSmoothnessSD.toStringAsFixed(2)}°/s | End: ${endSmoothnessSD.toStringAsFixed(2)}°/s');
+      }
 
       final seg = TurnSegment(
         startTime: a.time,
@@ -221,12 +291,19 @@ class TurnSegmentation {
         avgSmoothnessSD: avgSmoothnessSD,
       );
       segments.add(seg);
+      
+      if (kDebugMode) {
+        debugPrint('📊 ✅ Turn ${k + 1} created: ${seg.durationSeconds.toStringAsFixed(3)}s, ${seg.direction == 1 ? "RIGHT" : "LEFT"}');
+      }
     }
     
-      // No rejection summary needed; simple consecutive pairing in use
-    
     if (kDebugMode) {
-      debugPrint('📊 Created ${segments.length} turns');
+      debugPrint('📊 ============ SEGMENTATION COMPLETE ============');
+      debugPrint('📊 Total turns created: ${segments.length}');
+      for (int i = 0; i < segments.length; i++) {
+        final s = segments[i];
+        debugPrint('   Turn ${i+1}: ${s.durationSeconds.toStringAsFixed(3)}s, ${s.direction == 1 ? "R" : "L"}, edge=${s.maxEdgeAngle.toStringAsFixed(1)}°, parallel=${s.avgParallelness.toStringAsFixed(1)}°, smooth=${s.avgSmoothnessSD.toStringAsFixed(1)}°/s');
+      }
     }
     
     return segments;
@@ -252,8 +329,15 @@ class TurnSegmentation {
       result.add(_AnglePoint(DateTime.fromMillisecondsSinceEpoch(meanMs, isUtc: isUtc), avgYaw));
     }
 
-    if (kDebugMode && (droppedLeft > 0 || droppedRight > 0)) {
-      // Dropped extras: left=$droppedLeft right=$droppedRight
+    if (kDebugMode) {
+      debugPrint('📊 ============ YAW AVERAGING ============');
+      debugPrint('📊 Paired $pairCount samples (dropped: ${droppedLeft}L/${droppedRight}R)');
+      debugPrint('📊 Averaged yaw (first 10):');
+      for (int i = 0; i < math.min(10, result.length); i++) {
+        if (i < left.length && i < right.length) {
+          debugPrint('   [$i] L=${left[i].yaw.toStringAsFixed(2)}°, R=${right[i].yaw.toStringAsFixed(2)}°, Avg=${result[i].angle.toStringAsFixed(2)}°');
+        }
+      }
     }
 
     return result;
@@ -412,16 +496,33 @@ class TurnSegmentation {
     return smoothed;
   }
 
-  static List<double> _unwrapYaw(List<_AnglePoint> pts) {
+  static List<double> _unwrapYaw(List<_AnglePoint> pts, [String label = '']) {
     if (pts.isEmpty) {
       return const [];
     }
+    
+    if (kDebugMode && label.isNotEmpty) {
+      debugPrint('📊 ============ YAW UNWRAPPING ($label) ============');
+      debugPrint('📊 Wrapped yaw (first 10):');
+      for (int i = 0; i < math.min(10, pts.length); i++) {
+        debugPrint('   [$i] wrapped=${pts[i].angle.toStringAsFixed(2)}°');
+      }
+    }
+    
     final unwrapped = List<double>.filled(pts.length, 0.0);
     unwrapped[0] = pts[0].angle;
     for (int i = 1; i < pts.length; i++) {
       final diff = _angleDiff(pts[i].angle, pts[i - 1].angle);
       unwrapped[i] = unwrapped[i - 1] + diff;
     }
+    
+    if (kDebugMode && label.isNotEmpty) {
+      debugPrint('📊 Unwrapped yaw (first 10):');
+      for (int i = 0; i < math.min(10, unwrapped.length); i++) {
+        debugPrint('   [$i] unwrapped=${unwrapped[i].toStringAsFixed(2)}°');
+      }
+    }
+    
     return unwrapped;
   }
 
@@ -457,8 +558,16 @@ class TurnSegmentation {
   }
 
   /// Correct sudden angle jumps (>10°) in yaw, pitch, and roll for a sensor
-  static List<ImuSample> _correctAngleJumps(List<ImuSample> samples) {
+  static List<ImuSample> _correctAngleJumps(List<ImuSample> samples, [String label = '']) {
     if (samples.isEmpty) return samples;
+    
+    if (kDebugMode && label.isNotEmpty) {
+      debugPrint('📊 ============ ANGLE JUMP CORRECTION ($label) ============');
+      debugPrint('📊 Raw yaw angles (first 10):');
+      for (int i = 0; i < math.min(10, samples.length); i++) {
+        debugPrint('   [$i] yaw=${samples[i].yaw.toStringAsFixed(2)}°, pitch=${samples[i].pitch.toStringAsFixed(2)}°, roll=${samples[i].roll.toStringAsFixed(2)}°');
+      }
+    }
     
     final corrected = <ImuSample>[];
     corrected.add(samples[0]);
@@ -479,12 +588,21 @@ class TurnSegmentation {
       // If jump > 10°, accumulate offset to undo it
       if (yawDiff.abs() > 10.0) {
         yawOffset += yawDiff;
+        if (kDebugMode && label.isNotEmpty) {
+          debugPrint('   ⚠️ YAW jump detected at [$i]: ${yawDiff.toStringAsFixed(2)}° (offset now: ${yawOffset.toStringAsFixed(2)}°)');
+        }
       }
       if (pitchDiff.abs() > 10.0) {
         pitchOffset += pitchDiff;
+        if (kDebugMode && label.isNotEmpty) {
+          debugPrint('   ⚠️ PITCH jump detected at [$i]: ${pitchDiff.toStringAsFixed(2)}° (offset now: ${pitchOffset.toStringAsFixed(2)}°)');
+        }
       }
       if (rollDiff.abs() > 10.0) {
         rollOffset += rollDiff;
+        if (kDebugMode && label.isNotEmpty) {
+          debugPrint('   ⚠️ ROLL jump detected at [$i]: ${rollDiff.toStringAsFixed(2)}° (offset now: ${rollOffset.toStringAsFixed(2)}°)');
+        }
       }
       
       // Apply accumulated offsets
@@ -502,9 +620,11 @@ class TurnSegmentation {
       ));
     }
     
-    if (kDebugMode) {
-      if (yawOffset.abs() > 0.1 || pitchOffset.abs() > 0.1 || rollOffset.abs() > 0.1) {
-        // Angle-jump correction applied
+    if (kDebugMode && label.isNotEmpty) {
+      debugPrint('📊 Final offsets: yaw=${yawOffset.toStringAsFixed(2)}°, pitch=${pitchOffset.toStringAsFixed(2)}°, roll=${rollOffset.toStringAsFixed(2)}°');
+      debugPrint('📊 Corrected yaw angles (first 10):');
+      for (int i = 0; i < math.min(10, corrected.length); i++) {
+        debugPrint('   [$i] yaw=${corrected[i].yaw.toStringAsFixed(2)}°, pitch=${corrected[i].pitch.toStringAsFixed(2)}°, roll=${corrected[i].roll.toStringAsFixed(2)}°');
       }
     }
     

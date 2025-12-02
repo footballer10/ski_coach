@@ -19,6 +19,7 @@ class AnalysisResults {
   final List<double> smoothMiddle;
   final List<double> smoothEnd;
   final List<double> smoothAvg;
+  final List<double> turnScores; // Per-turn score (avg of 4 categories)
 
   // Aggregates
   final double? turnSymmetryRatio;
@@ -44,6 +45,7 @@ class AnalysisResults {
     required this.smoothMiddle,
     required this.smoothEnd,
     required this.smoothAvg,
+    required this.turnScores,
     required this.turnSymmetryRatio,
     required this.turnSymmetryScore,
     required this.overallScore,

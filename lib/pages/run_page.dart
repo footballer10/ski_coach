@@ -494,6 +494,32 @@ enum RunState { recording, processing, results }
     final turnSymmetryRatio = _analysisResults!['turnSymmetryRatio'] as double?;
     final turnSymmetryScore = _analysisResults!['turnSymmetryScore'] as double?;
 
+    // Compute per-turn scores (average of 4 categories: duration, edge, parallel, smooth)
+    final turnScores = <double>[];
+    for (int i = 0; i < turnCount; i++) {
+      double scoreSum = 0.0;
+      int scoreCount = 0;
+      
+      if (i < turnDurations.length) {
+        scoreSum += Scoring.duration(turnDurations[i]);
+        scoreCount++;
+      }
+      if (i < edgeAngles.length) {
+        scoreSum += Scoring.edgeAngle(edgeAngles[i]);
+        scoreCount++;
+      }
+      if (i < parallelAvg.length) {
+        scoreSum += Scoring.parallel(parallelAvg[i]);
+        scoreCount++;
+      }
+      if (i < smoothAvg.length) {
+        scoreSum += Scoring.smoothness(smoothAvg[i]);
+        scoreCount++;
+      }
+      
+      turnScores.add(scoreCount > 0 ? scoreSum / scoreCount : 0.0);
+    }
+
     // Compute overall score: average of 5 categories
     double? overallScore;
     double sum = 0.0;
@@ -536,6 +562,7 @@ enum RunState { recording, processing, results }
       smoothMiddle: smoothMiddle,
       smoothEnd: smoothEnd,
       smoothAvg: smoothAvg,
+      turnScores: turnScores,
       turnSymmetryRatio: turnSymmetryRatio,
       turnSymmetryScore: turnSymmetryScore,
       overallScore: overallScore,
