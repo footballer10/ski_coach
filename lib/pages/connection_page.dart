@@ -60,7 +60,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
   void startScan() {
     if (_startingScan) {
-      if (kDebugMode) debugPrint('🔵 ConnectionPage: startScan ignored (already starting)');
+      // Scan already starting
       return;
     }
     _startingScan = true;
@@ -84,7 +84,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
       if (!mounted) { _startingScan = false; return; }
       
       if (kDebugMode) {
-        debugPrint('🔵 ConnectionPage: Starting new scan after stopping previous scan');
+        debugPrint('🔍 Starting new scan');
       }
       
       _statusSub = bleMgr.statusStream.listen((status) {
@@ -207,7 +207,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
     if (!leftOk || !rightOk) {
       Navigator.of(context).pop(); // close loading dialog
-      if (kDebugMode) debugPrint('❌ CONNECTION FAILED: left=$leftOk, right=$rightOk');
+      if (kDebugMode) debugPrint('❌ Connection failed: L=$leftOk R=$rightOk');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to connect to one or both sensors')),
       );
@@ -217,7 +217,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
     }
 
     // Wait for actual data from both sensors before proceeding
-    if (kDebugMode) debugPrint('✓ Sensors connected, waiting for data...');
+    if (kDebugMode) debugPrint('✓ Connected, waiting for data');
     
     // Update dialog message
     if (mounted) {
@@ -256,7 +256,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
     leftDataSub = leftStream?.listen((data) {
       if (!leftLogged && kDebugMode) {
         leftLogged = true;
-        debugPrint('✓ Left sensor data received');
+        debugPrint('✓ Left data OK');
       }
       leftDataReceived = true;
       if (rightDataReceived && !dataCompleter.isCompleted) {
@@ -267,7 +267,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
     rightDataSub = rightStream?.listen((data) {
       if (!rightLogged && kDebugMode) {
         rightLogged = true;
-        debugPrint('✓ Right sensor data received');
+        debugPrint('✓ Right data OK');
       }
       rightDataReceived = true;
       if (leftDataReceived && !dataCompleter.isCompleted) {
@@ -280,7 +280,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
       await dataCompleter.future.timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          if (kDebugMode) debugPrint('⚠️ Timeout waiting for sensor data');
+          if (kDebugMode) debugPrint('⚠️ Data timeout');
           return false;
         },
       );
@@ -293,11 +293,11 @@ class _ConnectionPageState extends State<ConnectionPage> {
     Navigator.of(context).pop(); // close loading dialog
 
     if (leftDataReceived && rightDataReceived) {
-      if (kDebugMode) debugPrint('✓ Both sensors sending data, proceeding to run page');
+      if (kDebugMode) debugPrint('✓ Both sensors ready');
       // Call the callback to notify AppController
       widget.onConnected?.call(_bleMgr, _leftId!, _rightId!);
     } else {
-      if (kDebugMode) debugPrint('❌ Failed to receive data from sensors');
+      if (kDebugMode) debugPrint('❌ No sensor data');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

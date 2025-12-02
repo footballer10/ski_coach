@@ -15,6 +15,7 @@ class RunPage extends StatefulWidget {
   final String rightId;
   final VoidCallback onRecordAgain;
   final VoidCallback onDisconnect;
+  final VoidCallback? onManualReconnect;
   final VoidCallback? onResultsShown;
   final VoidCallback? onReconnected;
   final bool autoStart;
@@ -26,6 +27,7 @@ class RunPage extends StatefulWidget {
     required this.rightId,
     required this.onRecordAgain,
     required this.onDisconnect,
+    this.onManualReconnect,
     this.onResultsShown,
     this.onReconnected,
     this.autoStart = false,
@@ -55,8 +57,6 @@ enum RunState { recording, processing, results }
   DateTime? _lastLeftData;
   DateTime? _lastRightData;
   bool _disconnectHandled = false; // Prevent multiple disconnect triggers
-  bool _disconnectedWhileRecording = false; // Track if disconnect happened during recording
-  bool _needsResubscribeOnReconnect = false; // Idle disconnect requires resubscribe
   static const _dataTimeout = Duration(seconds: 3);
 
   @override
@@ -81,14 +81,6 @@ enum RunState { recording, processing, results }
   @override
   void didUpdateWidget(RunPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Check if we just reconnected (new bleMgr/IDs while disconnect flag is set)
-    if (_disconnectedWhileRecording && 
-        (widget.bleMgr != oldWidget.bleMgr || 
-         widget.leftId != oldWidget.leftId || 
-         widget.rightId != oldWidget.rightId)) {
-      debugPrint('🎿 RunPage: Detected reconnect after recording disconnect, resetting to fresh recording state');
-      _resetToRecording();
-    }
   }
 
   @override
@@ -113,11 +105,9 @@ enum RunState { recording, processing, results }
       if (_lastLeftData != null) {
         final timeSinceData = DateTime.now().difference(_lastLeftData!);
         if (timeSinceData > _dataTimeout && !_disconnectHandled) {
-          _disconnectHandled = true; // Set flag immediately, atomically
-          debugPrint('🎿 RunPage: Watchdog set _disconnectHandled = true');
-          debugPrint('🎿 RunPage: Watchdog about to call _handleSensorDisconnect (mounted=$mounted, _disconnectHandled=$_disconnectHandled)');
+          _disconnectHandled = true;
           timer.cancel();
-          debugPrint('🎿 RunPage: Left sensor timeout - no data for ${timeSinceData.inSeconds}s');
+          debugPrint('⚠️ Left sensor timeout (${timeSinceData.inSeconds}s)');
           _handleSensorDisconnect('Left sensor disconnected (no data)');
         }
       }
@@ -132,11 +122,9 @@ enum RunState { recording, processing, results }
       if (_lastRightData != null) {
         final timeSinceData = DateTime.now().difference(_lastRightData!);
         if (timeSinceData > _dataTimeout && !_disconnectHandled) {
-          _disconnectHandled = true; // Set flag immediately, atomically
-          debugPrint('🎿 RunPage: Watchdog set _disconnectHandled = true');
-          debugPrint('🎿 RunPage: Watchdog about to call _handleSensorDisconnect (mounted=$mounted, _disconnectHandled=$_disconnectHandled)');
+          _disconnectHandled = true;
           timer.cancel();
-          debugPrint('🎿 RunPage: Right sensor timeout - no data for ${timeSinceData.inSeconds}s');
+          debugPrint('⚠️ Right sensor timeout (${timeSinceData.inSeconds}s)');
           _handleSensorDisconnect('Right sensor disconnected (no data)');
         }
       }
@@ -159,9 +147,8 @@ enum RunState { recording, processing, results }
           if (mounted) {
             if (!_disconnectHandled) {
               _disconnectHandled = true;
-              debugPrint('🎿 RunPage: Left stream onDone set _disconnectHandled = true');
             }
-            debugPrint('🎿 RunPage: Left sensor disconnected');
+            debugPrint('⚠️ Left sensor disconnected');
             _handleSensorDisconnect('Left sensor disconnected');
           }
         },
@@ -169,9 +156,8 @@ enum RunState { recording, processing, results }
           if (mounted) {
             if (!_disconnectHandled) {
               _disconnectHandled = true;
-              debugPrint('🎿 RunPage: Left stream onError set _disconnectHandled = true');
             }
-            debugPrint('🎿 RunPage: Left sensor error: $error');
+            debugPrint('⚠️ Left sensor error: $error');
             _handleSensorDisconnect('Left sensor connection error');
           }
         },
@@ -190,9 +176,8 @@ enum RunState { recording, processing, results }
           if (mounted) {
             if (!_disconnectHandled) {
               _disconnectHandled = true;
-              debugPrint('🎿 RunPage: Right stream onDone set _disconnectHandled = true');
             }
-            debugPrint('🎿 RunPage: Right sensor disconnected');
+            debugPrint('⚠️ Right sensor disconnected');
             _handleSensorDisconnect('Right sensor disconnected');
           }
         },
@@ -200,9 +185,8 @@ enum RunState { recording, processing, results }
           if (mounted) {
             if (!_disconnectHandled) {
               _disconnectHandled = true;
-              debugPrint('🎿 RunPage: Right stream onError set _disconnectHandled = true');
             }
-            debugPrint('🎿 RunPage: Right sensor error: $error');
+            debugPrint('⚠️ Right sensor error: $error');
             _handleSensorDisconnect('Right sensor connection error');
           }
         },
@@ -211,21 +195,15 @@ enum RunState { recording, processing, results }
   }
 
   void _handleSensorDisconnect(String message) {
-    debugPrint('🎿 RunPage: _handleSensorDisconnect entered with message: $message');
+    debugPrint('⚠️ Disconnect: $message');
     
     // Stop watchdogs
     _leftWatchdog?.cancel();
     _rightWatchdog?.cancel();
     
-    final wasRecording = _recording;
     // Stop recording if active
-    if (wasRecording) {
-      debugPrint('🎿 RunPage: Stopping recording due to disconnect');
+    if (_recording) {
       widget.bleMgr.stopRecording();
-      _disconnectedWhileRecording = true;
-    } else {
-      // Mark that we need to resubscribe when sensors come back
-      _needsResubscribeOnReconnect = true;
     }
     
     // Cancel subscriptions
@@ -234,100 +212,35 @@ enum RunState { recording, processing, results }
     _leftSub = null;
     _rightSub = null;
     
-    if (wasRecording) {
-      // Show error page for recording disconnect with reconnect-only option until sensors return
-      debugPrint('🎿 RunPage: Setting reconnect-only error for recording disconnect');
-      setState(() {
-        _recording = false;
-        _state = RunState.results;
-        _analysisResults = {
-          'error': message,
-          'isSensorDisconnect': true,
-          'reconnectOnly': true,
-        };
-      });
-    } else {
-      // Preserve current recording screen but mark not recording
-      debugPrint('🎿 RunPage: Idle disconnect - will resubscribe after reconnect');
-      setState(() {
-        _recording = false;
-      });
-    }
-    // Bring up reconnect modal immediately (idempotent via AppController)
-    debugPrint('🎿 RunPage: About to call widget.onDisconnect()');
+    // Notify controller to handle disconnect (will show error UI)
     widget.onDisconnect();
-    debugPrint('🎿 RunPage: widget.onDisconnect() called successfully');
   }
 
-  void _resetToRecording() {
-    // Reset disconnect flags
-    _disconnectHandled = false;
-    _disconnectedWhileRecording = false;
-    _needsResubscribeOnReconnect = false;
-    
-    // Resubscribe to samples when resetting
-    _subscribeToSamples();
-    _startWatchdogs();
-    
-    setState(() {
-      _state = RunState.recording;
-      _recording = false;
-      _analysisResults = null;
-      _leftLatest = null;
-      _rightLatest = null;
-      _lastLeftData = null;
-      _lastRightData = null;
-    });
-  }
+  // No auto-reconnect logic needed
 
-  // Called by controller after successful reconnect
-  void onSensorsReconnected() {
-    debugPrint('🎿 RunPage: onSensorsReconnected invoked');
-    // Reset disconnect guard so future disconnects are detected
-    _disconnectHandled = false;
-    if (_needsResubscribeOnReconnect) {
-      debugPrint('🎿 RunPage: Resubscribing after idle disconnect');
-      _needsResubscribeOnReconnect = false;
-      _subscribeToSamples();
-      _startWatchdogs();
-      setState(() { /* ensure UI rebuild */ });
-    }
-    if (_disconnectedWhileRecording) {
-      // We already transformed page into error state; controller will add new run page separately
-      debugPrint('🎿 RunPage: Recording disconnect previously handled (error page preserved)');
-      _disconnectedWhileRecording = false; // prevent duplicate handling
-    }
-  }
-
-  bool get hasRecordingDisconnectError => _analysisResults != null && _analysisResults!['isSensorDisconnect'] == true;
-    bool get isReconnectOnlyError => _analysisResults != null && _analysisResults!['reconnectOnly'] == true;
+  bool get hasDisconnectError => _analysisResults != null && _analysisResults!['isSensorDisconnect'] == true;
   bool get isSummaryWithValidResults => _state == RunState.results && _analysisResults != null && _analysisResults!['error'] == null;
-  bool get shouldShowPostReconnectError => (
-    // Only if a disconnect occurred (flags) and not already an error page
-    (_disconnectedWhileRecording || _needsResubscribeOnReconnect) &&
-    !hasRecordingDisconnectError &&
-    !isSummaryWithValidResults
-  );
 
-  // Explicit error rendering helpers for controller-driven UX
-  void showDisconnectErrorOnlyReconnect(String message) {
+  // Show disconnect error with manual reconnect button
+  void showDisconnectErrorWithReconnectButton() {
     setState(() {
       _recording = false;
       _state = RunState.results;
       _analysisResults = {
-        'error': message,
+        'error': 'Sensors disconnected. Reconnect to continue.',
         'isSensorDisconnect': true,
-        'reconnectOnly': true,
+        'showReconnectButton': true,
       };
     });
   }
 
+  // After reconnect, show error with 'Start Another Run' option
   void showPostReconnectErrorStartNewRun() {
     setState(() {
       _recording = false;
       _state = RunState.results;
       _analysisResults = {
-        'error': 'Sensors reconnected. Previous session was interrupted.',
+        'error': 'Sensors reconnected. Yaw calibration was reset.',
         'isSensorDisconnect': true,
         'startAnotherRun': true,
       };
@@ -348,7 +261,7 @@ enum RunState { recording, processing, results }
 
     // Abort analysis if disconnect was handled or state is not recording
     if (_disconnectHandled || _state != RunState.processing) {
-      debugPrint('🎿 RunPage: Analysis aborted due to disconnect or state change.');
+      debugPrint('⚠️ Analysis aborted');
       return;
     }
 
@@ -359,7 +272,7 @@ enum RunState { recording, processing, results }
     final leftSamples = recordedData[widget.leftId] ?? [];
     final rightSamples = recordedData[widget.rightId] ?? [];
 
-    debugPrint('🎿 RunPage: Recorded ${leftSamples.length} left, ${rightSamples.length} right samples');
+    debugPrint('📊 Recording: ${leftSamples.length}L/${rightSamples.length}R samples');
 
     // Check for empty data
     if (leftSamples.isEmpty || rightSamples.isEmpty) {
@@ -397,7 +310,7 @@ enum RunState { recording, processing, results }
     final smoothEnd = segments.map((s) => s.endSmoothnessSD).toList();
     final smoothAvg = segments.map((s) => s.avgSmoothnessSD).toList();
 
-    debugPrint('🎿 RunPage: Segmentation complete - ${segments.length} turns, durations: $turnDurations, edges: $edgeAngles');
+    debugPrint('📊 Analysis: ${segments.length} turns detected');
 
     // Check if no turns detected
     if (segments.isEmpty) {
@@ -464,7 +377,7 @@ enum RunState { recording, processing, results }
         'turnSymmetryScore': turnSymmetryScore,
     };
 
-    debugPrint('🎿 RunPage: Results prepared - turnCount=${results['turnCount']}, turnDurations=${results['turnDurations']}');
+    debugPrint('📊 Results ready: ${results['turnCount']} turns');
 
     if (!mounted) return;
 
@@ -548,16 +461,14 @@ enum RunState { recording, processing, results }
     final error = _analysisResults!['error'] as String?;
     if (error != null) {
       final isSensorDisconnect = _analysisResults!['isSensorDisconnect'] == true;
-      // Only show reconnect button if both sensors are NOT currently connected
-      final bothConnected = widget.bleMgr.isConnected(widget.leftId) && widget.bleMgr.isConnected(widget.rightId);
-      final reconnectOnly = _analysisResults!['reconnectOnly'] == true;
+      final showReconnectButton = _analysisResults!['showReconnectButton'] == true;
       final startAnotherRun = _analysisResults!['startAnotherRun'] == true;
        return ResultsView(
          results: null,
          errorMessage: error,
-         onNewRun: _resetToRecording,
-         onReconnect: isSensorDisconnect ? widget.onDisconnect : null,
-         showReconnectButton: reconnectOnly ? true : (isSensorDisconnect && !bothConnected),
+         onNewRun: widget.onRecordAgain,
+         onReconnect: showReconnectButton ? widget.onManualReconnect : null,
+         showReconnectButton: showReconnectButton,
          showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
        );
     }

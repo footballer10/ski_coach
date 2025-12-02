@@ -6,7 +6,7 @@
 /// - Detect alternating max/min yaw peaks (turn points) via hysteresis
 /// - Build segments between consecutive peaks
 /// - Compute metrics: max edge angle, parallelness (avg + thirds), smoothness SD (thirds)
-library segmentation;
+library;
 import '../models/imu_sample.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
@@ -69,7 +69,7 @@ class TurnSegmentation {
     double samplingRate = 100.0, // Sampling rate in Hz (default 100Hz)
   }) {
     if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Processing ${left.length} left samples, ${right.length} right samples');
+      debugPrint('📊 Segmentation: ${left.length}L/${right.length}R samples');
     }
     
     // Correct sudden angle jumps (>10°) in all angles for both sensors
@@ -82,27 +82,11 @@ class TurnSegmentation {
     final smoothedYaw = _smoothYaw(avgYaw, unwrappedAvgYaw, params.smoothingWindow);
     final unwrappedYaw = _unwrapYaw(smoothedYaw);
     
-    if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Created ${avgYaw.length} averaged yaw points');
-      for (int i = 0; i < avgYaw.length; i++) {
-        final pt = avgYaw[i];
-        debugPrint('      avgYaw[$i] @ ${pt.time.toIso8601String()} = ${pt.angle.toStringAsFixed(2)}°');
-      }
-      for (int i = 0; i < smoothedYaw.length; i++) {
-        final pt = smoothedYaw[i];
-        debugPrint('      smoothYaw[$i] @ ${pt.time.toIso8601String()} = ${pt.angle.toStringAsFixed(2)}°');
-      }
-    }
-    
     // Detect yaw peaks (local maxima/minima = turn points)
     final peaks = _detectYawPeaks(smoothedYaw, unwrappedYaw, params);
 
     if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Detected ${peaks.length} yaw peaks (turn points)');
-      for (int i = 0; i < peaks.length; i++) {
-        final p = peaks[i];
-        debugPrint('      peak[$i] -> time=${p.time.toIso8601String()}, yaw=${p.yaw.toStringAsFixed(2)}°, type=${p.isPeak ? 'MAX' : 'MIN'}');
-      }
+      debugPrint('📊 Detected ${peaks.length} peaks');
     }
 
     // Build segments from consecutive peaks (alternation is inherent to detector)
@@ -218,19 +202,6 @@ class TurnSegmentation {
       final endSmoothnessSD = _standardDeviation(angularVelocitiesEnd);
       final avgSmoothnessSD = (beginningSmoothnessSD + middleSmoothnessSD + endSmoothnessSD) / 3.0;
 
-      final duration = b.time.difference(a.time);
-      final yawSwing = _yawSwing(unwrappedYaw, startYawIdx, endYawIdx);
-      if (kDebugMode) {
-        debugPrint('      ↳ raw yaw between indices [$startYawIdx, $endYawIdx]:');
-        for (int idx = startYawIdx; idx <= endYawIdx; idx++) {
-          debugPrint('         yaw[$idx] = ${unwrappedYaw[idx].toStringAsFixed(2)} (smoothed=${smoothedYaw[idx].angle.toStringAsFixed(2)}° @ ${smoothedYaw[idx].time.toIso8601String()})');
-        }
-      }
-      
-      if (kDebugMode) {
-        debugPrint('   ✅ Segment ${k + 1}: accepted (duration=${duration.inMilliseconds}ms, swing=${yawSwing.toStringAsFixed(1)}°, edge=${maxEdgeAngle.toStringAsFixed(1)}°, parallel=[beg:${beginningParallelness.toStringAsFixed(1)}° mid:${middleParallelness.toStringAsFixed(1)}° end:${endParallelness.toStringAsFixed(1)}°])');
-      }
-
       final seg = TurnSegment(
         startTime: a.time,
         endTime: b.time,
@@ -255,10 +226,7 @@ class TurnSegmentation {
       // No rejection summary needed; simple consecutive pairing in use
     
     if (kDebugMode) {
-      debugPrint('🎿 Segmentation: Created ${segments.length} turn segments');
-      for (int i = 0; i < segments.length; i++) {
-        debugPrint('   Turn ${i + 1}: ${segments[i].durationSeconds}s, edge=${segments[i].maxEdgeAngle.toStringAsFixed(1)}°, parallel=[avg:${segments[i].avgParallelness.toStringAsFixed(1)}° beg:${segments[i].beginningParallelness.toStringAsFixed(1)}° mid:${segments[i].middleParallelness.toStringAsFixed(1)}° end:${segments[i].endParallelness.toStringAsFixed(1)}°] (dir=${segments[i].direction})');
-      }
+      debugPrint('📊 Created ${segments.length} turns');
     }
     
     return segments;
@@ -285,7 +253,7 @@ class TurnSegmentation {
     }
 
     if (kDebugMode && (droppedLeft > 0 || droppedRight > 0)) {
-      debugPrint('🎯 Segmentation: index pairing dropped extras left=$droppedLeft right=$droppedRight');
+      // Dropped extras: left=$droppedLeft right=$droppedRight
     }
 
     return result;
@@ -348,7 +316,7 @@ class TurnSegmentation {
     int extremeIdx = 0;
 
     if (kDebugMode) {
-      debugPrint('      peak-detector: hysteresis=${hysteresis.toStringAsFixed(1)}° starting=${seekingMax ? 'MAX' : 'MIN'}');
+      // Peak detector: hysteresis=${hysteresis.toStringAsFixed(1)}° starting=${seekingMax ? 'MAX' : 'MIN'}
     }
 
     for (int i = 1; i < unwrapped.length; i++) {
@@ -366,7 +334,7 @@ class TurnSegmentation {
             index: extremeIdx,
           ));
           if (kDebugMode) {
-            debugPrint('         ↳ commit MAX idx=$extremeIdx yaw=${pts[extremeIdx].angle.toStringAsFixed(2)}°');
+            // Commit MAX peak
           }
           seekingMax = false;
           currentExtreme = value;
@@ -384,7 +352,7 @@ class TurnSegmentation {
             index: extremeIdx,
           ));
           if (kDebugMode) {
-            debugPrint('         ↳ commit MIN idx=$extremeIdx yaw=${pts[extremeIdx].angle.toStringAsFixed(2)}°');
+            // Commit MIN peak
           }
           seekingMax = true;
           currentExtreme = value;
@@ -455,24 +423,6 @@ class TurnSegmentation {
       unwrapped[i] = unwrapped[i - 1] + diff;
     }
     return unwrapped;
-  }
-
-  static double _yawSwing(List<double> unwrappedYaw, int startIdx, int endIdx) {
-    if (unwrappedYaw.isEmpty || startIdx >= endIdx) {
-      return 0.0;
-    }
-    final slice = unwrappedYaw.sublist(startIdx, endIdx + 1);
-    double minVal = slice.first;
-    double maxVal = slice.first;
-    for (final val in slice) {
-      if (val < minVal) {
-        minVal = val;
-      }
-      if (val > maxVal) {
-        maxVal = val;
-      }
-    }
-    return maxVal - minVal;
   }
 
   // Approach-time logic removed per simplified design
@@ -554,7 +504,7 @@ class TurnSegmentation {
     
     if (kDebugMode) {
       if (yawOffset.abs() > 0.1 || pitchOffset.abs() > 0.1 || rollOffset.abs() > 0.1) {
-        debugPrint('      angle-jump correction: yaw offset=${yawOffset.toStringAsFixed(2)}°, pitch offset=${pitchOffset.toStringAsFixed(2)}°, roll offset=${rollOffset.toStringAsFixed(2)}°');
+        // Angle-jump correction applied
       }
     }
     

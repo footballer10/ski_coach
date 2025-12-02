@@ -64,16 +64,10 @@ class BleManager {
   
   /// Stop any active scan
   Future<void> stopScan() async {
-    if (kDebugMode) {
-      debugPrint('🔵 BleManager: Stopping active scan');
-    }
     await _activeScanSubscription?.cancel();
     _activeScanSubscription = null;
     // Give iOS BLE stack time to fully stop
     await Future.delayed(const Duration(milliseconds: 500));
-    if (kDebugMode) {
-      debugPrint('🔵 BleManager: Scan stopped');
-    }
   }
 
   /// Connect to device and wait until connected (or timeout). Returns true on success.
@@ -155,7 +149,7 @@ class BleManager {
   /// Disconnect all connected devices
   Future<void> disconnectAll() async {
     if (kDebugMode) {
-      debugPrint('🔌 BleManager: Disconnecting all devices (${_connSubs.length})');
+      debugPrint('🔌 Disconnecting ${_connSubs.length} devices');
     }
     final ids = _connSubs.keys.toList();
     for (final id in ids) {
@@ -178,7 +172,7 @@ class BleManager {
     _recordingStartTime = DateTime.now();
     _recordedSamples.clear();
     _yawOffsetRightMinusLeft = null; // Reset calibration for new recording
-    if (kDebugMode) debugPrint('🔴 RECORDING STARTED at $_recordingStartTime');
+    if (kDebugMode) debugPrint('🔴 Recording started');
   }
 
   /// Stop recording and return the recorded data
@@ -187,10 +181,10 @@ class BleManager {
     _isRecording = false;
     final duration = DateTime.now().difference(_recordingStartTime!);
     if (kDebugMode) {
-      debugPrint('⏹️  RECORDING STOPPED - Duration: ${duration.inSeconds}s');
-      for (final entry in _recordedSamples.entries) {
-        debugPrint('   ${entry.key}: ${entry.value.length} samples (${(entry.value.length / duration.inSeconds).toStringAsFixed(1)} Hz)');
-      }
+      final leftCount = _recordedSamples['WTLeft']?.length ?? 0;
+      final rightCount = _recordedSamples['WTRight']?.length ?? 0;
+      final avgHz = duration.inSeconds > 0 ? ((leftCount + rightCount) / 2 / duration.inSeconds).toStringAsFixed(1) : '0';
+      debugPrint('⏹️ Recording stopped: ${duration.inSeconds}s, ${leftCount}L/${rightCount}R samples (~$avgHz Hz)');
     }
     return Map.from(_recordedSamples);
   }
@@ -222,13 +216,9 @@ class BleManager {
   // -------------------------------------------------------------
   Future<void> _subscribeCharacteristic(String deviceId) async {
     try {
-      if (kDebugMode) debugPrint('[$deviceId] Starting characteristic subscription process...');
-      
       // Try requesting a larger MTU to potentially trigger service discovery
       try {
-        if (kDebugMode) debugPrint('[$deviceId] Requesting MTU...');
-        final mtu = await _ble.requestMtu(deviceId: deviceId, mtu: 512);
-        if (kDebugMode) debugPrint('[$deviceId] MTU set to: $mtu');
+        await _ble.requestMtu(deviceId: deviceId, mtu: 512);
       } catch (e) {
         if (kDebugMode) debugPrint('[$deviceId] MTU request failed: $e');
       }
@@ -238,15 +228,12 @@ class BleManager {
       
       // Try discovering services
       try {
-        if (kDebugMode) debugPrint('[$deviceId] Calling discoverAllServices...');
         await _ble.discoverAllServices(deviceId);
-        if (kDebugMode) debugPrint('[$deviceId] discoverAllServices completed');
       } catch (e) {
-        if (kDebugMode) debugPrint('[$deviceId] discoverAllServices error: $e');
+        if (kDebugMode) debugPrint('[$deviceId] Service discovery error: $e');
       }
       
-      // Much longer wait for iOS to populate everything
-      if (kDebugMode) debugPrint('[$deviceId] Waiting 5 seconds for iOS to cache services...');
+      // Wait for iOS to populate services
       await Future.delayed(const Duration(milliseconds: 5000));
       
       final char = QualifiedCharacteristic(
@@ -255,44 +242,23 @@ class BleManager {
         deviceId: deviceId,
       );
       
-      if (kDebugMode) {
-        debugPrint('[$deviceId] Target Service: $_service');
-        debugPrint('[$deviceId] Target Char: $_char');
-        debugPrint('[$deviceId] Attempting to subscribe to notifications...');
-      }
-      
       // Subscribe
       _charSubs[deviceId] = _ble.subscribeToCharacteristic(char).listen((data) {
         _handleRawPacket(deviceId, data);
       }, onError: (e) {
-        if (kDebugMode) {
-          debugPrint('[$deviceId] ❌ Subscription stream error: $e');
-          debugPrint('[$deviceId] ');
-          debugPrint('[$deviceId] TROUBLESHOOTING:');
-          debugPrint('[$deviceId] 1. Install "LightBlue" app from App Store');
-          debugPrint('[$deviceId] 2. Scan for your sensor (WTLeft or WTRight)');
-          debugPrint('[$deviceId] 3. Connect and view its services');
-          debugPrint('[$deviceId] 4. Look for service FFE0 and note what characteristics it has');
-          debugPrint('[$deviceId] 5. Share the characteristic UUIDs you see');
-        }
+        if (kDebugMode) debugPrint('[$deviceId] ❌ Subscription error: $e');
       }, onDone: () {
-        if (kDebugMode) debugPrint('[$deviceId] Subscription stream closed');
+        if (kDebugMode) debugPrint('[$deviceId] Subscription closed');
       });
       
-      if (kDebugMode) debugPrint('[$deviceId] ✓ Subscribe call completed (waiting for data...)');
-      
     } catch (e) {
-      if (kDebugMode) debugPrint('[$deviceId] ❌ Exception in _subscribeCharacteristic: $e');
+      if (kDebugMode) debugPrint('[$deviceId] ❌ Subscribe error: $e');
     }
   }
 
   // Public getter for UI
   Stream<Map<String, double>>? sampleStream(String deviceId) {
-    final stream = _sampleControllers[deviceId]?.stream;
-    if (kDebugMode) {
-      debugPrint('[$deviceId] sampleStream() called - controller exists: ${_sampleControllers.containsKey(deviceId)}, stream: ${stream != null}');
-    }
-    return stream;
+    return _sampleControllers[deviceId]?.stream;
   }
 
   // -------------------------------------------------------------
@@ -359,7 +325,7 @@ class BleManager {
         _latest[deviceId]!["ay"] = ay;
         _latest[deviceId]!["az"] = az;
         if (kDebugMode) {
-          debugPrint('[$deviceId] ACCEL: ax=$ax, ay=$ay, az=$az');
+          // Accel data parsed
         }
         i += 11;
         continue;
@@ -374,7 +340,7 @@ class BleManager {
         _latest[deviceId]!["gy"] = gy;
         _latest[deviceId]!["gz"] = gz;
         if (kDebugMode) {
-          debugPrint('[$deviceId] GYRO: gx=$gx, gy=$gy, gz=$gz');
+          // Gyro data parsed
         }
         i += 11;
         continue;
@@ -389,7 +355,7 @@ class BleManager {
         _latest[deviceId]!["pitch"] = pitch;
         _latest[deviceId]!["yaw"] = yaw;
         if (kDebugMode) {
-          debugPrint('[$deviceId] ANGLE: roll=$roll, pitch=$pitch, yaw=$yaw');
+          // Angle data parsed
         }
         i += 11;
         continue;

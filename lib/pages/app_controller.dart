@@ -58,6 +58,7 @@ class _AppControllerState extends State<AppController> {
         rightId: rightId,
         onRecordAgain: _addNewRunPage,
         onDisconnect: _onSensorsDisconnected,
+        onManualReconnect: _onManualReconnectPressed,
         autoStart: false,
         onResultsShown: () {
           // Enable arrows after first results shown
@@ -82,17 +83,32 @@ class _AppControllerState extends State<AppController> {
   bool _reconnectOpen = false;
 
   void _onSensorsDisconnected() {
-    debugPrint('🎿 AppController: _onSensorsDisconnected called');
     if (!mounted) {
-      debugPrint('🎿 AppController: Not mounted, skipping navigation');
       return;
     }
+    debugPrint('⚠️ Sensors disconnected');
+    
+    // Determine current page state
+    final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
+    final currentState = currentKey?.currentState;
+    
+    if (currentState != null && currentState.mounted) {
+      if (currentState.isSummaryWithValidResults) {
+        // On results screen: add temporary error page to the right
+        _addTemporaryDisconnectErrorPage();
+      } else {
+        // On recording or pre-recording: replace with error page
+        currentState.showDisconnectErrorWithReconnectButton();
+      }
+    }
+  }
+  
+  void _onManualReconnectPressed() {
     if (_reconnectOpen) {
-      debugPrint('🎿 AppController: Reconnect modal already open, skipping push');
       return;
     }
     _reconnectOpen = true;
-    debugPrint('🎿 AppController: Pushing ConnectionPage with showCloseButton=true');
+    debugPrint('📊 Manual reconnect initiated');
     Navigator.of(context)
         .push(
       MaterialPageRoute(
@@ -108,62 +124,31 @@ class _AppControllerState extends State<AppController> {
               setState(() => _showArrows = true);
             }
             // After reconnect:
-            // - If temporary error page(s) were added (from summary), remove them and restore summary
-            // - If current page is pre-recording/recording, replace with error page offering 'Start Another Run'
+            // - If temporary error page(s) exist (from results), remove them
+            // - If current page shows disconnect error, replace with 'Start Another Run' error
             final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
             final currentState = currentKey?.currentState;
             if (currentState != null && currentState.mounted) {
               if (_tempErrorPageKeys.isNotEmpty) {
-                // Remove error page(s) and restore summary/results
+                // Remove temporary error page(s) and restore results
                 _removeTemporaryErrorPages();
-              } else if (currentState.shouldShowPostReconnectError || (currentState.hasRecordingDisconnectError && currentState.isReconnectOnlyError)) {
-                // For non-summary interruption, convert to Start Another Run
+              } else if (currentState.hasDisconnectError) {
+                // Replace disconnect error with 'Start Another Run' option
                 currentState.showPostReconnectErrorStartNewRun();
               }
             }
-            // Notify pages to resubscribe/reset guards
-            _notifyRunPagesReconnected();
           },
         ),
       ),
     )
         .then((_) {
-      // Modal closed (via X or after successful reconnect)
+      // Modal closed (either via X button or after successful reconnect)
       _reconnectOpen = false;
-      // If closed via X and sensors are not connected, show error with ONLY reconnect button
-      try {
-        final bothConnected = _bleMgr != null &&
-            _leftId != null && _rightId != null &&
-            _bleMgr.isConnected(_leftId) && _bleMgr.isConnected(_rightId);
-        if (!bothConnected) {
-          final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
-          final currentState = currentKey?.currentState;
-          if (currentState != null && currentState.mounted) {
-            if (currentState.isSummaryWithValidResults) {
-              // Always append a temporary error page to the right, never replace summary/results
-              _addTemporaryReconnectErrorPage('Sensors disconnected. Please reconnect to continue.');
-              // Force navigation to the new error page synchronously
-              setState(() {
-                _currentPage = _runPages.length - 1;
-              });
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (_pageController.hasClients && mounted) {
-                  _pageController.jumpToPage(_currentPage);
-                }
-              });
-            } else {
-              // For all other states, replace with reconnect-only error page
-              currentState.showDisconnectErrorOnlyReconnect('Sensors disconnected. Please reconnect to continue.');
-            }
-          }
-        }
-      } catch (_) {
-        // If BLE manager does not expose isConnected yet, skip
-      }
+      // If closed via X, the error page remains unchanged (user stays on same error page)
     });
   }
-
-  void _addTemporaryReconnectErrorPage(String message) {
+  
+  void _addTemporaryDisconnectErrorPage() {
     final pageKey = GlobalKey<RunPageState>();
     final newPage = RunPage(
       key: pageKey,
@@ -172,6 +157,7 @@ class _AppControllerState extends State<AppController> {
       rightId: _rightId ?? '',
       onRecordAgain: _addNewRunPage,
       onDisconnect: _onSensorsDisconnected,
+      onManualReconnect: _onManualReconnectPressed,
       autoStart: false,
       onResultsShown: null,
     );
@@ -183,11 +169,30 @@ class _AppControllerState extends State<AppController> {
       targetIndex = _runPages.length - 1;
       _currentPage = targetIndex;
     });
-    // Force the new error page to always show only the reconnect button (never 'Start Another Run')
+    // Show disconnect error with reconnect button
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _ensureReconnectOnlyErrorInitialized(pageKey, message);
+      _ensureDisconnectErrorInitialized(pageKey);
       _forceNavigateToPage(targetIndex);
+    });
+  }
+  
+  void _ensureDisconnectErrorInitialized(
+    GlobalKey<RunPageState> key, {
+    int attempt = 0,
+  }) {
+    if (!mounted) return;
+    const maxAttempts = 12;
+    final state = key.currentState;
+    if (state != null && state.mounted) {
+      state.showDisconnectErrorWithReconnectButton();
+      return;
+    }
+    if (attempt >= maxAttempts) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureDisconnectErrorInitialized(key, attempt: attempt + 1);
     });
   }
 
@@ -216,27 +221,6 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
-  void _ensureReconnectOnlyErrorInitialized(
-    GlobalKey<RunPageState> key,
-    String message, {
-    int attempt = 0,
-  }) {
-    if (!mounted) return;
-    const maxAttempts = 12;
-    final state = key.currentState;
-    if (state != null && state.mounted) {
-      state.showDisconnectErrorOnlyReconnect(message);
-      return;
-    }
-    if (attempt >= maxAttempts) {
-      debugPrint('🎿 AppController: Failed to initialize reconnect-only error page after $maxAttempts attempts');
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureReconnectOnlyErrorInitialized(key, message, attempt: attempt + 1);
-    });
-  }
-
   void _forceNavigateToPage(int pageIndex, {int attempt = 0}) {
     if (!mounted) return;
     if (_runPages.isEmpty) return;
@@ -258,7 +242,7 @@ class _AppControllerState extends State<AppController> {
     try {
       _pageController.jumpToPage(clampedIndex);
     } catch (err) {
-      debugPrint('🎿 AppController: jumpToPage error: $err');
+      debugPrint('⚠️ jumpToPage error: $err');
     }
 
     if (attempt >= maxAttempts) {
@@ -270,14 +254,6 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
-  void _notifyRunPagesReconnected() {
-    for (final key in _runPageKeys) {
-      key.currentState?.onSensorsReconnected();
-    }
-  }
-
-  // Removed unused helper _anyRecordingDisconnectError
-
   void _addNewRunPage() {
     final pageKey = GlobalKey<RunPageState>();
     final newPage = RunPage(
@@ -287,6 +263,7 @@ class _AppControllerState extends State<AppController> {
       rightId: _rightId!,
       onRecordAgain: _addNewRunPage,
       onDisconnect: _onSensorsDisconnected,
+      onManualReconnect: _onManualReconnectPressed,
       autoStart: true,
       onResultsShown: () {
         // Enable arrows after first results shown
