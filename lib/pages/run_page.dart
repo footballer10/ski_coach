@@ -5,6 +5,7 @@ import 'package:ski_coach/models/analysis_results.dart';
 import '../models/imu_sample.dart';
 import '../services/ble_manager.dart';
 import '../services/segmentation.dart';
+import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
 
 /// Single page that handles the full run lifecycle:
@@ -292,11 +293,22 @@ enum RunState { recording, processing, results }
     // Segment turns using roll zero-crossings on both sensors
     List<ImuSample> leftImu = leftSamples.cast<ImuSample>();
     List<ImuSample> rightImu = rightSamples.cast<ImuSample>();
-    final yawOffset = BleManager().yawOffset;
+    final yawOffset = BleManager().yawOffset ?? 0.0;
+    
+    // Calculate approximate sampling rate (Hz)
+    double samplingRate = 100.0; // Default assumption
+    if (leftImu.length > 1) {
+      final duration = leftImu.last.timestamp.difference(leftImu.first.timestamp);
+      if (duration.inMilliseconds > 0) {
+        samplingRate = (leftImu.length - 1) * 1000.0 / duration.inMilliseconds;
+      }
+    }
+    
     final segments = TurnSegmentation.segment(
-      left: leftImu, 
-      right: rightImu,
+      leftSamples: leftImu,
+      rightSamples: rightImu,
       yawOffset: yawOffset,
+      samplingRate: samplingRate,
     );
     final turnDurations = segments.map((s) => s.durationSeconds).toList();
     final edgeAngles = segments.map((s) => s.maxEdgeAngle).toList();
@@ -327,25 +339,14 @@ enum RunState { recording, processing, results }
     double? turnSymmetryRatio;
     double? turnSymmetryScore;
     if (turnDirections.isNotEmpty && turnDurations.isNotEmpty) {
-      final leftDurations = <double>[];
-      final rightDurations = <double>[];
-      for (int i = 0; i < turnDirections.length && i < turnDurations.length; i++) {
-        if (turnDirections[i] == -1) {
-          leftDurations.add(turnDurations[i]);
-        } else if (turnDirections[i] == 1) {
-          rightDurations.add(turnDurations[i]);
-        }
-      }
-      if (leftDurations.isNotEmpty && rightDurations.isNotEmpty) {
-        final leftAvg = leftDurations.reduce((a,b)=>a+b) / leftDurations.length;
-        final rightAvg = rightDurations.reduce((a,b)=>a+b) / rightDurations.length;
-        final bigger = leftAvg > rightAvg ? leftAvg : rightAvg;
-        final smaller = leftAvg > rightAvg ? rightAvg : leftAvg;
-        final ratio = bigger / smaller;
-        turnSymmetryRatio = ratio.isFinite ? ratio : null;
-        if (turnSymmetryRatio != null && turnSymmetryRatio > 0) {
-          turnSymmetryScore = Scoring.symmetry(turnSymmetryRatio);
-        }
+      final symmetryResult = SymmetryCalculator.calculate(
+        turnDurations: turnDurations,
+        turnDirections: turnDirections,
+      );
+      
+      turnSymmetryRatio = symmetryResult.ratio;
+      if (turnSymmetryRatio != null && turnSymmetryRatio > 0) {
+        turnSymmetryScore = Scoring.symmetry(turnSymmetryRatio);
       }
     }
 
