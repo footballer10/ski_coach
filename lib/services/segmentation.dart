@@ -102,20 +102,21 @@ class TurnSegmentation {
     final correctedLeft = _correctAngleJumps(calibratedLeft, 'LEFT');
     final correctedRight = _correctAngleJumps(calibratedRight, 'RIGHT');
     
-    // STEP 3: Average yaw from both sensors at aligned timestamps
-    final avgYaw = _averageYawSignals(correctedLeft, correctedRight);
+    // STEP 3: Unwrap individual sensor yaws (handle wraparound before averaging)
+    final unwrappedLeft = _unwrapSensorYaw(correctedLeft, 'LEFT');
+    final unwrappedRight = _unwrapSensorYaw(correctedRight, 'RIGHT');
     
-    // STEP 4: Unwrap averaged yaw (handle wraparound)
-    final unwrappedAvgYaw = _unwrapYaw(avgYaw, 'AVERAGED_RAW');
+    // STEP 4: Average unwrapped yaw from both sensors
+    final avgYaw = _averageUnwrappedYawSignals(correctedLeft, correctedRight, unwrappedLeft, unwrappedRight);
     
     // STEP 5: Smooth the averaged yaw
-    final smoothedYaw = _smoothYaw(avgYaw, unwrappedAvgYaw, params.smoothingWindow);
+    final smoothedYaw = _smoothYaw(avgYaw, params.smoothingWindow);
     
     // STEP 6: Unwrap smoothed yaw for peak detection
-    final unwrappedYaw = _unwrapYaw(smoothedYaw, 'SMOOTHED');
+    final unwrappedSmoothedYaw = _unwrapYaw(smoothedYaw, 'SMOOTHED');
     
     // STEP 7: Detect yaw peaks (local maxima/minima = turn points)
-    final peaks = _detectYawPeaks(smoothedYaw, unwrappedYaw, params);
+    final peaks = _detectYawPeaks(smoothedYaw, unwrappedSmoothedYaw, params);
 
     if (kDebugMode) {
       debugPrint('');
@@ -127,7 +128,7 @@ class TurnSegmentation {
       for (int i = 0; i < peaks.length; i++) {
         final p = peaks[i];
         final marker = p.isPeak ? '📈 MAX (Right turn end)' : '📉 MIN (Left turn end)';
-        debugPrint('   $marker #${i+1}: idx=${p.index}, yaw=${p.yaw.toStringAsFixed(2)}°, unwrapped=${unwrappedYaw[p.index].toStringAsFixed(2)}°');
+        debugPrint('   $marker #${i+1}: idx=${p.index}, yaw=${p.yaw.toStringAsFixed(2)}°, unwrapped=${unwrappedSmoothedYaw[p.index].toStringAsFixed(2)}°');
       }
       debugPrint('📊 Total segments (turns) to create: ${peaks.length - 1}');
     }
@@ -165,7 +166,7 @@ class TurnSegmentation {
         debugPrint('📊 Indices: L[$startIdxLeft:$endIdxLeft] R[$startIdxRight:$endIdxRight] Yaw[$startYawIdx:$endYawIdx]');
         debugPrint('📊 Direction: ${b.isPeak ? "RIGHT (1)" : "LEFT (-1)"}');
         debugPrint('📊 Yaw range: ${smoothedYaw[startYawIdx].angle.toStringAsFixed(2)}° → ${smoothedYaw[endYawIdx].angle.toStringAsFixed(2)}°');
-        debugPrint('📊 Unwrapped yaw range: ${unwrappedYaw[startYawIdx].toStringAsFixed(2)}° → ${unwrappedYaw[endYawIdx].toStringAsFixed(2)}°');
+        debugPrint('📊 Unwrapped yaw range: ${unwrappedSmoothedYaw[startYawIdx].toStringAsFixed(2)}° → ${unwrappedSmoothedYaw[endYawIdx].toStringAsFixed(2)}°');
       }
 
       // No approach-time requirement; we simply pair consecutive peaks
@@ -303,7 +304,7 @@ class TurnSegmentation {
       }
       
       for (int i = startYawIdx; i < endYawIdx; i++) {
-        final yawChange = unwrappedYaw[i + 1] - unwrappedYaw[i];
+        final yawChange = unwrappedSmoothedYaw[i + 1] - unwrappedSmoothedYaw[i];
         final angularVelocity = yawChange * samplingRate;
         final sampleTime = smoothedYaw[i].time;
         
@@ -383,6 +384,86 @@ class TurnSegmentation {
     }
     
     return segments;
+  }
+
+  /// Unwrap yaw angles from a list of IMU samples
+  static List<double> _unwrapSensorYaw(List<ImuSample> samples, [String label = '']) {
+    if (samples.isEmpty) return const [];
+    
+    if (kDebugMode && label.isNotEmpty) {
+      debugPrint('');
+      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint('📊 STEP 3: YAW UNWRAPPING ($label sensor)');
+      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint('📊 Removing wraparound discontinuities (±180° jumps) BEFORE averaging');
+      debugPrint('📊 Wrapped yaw (first 10):');
+      for (int i = 0; i < math.min(10, samples.length); i++) {
+        debugPrint('   [$i] wrapped=${samples[i].yaw.toStringAsFixed(2)}°');
+      }
+    }
+    
+    final unwrapped = List<double>.filled(samples.length, 0.0);
+    unwrapped[0] = samples[0].yaw;
+    for (int i = 1; i < samples.length; i++) {
+      final diff = _angleDiff(samples[i].yaw, samples[i - 1].yaw);
+      unwrapped[i] = unwrapped[i - 1] + diff;
+    }
+    
+    if (kDebugMode && label.isNotEmpty) {
+      debugPrint('📊 Unwrapped yaw (first 10):');
+      for (int i = 0; i < math.min(10, unwrapped.length); i++) {
+        debugPrint('   [$i] unwrapped=${unwrapped[i].toStringAsFixed(2)}°');
+      }
+      debugPrint('   ... (${unwrapped.length} total unwrapped samples)');
+    }
+    
+    return unwrapped;
+  }
+
+  /// Average unwrapped yaw signals from left and right sensors
+  static List<_AnglePoint> _averageUnwrappedYawSignals(
+    List<ImuSample> left,
+    List<ImuSample> right,
+    List<double> unwrappedLeft,
+    List<double> unwrappedRight,
+  ) {
+    final result = <_AnglePoint>[];
+    if (left.isEmpty || right.isEmpty) {
+      return result;
+    }
+
+    final pairCount = math.min(left.length, right.length);
+    final droppedLeft = left.length - pairCount;
+    final droppedRight = right.length - pairCount;
+
+    for (int k = 0; k < pairCount; k++) {
+      final l = left[k];
+      final r = right[k];
+      // Average the unwrapped values, then wrap back to [-180, 180]
+      final avgUnwrapped = (unwrappedLeft[k] + unwrappedRight[k]) / 2.0;
+      final wrappedAvg = _wrapAngle(avgUnwrapped);
+      final meanMs = ((l.timestamp.millisecondsSinceEpoch + r.timestamp.millisecondsSinceEpoch) / 2).round();
+      final isUtc = l.timestamp.isUtc || r.timestamp.isUtc;
+      result.add(_AnglePoint(DateTime.fromMillisecondsSinceEpoch(meanMs, isUtc: isUtc), wrappedAvg));
+    }
+
+    if (kDebugMode) {
+      debugPrint('');
+      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint('📊 STEP 4: YAW AVERAGING (From unwrapped values)');
+      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint('📊 Paired $pairCount samples (dropped: ${droppedLeft}L/${droppedRight}R)');
+      debugPrint('📊 Averaging unwrapped yaw values, then wrapping back to [-180, 180]');
+      debugPrint('📊 NOTE: Original individual sensor yaws PRESERVED for parallelness calculation');
+      debugPrint('📊 Averaged yaw (first 10):');
+      for (int i = 0; i < math.min(10, result.length); i++) {
+        if (i < unwrappedLeft.length && i < unwrappedRight.length) {
+          debugPrint('   [$i] L_unwrapped=${unwrappedLeft[i].toStringAsFixed(2)}°, R_unwrapped=${unwrappedRight[i].toStringAsFixed(2)}°, Avg=${result[i].angle.toStringAsFixed(2)}°');
+        }
+      }
+    }
+
+    return result;
   }
 
   static List<_AnglePoint> _averageYawSignals(List<ImuSample> left, List<ImuSample> right) {
@@ -553,10 +634,9 @@ class TurnSegmentation {
 
   static List<_AnglePoint> _smoothYaw(
     List<_AnglePoint> pts,
-    List<double> unwrapped,
     int window,
   ) {
-    if (window <= 1 || pts.length < 3 || pts.length != unwrapped.length) {
+    if (window <= 1 || pts.length < 3) {
       return pts;
     }
     
@@ -566,9 +646,18 @@ class TurnSegmentation {
       debugPrint('📊 STEP 5: SMOOTHING (Moving Average)');
       debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
       debugPrint('📊 Window size: $window samples');
-      debugPrint('📊 Smoothing unwrapped yaw values then wrapping back to [-180, 180]');
+      debugPrint('📊 Unwrapping, smoothing, then wrapping back to [-180, 180]');
     }
     
+    // First unwrap the yaw values
+    final unwrapped = List<double>.filled(pts.length, 0.0);
+    unwrapped[0] = pts[0].angle;
+    for (int i = 1; i < pts.length; i++) {
+      final diff = _angleDiff(pts[i].angle, pts[i - 1].angle);
+      unwrapped[i] = unwrapped[i - 1] + diff;
+    }
+    
+    // Then smooth the unwrapped values
     final half = window ~/ 2;
     final smoothed = <_AnglePoint>[];
     for (int i = 0; i < pts.length; i++) {
@@ -603,9 +692,9 @@ class TurnSegmentation {
     if (kDebugMode && label.isNotEmpty) {
       debugPrint('');
       debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('📊 ${label == "AVERAGED_RAW" ? "STEP 4" : "STEP 6"}: YAW UNWRAPPING ($label)');
+      debugPrint('📊 STEP 6: YAW UNWRAPPING ($label)');
       debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('📊 Removing wraparound discontinuities (±180° jumps)');
+      debugPrint('📊 Removing wraparound discontinuities (±180° jumps) for peak detection');
       debugPrint('📊 Wrapped yaw (first 10):');
       for (int i = 0; i < math.min(10, pts.length); i++) {
         debugPrint('   [$i] wrapped=${pts[i].angle.toStringAsFixed(2)}°');
