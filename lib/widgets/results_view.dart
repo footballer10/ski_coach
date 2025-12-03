@@ -3,6 +3,225 @@ import 'dart:math' as math;
 import 'package:ski_coach/services/scoring.dart';
 import 'package:ski_coach/models/analysis_results.dart';
 
+/// Dot plot scaler for creating histogram columns
+class DotPlotScaler {
+  final double b;           // Starting value (rounded min)
+  final double d;           // Step size
+  final int optimalColumn;  // Which column index has the optimal line
+  final List<double> columns; // [b, b+d, b+2d, ..., b+10d]
+  
+  DotPlotScaler({
+    required double minValue,
+    required double maxValue,
+    required double optimalValue,
+  }) : 
+    b = _calculateB(minValue, maxValue, optimalValue),
+    d = _calculateD(minValue, maxValue, optimalValue),
+    columns = _calculateColumns(_calculateB(minValue, maxValue, optimalValue), _calculateD(minValue, maxValue, optimalValue)),
+    optimalColumn = _findOptimalColumn(_calculateColumns(_calculateB(minValue, maxValue, optimalValue), _calculateD(minValue, maxValue, optimalValue)), optimalValue);
+  
+  static double _calculateD(double minValue, double maxValue, double optimalValue) {
+    final greatest = math.max(math.max(minValue, maxValue), optimalValue);
+    final least = math.min(math.min(minValue, maxValue), optimalValue);
+    final range = greatest - least;
+    final rawD = range / 10.0;
+    return _roundUpTo1SF(rawD);
+  }
+  
+  static double _calculateB(double minValue, double maxValue, double optimalValue) {
+    final minOfThree = math.min(math.min(minValue, maxValue), optimalValue);
+    final d = _calculateD(minValue, maxValue, optimalValue);
+    return _roundToMultipleOf(minOfThree, d);
+  }
+  
+  static List<double> _calculateColumns(double b, double d) {
+    return List.generate(11, (i) => b + i * d);
+  }
+  
+  static int _findOptimalColumn(List<double> columns, double optimalValue) {
+    int closestIndex = 0;
+    double closestDistance = (columns[0] - optimalValue).abs();
+    for (int i = 1; i < columns.length; i++) {
+      final distance = (columns[i] - optimalValue).abs();
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = i;
+      }
+    }
+    return closestIndex;
+  }
+  
+  static double _roundUpTo1SF(double value) {
+    if (value <= 0) return 0.1;
+    final magnitude = math.pow(10, (math.log(value) / math.ln10).floor()).toDouble();
+    return (value / magnitude).ceil() * magnitude;
+  }
+  
+  static double _roundToMultipleOf(double value, double multiple) {
+    if (multiple <= 0) return value;
+    return (value / multiple).floor() * multiple;
+  }
+  
+  int findColumnIndex(double value) {
+    int closestIndex = 0;
+    double closestDistance = (columns[0] - value).abs();
+    for (int i = 1; i < columns.length; i++) {
+      final distance = (columns[i] - value).abs();
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = i;
+      }
+    }
+    return closestIndex;
+  }
+}
+
+/// Dot plot widget showing distribution of values across turns
+class DotPlot extends StatelessWidget {
+  final List<double> values;
+  final int? highlightIndex;
+  final double optimalValue;
+  final String units;
+  final double height;
+  
+  const DotPlot({
+    super.key,
+    required this.values,
+    this.highlightIndex,
+    required this.optimalValue,
+    required this.units,
+    this.height = 100,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    if (values.isEmpty) {
+      return SizedBox(height: height, child: const Center(child: Text('No data')));
+    }
+    
+    final minValue = values.reduce(math.min);
+    final maxValue = values.reduce(math.max);
+    
+    final scaler = DotPlotScaler(
+      minValue: minValue,
+      maxValue: maxValue,
+      optimalValue: optimalValue,
+    );
+    
+    // Group values into columns
+    final columnCounts = List.generate(11, (_) => <int>[]);
+    for (int i = 0; i < values.length; i++) {
+      final columnIndex = scaler.findColumnIndex(values[i]);
+      columnCounts[columnIndex].add(i);
+    }
+    
+    final dotSize = 6.0;
+    final plotHeight = height - 30; // Reserve 30px for labels
+    
+    return SizedBox(
+      height: height,
+      child: Column(
+        children: [
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final columnWidth = (constraints.maxWidth - 20) / 11;
+                return Stack(
+                  children: [
+                    // Optimal line
+                    Positioned(
+                      left: 10 + scaler.optimalColumn * columnWidth + columnWidth / 2,
+                      top: 0,
+                      bottom: 30,
+                      child: CustomPaint(
+                        painter: DottedLinePainter(color: Colors.red),
+                        size: Size(1, plotHeight),
+                      ),
+                    ),
+                    // Dots
+                    ...List.generate(11, (colIndex) {
+                      final dotsInColumn = columnCounts[colIndex];
+                      return Positioned(
+                        left: 10 + colIndex * columnWidth,
+                        bottom: 30,
+                        width: columnWidth,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: dotsInColumn.reversed.map((turnIndex) {
+                            final isHighlighted = highlightIndex != null && turnIndex == highlightIndex;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: 1),
+                              width: dotSize,
+                              height: dotSize,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isHighlighted ? Colors.blue : Colors.grey,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      );
+                    }),
+                    // Column labels
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 30,
+                      child: Row(
+                        children: List.generate(11, (i) {
+                          return Expanded(
+                            child: Center(
+                              child: Text(
+                                scaler.columns[i].toStringAsFixed(2),
+                                style: const TextStyle(fontSize: 9),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DottedLinePainter extends CustomPainter {
+  final Color color;
+  
+  const DottedLinePainter({required this.color});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    
+    const dashHeight = 4.0;
+    const dashSpace = 4.0;
+    double startY = 0;
+    
+    while (startY < size.height) {
+      canvas.drawLine(
+        Offset(0, startY),
+        Offset(0, startY + dashHeight),
+        paint,
+      );
+      startY += dashHeight + dashSpace;
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 /// Displays run analysis results with navigation through categories and turns
 class ResultsView extends StatefulWidget {
   final AnalysisResults? results; // null if showing error
@@ -131,6 +350,95 @@ class _ResultsViewState extends State<ResultsView> {
       _parallelPhase = 'Whole Turn';
       _smoothnessPhase = 'Whole Turn';
     });
+  }
+
+  // Helper methods for dot plots
+  double _getOptimalForCategory(String category) {
+    switch (category) {
+      case 'Turn Duration':
+        return 2.0;
+      case 'Edge Angle':
+        return 45.0;
+      case 'Parallel':
+        return 0.0;
+      case 'Smooth':
+        return 0.0;
+      default:
+        return 0.0;
+    }
+  }
+
+  String _getUnitsForCategory(String category) {
+    switch (category) {
+      case 'Turn Duration':
+        return 's';
+      case 'Edge Angle':
+        return '°';
+      case 'Parallel':
+        return '°';
+      case 'Smooth':
+        return '°/s';
+      default:
+        return '';
+    }
+  }
+
+  List<double> _getValuesForCategory(String category, String phase) {
+    switch (category) {
+      case 'Turn Duration':
+        return widget.results?.turnDurationsSeconds ?? [];
+      case 'Edge Angle':
+        return widget.results?.edgeAngles ?? [];
+      case 'Parallel':
+        if (phase == 'First Third') return widget.results?.parallelBeginning ?? [];
+        if (phase == 'Middle Third') return widget.results?.parallelMiddle ?? [];
+        if (phase == 'Final Third') return widget.results?.parallelEnd ?? [];
+        return widget.results?.parallelAvg ?? [];
+      case 'Smooth':
+        if (phase == 'First Third') return widget.results?.smoothBeginning ?? [];
+        if (phase == 'Middle Third') return widget.results?.smoothMiddle ?? [];
+        if (phase == 'Final Third') return widget.results?.smoothEnd ?? [];
+        return widget.results?.smoothAvg ?? [];
+      default:
+        return [];
+    }
+  }
+
+  List<double> _getValuesForMetric(String metric, String phase) {
+    switch (metric) {
+      case 'Turn Duration':
+        return widget.results?.turnDurationsSeconds ?? [];
+      case 'Edge Angle':
+        return widget.results?.edgeAngles ?? [];
+      case 'Parallel':
+        if (phase == 'First Third') return widget.results?.parallelBeginning ?? [];
+        if (phase == 'Middle Third') return widget.results?.parallelMiddle ?? [];
+        if (phase == 'Final Third') return widget.results?.parallelEnd ?? [];
+        // Default: average of the three phases
+        final beginning = widget.results?.parallelBeginning ?? [];
+        final middle = widget.results?.parallelMiddle ?? [];
+        final end = widget.results?.parallelEnd ?? [];
+        if (beginning.isEmpty || middle.isEmpty || end.isEmpty) return widget.results?.parallelAvg ?? [];
+        return List.generate(
+          beginning.length,
+          (i) => (beginning[i] + middle[i] + end[i]) / 3.0,
+        );
+      case 'Smooth':
+        if (phase == 'First Third') return widget.results?.smoothBeginning ?? [];
+        if (phase == 'Middle Third') return widget.results?.smoothMiddle ?? [];
+        if (phase == 'Final Third') return widget.results?.smoothEnd ?? [];
+        // Default: average of the three phases
+        final beginning = widget.results?.smoothBeginning ?? [];
+        final middle = widget.results?.smoothMiddle ?? [];
+        final end = widget.results?.smoothEnd ?? [];
+        if (beginning.isEmpty || middle.isEmpty || end.isEmpty) return widget.results?.smoothAvg ?? [];
+        return List.generate(
+          beginning.length,
+          (i) => (beginning[i] + middle[i] + end[i]) / 3.0,
+        );
+      default:
+        return [];
+    }
   }
 
   @override
@@ -689,7 +997,7 @@ class _ResultsViewState extends State<ResultsView> {
             ),
           ),
           const SizedBox(height: 12),
-          _buildDotPlot(),
+          _buildCategoryDotPlot(),
         ],
       ),
     );
@@ -853,8 +1161,9 @@ class _ResultsViewState extends State<ResultsView> {
 
   // Removed old color-coded visualization in favor of compact GPS card
 
-  Widget _buildDotPlot() {
-    final turnCount = widget.results?.leftSegments.length ?? 0;
+  Widget _buildCategoryDotPlot() {
+    final values = _getValuesForCategory(_selectedCategory, _categoryPageThird);
+    if (values.isEmpty) return const SizedBox();
     
     return Card(
       child: Padding(
@@ -867,14 +1176,12 @@ class _ResultsViewState extends State<ResultsView> {
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 100,
-              child: Center(
-                child: Text(
-                  '[Dot plot: $turnCount turns]',
-                  style: const TextStyle(fontStyle: FontStyle.italic),
-                ),
-              ),
+            DotPlot(
+              values: values,
+              highlightIndex: null,
+              optimalValue: _getOptimalForCategory(_selectedCategory),
+              units: _getUnitsForCategory(_selectedCategory),
+              height: 120,
             ),
           ],
         ),
@@ -1049,6 +1356,19 @@ class _ResultsViewState extends State<ResultsView> {
                   ),
                 ),
               ],
+              const SizedBox(height: 4),
+              if (selectedTurnIndex != null) ...[
+                DotPlot(
+                  values: _getValuesForMetric(
+                    metric,
+                    metric == 'Parallel' ? _parallelPhase : (metric == 'Smooth' ? _smoothnessPhase : 'Whole Turn'),
+                  ),
+                  highlightIndex: selectedTurnIndex,
+                  optimalValue: _getOptimalForCategory(metric),
+                  units: _getUnitsForCategory(metric),
+                  height: 60,
+                ),
+              ],
             ],
           ),
         ),
@@ -1125,7 +1445,20 @@ class _ResultsViewState extends State<ResultsView> {
                   const SizedBox(height: 4),
                   Text('Score: $scoreText', style: const TextStyle(fontSize: 14)),
                   const SizedBox(height: 8),
-                  const Text('[Dot plot]', style: TextStyle(fontStyle: FontStyle.italic)),
+                  if (selectedTurnIndex != null) ...[
+                    DotPlot(
+                      values: _getValuesForCategory(
+                        _selectedCategory,
+                        _selectedCategory == 'Parallel' ? _parallelPhase : (_selectedCategory == 'Smooth' ? _smoothnessPhase : 'Whole Turn'),
+                      ),
+                      highlightIndex: selectedTurnIndex,
+                      optimalValue: _getOptimalForCategory(_selectedCategory),
+                      units: _getUnitsForCategory(_selectedCategory),
+                      height: 150,
+                    ),
+                  ] else ...[
+                    const Text('[No turn selected]', style: TextStyle(fontStyle: FontStyle.italic)),
+                  ],
                 ],
               ),
             ),
