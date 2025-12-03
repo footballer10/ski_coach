@@ -797,7 +797,11 @@ class _ResultsViewState extends State<ResultsView> {
           padding: const EdgeInsets.all(8.0),
           child: Column(
             children: List.generate((widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5, (i) {
-              final turnLabel = 'Turn ${i + 1}';
+              final dirs = widget.results?.turnDirections ?? const [];
+              final direction = i < dirs.length 
+                  ? (dirs[i] == 1 ? '(R)' : '(L)')
+                  : '';
+              final turnLabel = 'Turn ${i + 1} $direction'.trim();
               final isSelected = _selectedTurn == turnLabel;
               return Expanded(
                 child: GestureDetector(
