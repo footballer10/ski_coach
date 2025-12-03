@@ -29,9 +29,28 @@ class DotPlotScaler {
   }
   
   static double _calculateB(double minValue, double maxValue, double optimalValue) {
-    final minOfThree = math.min(math.min(minValue, maxValue), optimalValue);
+    final least = math.min(math.min(minValue, maxValue), optimalValue);
+    final greatest = math.max(math.max(minValue, maxValue), optimalValue);
     final d = _calculateD(minValue, maxValue, optimalValue);
-    return _roundToMultipleOf(minOfThree, d);
+    
+    // Calculate where b would be if we round down
+    final bFloor = _roundToMultipleOf(least, d);
+    
+    // Check if the greatest value would fit within 10 steps from bFloor
+    // If not, we need to adjust b down to ensure greatest fits in column 10
+    if (greatest > bFloor + 10 * d) {
+      // The range is too large, need to start lower
+      return _roundToMultipleOf(greatest - 10 * d, d);
+    }
+    
+    // Check if the least value would be in column 0
+    // If bFloor is too low (least would be beyond column 0), adjust up
+    if (least >= bFloor + d) {
+      // Start at a value that ensures least is in column 0
+      return bFloor + d * ((least - bFloor) / d).floor();
+    }
+    
+    return bFloor;
   }
   
   static List<double> _calculateColumns(double b, double d) {
@@ -1046,8 +1065,9 @@ class _ResultsViewState extends State<ResultsView> {
       final phase = _categoryPageThird;
       List<double> vals = const [];
       if (_selectedTurn == 'All Turns') {
-        if (phase == 'Whole Turn') vals = widget.results?.parallelAvg ?? const [];
-        else if (phase == 'First Third') vals = widget.results?.parallelBeginning ?? const [];
+        if (phase == 'Whole Turn') {
+          vals = widget.results?.parallelAvg ?? const [];
+        } else if (phase == 'First Third') vals = widget.results?.parallelBeginning ?? const [];
         else if (phase == 'Middle Third') vals = widget.results?.parallelMiddle ?? const [];
         else if (phase == 'Final Third') vals = widget.results?.parallelEnd ?? const [];
         if (vals.isNotEmpty) {
@@ -1085,8 +1105,9 @@ class _ResultsViewState extends State<ResultsView> {
       final phase = _categoryPageThird;
       List<double> vals = const [];
       if (_selectedTurn == 'All Turns') {
-        if (phase == 'Whole Turn') vals = widget.results?.smoothAvg ?? const [];
-        else if (phase == 'First Third') vals = widget.results?.smoothBeginning ?? const [];
+        if (phase == 'Whole Turn') {
+          vals = widget.results?.smoothAvg ?? const [];
+        } else if (phase == 'First Third') vals = widget.results?.smoothBeginning ?? const [];
         else if (phase == 'Middle Third') vals = widget.results?.smoothMiddle ?? const [];
         else if (phase == 'Final Third') vals = widget.results?.smoothEnd ?? const [];
         if (vals.isNotEmpty) {
