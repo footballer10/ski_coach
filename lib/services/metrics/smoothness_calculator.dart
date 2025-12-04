@@ -22,8 +22,7 @@ class SmoothnessResult {
 class SmoothnessCalculator {
   /// Calculate smoothness metrics for a turn segment
   static SmoothnessResult calculate({
-    required List<AnglePoint> smoothedYaw,
-    required List<double> unwrappedSmoothedYaw,
+    required List<AnglePoint> avgYaw,
     required DateTime startTime,
     required DateTime endTime,
     required double samplingRate,
@@ -44,18 +43,18 @@ class SmoothnessCalculator {
     final middleStart = startTime.add(thirdDuration);
     final endStart = startTime.add(thirdDuration * 2);
 
-    // Find indices in smoothed yaw
-    final startYawIdx = ImuPreprocessor.indexForTime(smoothedYaw, startTime) ?? 0;
-    final endYawIdx = ImuPreprocessor.indexForTime(smoothedYaw, endTime) ?? smoothedYaw.length - 1;
+    // Find indices in averaged yaw
+    final startYawIdx = ImuPreprocessor.indexForTime(avgYaw, startTime) ?? 0;
+    final endYawIdx = ImuPreprocessor.indexForTime(avgYaw, endTime) ?? avgYaw.length - 1;
 
     final velocitiesBeginning = <double>[];
     final velocitiesMiddle = <double>[];
     final velocitiesEnd = <double>[];
 
     for (int i = startYawIdx; i < endYawIdx; i++) {
-      final yawChange = unwrappedSmoothedYaw[i + 1] - unwrappedSmoothedYaw[i];
+      final yawChange = avgYaw[i + 1].angle - avgYaw[i].angle;
       final angularVelocity = yawChange * samplingRate;
-      final sampleTime = smoothedYaw[i].time;
+      final sampleTime = avgYaw[i].time;
 
       String third = '';
       if (sampleTime.isBefore(middleStart)) {
@@ -70,7 +69,7 @@ class SmoothnessCalculator {
       }
 
       if (kDebugMode) {
-        debugPrint('   [$i] ($third) unwrappedYaw[i]=${unwrappedSmoothedYaw[i].toStringAsFixed(2)}°, unwrappedYaw[i+1]=${unwrappedSmoothedYaw[i + 1].toStringAsFixed(2)}°, Δyaw=${yawChange.toStringAsFixed(4)}°, angVel=${angularVelocity.toStringAsFixed(2)}°/s');
+        debugPrint('   [$i] ($third) yaw[i]=${avgYaw[i].angle.toStringAsFixed(2)}°, yaw[i+1]=${avgYaw[i + 1].angle.toStringAsFixed(2)}°, Δyaw=${yawChange.toStringAsFixed(4)}°, angVel=${angularVelocity.toStringAsFixed(2)}°/s');
       }
     }
 

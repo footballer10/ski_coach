@@ -25,6 +25,11 @@ class AnalysisResults {
   final double? turnSymmetryRatio;
   final double? turnSymmetryScore;
   final double? overallScore;
+  
+  // Processed sensor data and segments for graphs
+  final List? processedLeftSamples;
+  final List? processedRightSamples;
+  final List? segments;
 
   const AnalysisResults({
     required this.leftSampleCount,
@@ -49,5 +54,8 @@ class AnalysisResults {
     required this.turnSymmetryRatio,
     required this.turnSymmetryScore,
     required this.overallScore,
+    this.processedLeftSamples,
+    this.processedRightSamples,
+    this.segments,
   });
 }

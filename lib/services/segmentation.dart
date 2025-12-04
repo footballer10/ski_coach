@@ -1,8 +1,4 @@
-/// Turn segmentation - pure peak/valley detection to identify turn boundaries.
-/// 
-/// This module focuses solely on segmenting ski runs into individual turns
-/// by detecting yaw peaks and valleys. Metric calculations are handled by
-/// separate modules in the metrics/ directory.
+/// Turn segmentation - peak/valley detection for turn boundaries.
 library;
 
 import '../models/imu_sample.dart';
@@ -58,11 +54,9 @@ class TurnSegment {
 /// Segmentation parameters
 class SegmentationParams {
   final double minPeakChangeDeg;
-  final int smoothWindowSize;
 
   SegmentationParams({
     this.minPeakChangeDeg = 15.0,
-    this.smoothWindowSize = 5,
   });
 }
 
@@ -70,7 +64,7 @@ class SegmentationParams {
 class _Peak {
   final DateTime time;
   final double yaw;
-  final bool isPeak; // true = peak (right turn), false = valley (left turn)
+  final bool isPeak;
   final int index;
 
   _Peak({
@@ -100,63 +94,37 @@ class TurnSegmentation {
       debugPrint('🎿 ════════════════════════════════════════════════════════════════════════');
       debugPrint('🎿 Left samples: ${leftSamples.length}, Right samples: ${rightSamples.length}');
       debugPrint('🎿 Yaw offset: ${yawOffset.toStringAsFixed(2)}°, Sampling rate: ${samplingRate}Hz');
-      debugPrint('🎿 Min peak change: ${params.minPeakChangeDeg}°, Smooth window: ${params.smoothWindowSize}');
+      debugPrint('🎿 Min peak change: ${params.minPeakChangeDeg}°');
     }
 
-    // PREPROCESSING PIPELINE
-    if (kDebugMode) {
-      debugPrint('');
-      debugPrint('📥 RAW DATA (LEFT) - ALL SAMPLES:');
-      for (int i = 0; i < leftSamples.length; i++) {
-        final s = leftSamples[i];
-        debugPrint('   L[$i] yaw=${s.yaw.toStringAsFixed(2)}°, pitch=${s.pitch.toStringAsFixed(2)}°, roll=${s.roll.toStringAsFixed(2)}°');
-      }
-      debugPrint('📥 RAW DATA (RIGHT) - ALL SAMPLES:');
-      for (int i = 0; i < rightSamples.length; i++) {
-        final s = rightSamples[i];
-        debugPrint('   R[$i] yaw=${s.yaw.toStringAsFixed(2)}°, pitch=${s.pitch.toStringAsFixed(2)}°, roll=${s.roll.toStringAsFixed(2)}°');
-      }
-    }
+    // STEP 1: Unwrap angles (removes ±180° wraparound)
+    final unwrappedLeft = ImuPreprocessor.unwrapAngles(leftSamples, 'LEFT');
+    final unwrappedRight = ImuPreprocessor.unwrapAngles(rightSamples, 'RIGHT');
 
-    // STEP 1: Apply calibration offset to RIGHT sensor
-    final correctedRight = ImuPreprocessor.applyYawOffset(
-      rightSamples,
+    // STEP 2: Correct angle jumps for both sensors
+    final correctedLeft = ImuPreprocessor.correctAngleJumps(unwrappedLeft, 'LEFT');
+    final correctedRight = ImuPreprocessor.correctAngleJumps(unwrappedRight, 'RIGHT');
+
+    // STEP 3: Apply calibration offset to RIGHT sensor yaw only
+    final correctedRightYaw = ImuPreprocessor.applyYawOffset(
+      correctedRight,
       yawOffset,
       'RIGHT',
     );
 
-    // STEP 2: Correct angle jumps for both sensors
-    final correctedLeft = ImuPreprocessor.correctAngleJumps(leftSamples, 'LEFT');
-    final correctedRightJumps = ImuPreprocessor.correctAngleJumps(correctedRight, 'RIGHT');
-
-    // STEP 3: Unwrap individual sensor yaws BEFORE averaging
-    final unwrappedLeft = ImuPreprocessor.unwrapSensorYaw(correctedLeft, 'LEFT');
-    final unwrappedRight = ImuPreprocessor.unwrapSensorYaw(correctedRightJumps, 'RIGHT');
-
-    // STEP 4: Average unwrapped yaw signals (preserves originals for parallelness)
-    final avgYaw = ImuPreprocessor.averageUnwrappedYawSignals(
+    // STEP 4: Average yaw signals
+    final avgYaw = ImuPreprocessor.averageYawSignals(
       correctedLeft,
-      correctedRightJumps,
-      unwrappedLeft,
-      unwrappedRight,
+      correctedRightYaw,
     );
 
-    // STEP 5: Smooth averaged yaw
-    final smoothedYaw = ImuPreprocessor.smoothYaw(
-      avgYaw,
-      windowSize: params.smoothWindowSize,
-    );
-
-    // STEP 6: Unwrap smoothed yaw for peak detection
-    final unwrappedSmoothedYaw = ImuPreprocessor.unwrapSmoothedYaw(smoothedYaw, 'SMOOTHED');
-
-    // STEP 7: Detect peaks and valleys (turn boundaries)
-    final peaks = _detectYawPeaks(smoothedYaw, unwrappedSmoothedYaw, params);
+    // STEP 5: Detect peaks and valleys (turn boundaries)
+    final peaks = _detectYawPeaks(avgYaw, params);
 
     if (kDebugMode) {
       debugPrint('');
       debugPrint('🎯 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🎯 STEP 7: PEAK DETECTION RESULTS');
+      debugPrint('🎯 STEP 5: PEAK DETECTION RESULTS');
       debugPrint('🎯 ════════════════════════════════════════════════════════════════════════');
       debugPrint('🎯 Found ${peaks.length} peaks/valleys');
       for (int i = 0; i < peaks.length; i++) {
@@ -165,7 +133,7 @@ class TurnSegmentation {
       }
     }
 
-    // STEP 8: Build turn segments between consecutive peaks
+    // STEP 6: Build turn segments between consecutive peaks
     final segments = <TurnSegment>[];
 
     for (int k = 0; k < peaks.length - 1; k++) {
@@ -184,13 +152,13 @@ class TurnSegmentation {
       // Find nearest sample indices for this turn
       final startIdxLeft = ImuPreprocessor.nearestIndex(correctedLeft, a.time);
       final endIdxLeft = ImuPreprocessor.nearestIndex(correctedLeft, b.time);
-      final startIdxRight = ImuPreprocessor.nearestIndex(correctedRightJumps, a.time);
-      final endIdxRight = ImuPreprocessor.nearestIndex(correctedRightJumps, b.time);
+      final startIdxRight = ImuPreprocessor.nearestIndex(correctedRightYaw, a.time);
+      final endIdxRight = ImuPreprocessor.nearestIndex(correctedRightYaw, b.time);
 
       // METRIC 1: Calculate max edge angle
       final maxEdgeAngle = EdgeAngleCalculator.calculateMaxEdgeAngle(
         leftSamples: correctedLeft,
-        rightSamples: correctedRightJumps,
+        rightSamples: correctedRightYaw,
         startIdxLeft: startIdxLeft,
         endIdxLeft: endIdxLeft,
         startIdxRight: startIdxRight,
@@ -201,7 +169,7 @@ class TurnSegmentation {
       // METRIC 2: Calculate parallelness
       final parallelnessResult = ParallelnessCalculator.calculate(
         leftSamples: correctedLeft,
-        rightSamples: correctedRightJumps,
+        rightSamples: correctedRightYaw,
         startIdxLeft: startIdxLeft,
         endIdxLeft: endIdxLeft,
         startIdxRight: startIdxRight,
@@ -213,8 +181,7 @@ class TurnSegmentation {
 
       // METRIC 3: Calculate smoothness
       final smoothnessResult = SmoothnessCalculator.calculate(
-        smoothedYaw: smoothedYaw,
-        unwrappedSmoothedYaw: unwrappedSmoothedYaw,
+        avgYaw: avgYaw,
         startTime: a.time,
         endTime: b.time,
         samplingRate: samplingRate,
@@ -236,7 +203,7 @@ class TurnSegmentation {
         startIndexRight: startIdxRight,
         endIndexLeft: endIdxLeft,
         endIndexRight: endIdxRight,
-        direction: b.isPeak ? 1 : -1, // peak = right turn, valley = left turn
+        direction: b.isPeak ? 1 : -1,
         maxEdgeAngle: maxEdgeAngle,
         avgParallelness: parallelnessResult.average,
         beginningParallelness: parallelnessResult.beginning,
@@ -276,7 +243,7 @@ class TurnSegmentation {
       debugPrint('');
       for (int i = 0; i < segments.length; i++) {
         final s = segments[i];
-        debugPrint('   Turn ${i + 1}: ${s.durationSeconds.toStringAsFixed(3)}s, ${s.direction == 1 ? "RIGHT" : "LEFT"}, edge=${s.maxEdgeAngle.toStringAsFixed(1)}°, parallel=${s.avgParallelness.toStringAsFixed(1)}°, smooth=${s.avgSmoothnessSD.toStringAsFixed(1)}°/s');
+        debugPrint('   Turn ${i + 1}: ${s.durationSeconds.toStringAsFixed(3)}s, ${s.direction == 1 ? "RIGHT" : "LEFT"}, edge=${s.maxEdgeAngle.toStringAsFixed(1)}°, parallel=${s.avgParallelness.toStringAsFixed(1)}°');
       }
       debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
     }
@@ -287,35 +254,34 @@ class TurnSegmentation {
   /// Detect peaks and valleys in yaw signal using hysteresis
   static List<_Peak> _detectYawPeaks(
     List<AnglePoint> pts,
-    List<double> unwrapped,
     SegmentationParams params,
   ) {
-    if (pts.length < 2 || pts.length != unwrapped.length) {
+    if (pts.length < 2) {
       return [];
     }
 
     final peaks = <_Peak>[];
     final hysteresis = math.max(params.minPeakChangeDeg, 10.0);
 
-    // Decide whether we start by looking for a max or a min based on the first noticeable slope
+    // Decide whether we start by looking for a max or a min
     bool seekingMax = true;
-    for (int i = 1; i < unwrapped.length; i++) {
-      final delta = unwrapped[i] - unwrapped[i - 1];
+    for (int i = 1; i < pts.length; i++) {
+      final delta = pts[i].angle - pts[i - 1].angle;
       if (delta.abs() > 0.05) {
         seekingMax = delta > 0;
         break;
       }
     }
 
-    double currentExtreme = unwrapped[0];
+    double currentExtreme = pts[0].angle;
     int extremeIdx = 0;
 
     if (kDebugMode) {
       debugPrint('🎯 Hysteresis: ${hysteresis.toStringAsFixed(1)}°, Starting mode: ${seekingMax ? "seeking MAX" : "seeking MIN"}');
     }
 
-    for (int i = 1; i < unwrapped.length; i++) {
-      final value = unwrapped[i];
+    for (int i = 1; i < pts.length; i++) {
+      final value = pts[i].angle;
 
       if (seekingMax) {
         if (value > currentExtreme) {

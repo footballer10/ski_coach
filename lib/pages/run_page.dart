@@ -5,6 +5,7 @@ import 'package:ski_coach/models/analysis_results.dart';
 import '../models/imu_sample.dart';
 import '../services/ble_manager.dart';
 import '../services/segmentation.dart';
+import '../services/imu_preprocessor.dart';
 import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
 
@@ -310,6 +311,15 @@ enum RunState { recording, processing, results }
       yawOffset: yawOffset,
       samplingRate: samplingRate,
     );
+    
+    // Store processed data for graphs (we need the processed samples from segmentation)
+    // Re-process to get the corrected samples (same pipeline as segmentation)
+    final unwrappedLeft = ImuPreprocessor.unwrapAngles(leftImu, 'LEFT');
+    final unwrappedRight = ImuPreprocessor.unwrapAngles(rightImu, 'RIGHT');
+    final correctedLeft = ImuPreprocessor.correctAngleJumps(unwrappedLeft, 'LEFT');
+    final correctedRight = ImuPreprocessor.correctAngleJumps(unwrappedRight, 'RIGHT');
+    final correctedRightYaw = ImuPreprocessor.applyYawOffset(correctedRight, yawOffset, 'RIGHT');
+    
     final turnDurations = segments.map((s) => s.durationSeconds).toList();
     final edgeAngles = segments.map((s) => s.maxEdgeAngle).toList();
     final turnDirections = segments.map((s) => s.direction).toList();
@@ -358,6 +368,9 @@ enum RunState { recording, processing, results }
       'rightSampleCount': rightSamples.length,
       'leftSamples': leftSamples,
       'rightSamples': rightSamples,
+      'processedLeftSamples': correctedLeft,
+      'processedRightSamples': correctedRightYaw,
+      'segments': segments,
         'duration': leftSamples.isNotEmpty && leftSamples.length > 1
           ? leftSamples.last.timestamp.difference(leftSamples.first.timestamp).inSeconds
           : 0,

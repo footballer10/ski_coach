@@ -2,23 +2,30 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:ski_coach/services/scoring.dart';
 import 'package:ski_coach/models/analysis_results.dart';
+import 'package:ski_coach/widgets/time_series_graph.dart';
+import 'package:ski_coach/models/imu_sample.dart';
+import 'package:ski_coach/services/segmentation.dart';
 
 /// Dot plot scaler for creating histogram columns
 class DotPlotScaler {
-  final double b;           // Starting value (rounded min)
+  final double b;           // Starting value
   final double d;           // Step size
   final int optimalColumn;  // Which column index has the optimal line
-  final List<double> columns; // [b, b+d, b+2d, ..., b+10d]
+  final List<double> columns; // Trimmed columns containing data
+  final int startColumn;    // First column index in full range
+  final int endColumn;      // Last column index in full range
   
   DotPlotScaler({
     required double minValue,
     required double maxValue,
     required double optimalValue,
   }) : 
-    b = _calculateB(minValue, maxValue, optimalValue),
     d = _calculateD(minValue, maxValue, optimalValue),
-    columns = _calculateColumns(_calculateB(minValue, maxValue, optimalValue), _calculateD(minValue, maxValue, optimalValue)),
-    optimalColumn = _findOptimalColumn(_calculateColumns(_calculateB(minValue, maxValue, optimalValue), _calculateD(minValue, maxValue, optimalValue)), optimalValue);
+    b = _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)),
+    startColumn = _calculateStartColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))),
+    endColumn = _calculateEndColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))),
+    columns = _calculateTrimmedColumns(_calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)), _calculateD(minValue, maxValue, optimalValue), _calculateStartColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))), _calculateEndColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)))),
+    optimalColumn = _findOptimalColumn(_calculateTrimmedColumns(_calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)), _calculateD(minValue, maxValue, optimalValue), _calculateStartColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))), _calculateEndColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)))), optimalValue);
   
   static double _calculateD(double minValue, double maxValue, double optimalValue) {
     final greatest = math.max(math.max(minValue, maxValue), optimalValue);
@@ -28,33 +35,45 @@ class DotPlotScaler {
     return _roundUpTo1SF(rawD);
   }
   
-  static double _calculateB(double minValue, double maxValue, double optimalValue) {
+  static double _calculateB(double minValue, double maxValue, double optimalValue, double d) {
     final least = math.min(math.min(minValue, maxValue), optimalValue);
     final greatest = math.max(math.max(minValue, maxValue), optimalValue);
-    final d = _calculateD(minValue, maxValue, optimalValue);
     
-    // Calculate where b would be if we round down
-    final bFloor = _roundToMultipleOf(least, d);
+    // Start by rounding down the least value
+    double b = _roundToMultipleOf(least, d);
     
-    // Check if the greatest value would fit within 10 steps from bFloor
-    // If not, we need to adjust b down to ensure greatest fits in column 10
-    if (greatest > bFloor + 10 * d) {
-      // The range is too large, need to start lower
-      return _roundToMultipleOf(greatest - 10 * d, d);
+    // Ensure the greatest value fits within 11 columns (b + 10*d must be >= greatest)
+    while (b + 10 * d < greatest) {
+      b -= d;
     }
     
-    // Check if the least value would be in column 0
-    // If bFloor is too low (least would be beyond column 0), adjust up
-    if (least >= bFloor + d) {
-      // Start at a value that ensures least is in column 0
-      return bFloor + d * ((least - bFloor) / d).floor();
+    // Also ensure the least value fits (b should be <= least)
+    while (b > least) {
+      b -= d;
     }
     
-    return bFloor;
+    return b;
   }
   
-  static List<double> _calculateColumns(double b, double d) {
-    return List.generate(11, (i) => b + i * d);
+  static int _calculateStartColumn(double minValue, double maxValue, double optimalValue, double d, double b) {
+    final least = math.min(math.min(minValue, maxValue), optimalValue);
+    
+    // Find which column the least value falls into
+    int startCol = ((least - b) / d).floor();
+    return math.max(0, startCol);
+  }
+  
+  static int _calculateEndColumn(double minValue, double maxValue, double optimalValue, double d, double b) {
+    final greatest = math.max(math.max(minValue, maxValue), optimalValue);
+    
+    // Find which column the greatest value falls into
+    int endCol = ((greatest - b) / d).ceil();
+    return math.min(10, endCol);
+  }
+  
+  static List<double> _calculateTrimmedColumns(double b, double d, int startCol, int endCol) {
+    final numCols = endCol - startCol + 1;
+    return List.generate(numCols, (i) => b + (startCol + i) * d);
   }
   
   static int _findOptimalColumn(List<double> columns, double optimalValue) {
@@ -127,8 +146,10 @@ class DotPlot extends StatelessWidget {
       optimalValue: optimalValue,
     );
     
+    final numColumns = scaler.columns.length;
+    
     // Group values into columns
-    final columnCounts = List.generate(11, (_) => <int>[]);
+    final columnCounts = List.generate(numColumns, (_) => <int>[]);
     for (int i = 0; i < values.length; i++) {
       final columnIndex = scaler.findColumnIndex(values[i]);
       columnCounts[columnIndex].add(i);
@@ -144,7 +165,7 @@ class DotPlot extends StatelessWidget {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final columnWidth = (constraints.maxWidth - 20) / 11;
+                final columnWidth = (constraints.maxWidth - 20) / numColumns;
                 return Stack(
                   children: [
                     // Optimal line
@@ -158,26 +179,32 @@ class DotPlot extends StatelessWidget {
                       ),
                     ),
                     // Dots
-                    ...List.generate(11, (colIndex) {
+                    ...List.generate(numColumns, (colIndex) {
                       final dotsInColumn = columnCounts[colIndex];
                       return Positioned(
                         left: 10 + colIndex * columnWidth,
                         bottom: 30,
+                        top: 0,
                         width: columnWidth,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: dotsInColumn.reversed.map((turnIndex) {
-                            final isHighlighted = highlightIndex != null && turnIndex == highlightIndex;
-                            return Container(
-                              margin: const EdgeInsets.symmetric(vertical: 1),
-                              width: dotSize,
-                              height: dotSize,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isHighlighted ? Colors.blue : Colors.grey,
-                              ),
-                            );
-                          }).toList(),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: ClipRect(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: dotsInColumn.reversed.map((turnIndex) {
+                                final isHighlighted = highlightIndex != null && turnIndex == highlightIndex;
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 1),
+                                  width: dotSize,
+                                  height: dotSize,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isHighlighted ? Colors.blue : Colors.grey,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ),
                       );
                     }),
@@ -188,7 +215,7 @@ class DotPlot extends StatelessWidget {
                       bottom: 0,
                       height: 30,
                       child: Row(
-                        children: List.generate(11, (i) {
+                        children: List.generate(numColumns, (i) {
                           return Expanded(
                             child: Center(
                               child: Text(
@@ -912,7 +939,12 @@ class _ResultsViewState extends State<ResultsView> {
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 children: List.generate(actualTurnCount, (i) {
-                  final turnLabel = 'Turn ${i + 1}';
+                  // Create turn label with direction to match _turns list
+                  final dirs = widget.results?.turnDirections ?? const [];
+                  final direction = i < dirs.length 
+                      ? (dirs[i] == 1 ? '(R)' : '(L)')
+                      : '';
+                  final turnLabel = 'Turn ${i + 1} $direction'.trim();
                     final turnDuration = (i < (widget.results?.turnDurationsSeconds.length ?? 0))
                       ? '${widget.results!.turnDurationsSeconds[i].toStringAsFixed(3)}s'
                       : '—';
@@ -1382,6 +1414,11 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ],
               const SizedBox(height: 4),
+              // Add time series graph for Edge Angle or Parallel in metric modules
+              if (selectedTurnIndex != null && (metric == 'Edge Angle' || metric == 'Parallel')) ...[
+                _buildTimeSeriesGraphForMetric(metric, selectedTurnIndex),
+                const SizedBox(height: 4),
+              ],
               if (selectedTurnIndex != null) ...[
                 DotPlot(
                   values: _getValuesForMetric(
@@ -1470,6 +1507,11 @@ class _ResultsViewState extends State<ResultsView> {
                   const SizedBox(height: 4),
                   Text('Score: $scoreText', style: const TextStyle(fontSize: 14)),
                   const SizedBox(height: 8),
+                  // Add time series graph for Edge Angle or Parallel
+                  if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel')) ...[
+                    _buildTimeSeriesGraph(selectedTurnIndex),
+                    const SizedBox(height: 12),
+                  ],
                   if (selectedTurnIndex != null) ...[
                     DotPlot(
                       values: _getValuesForCategory(
@@ -1490,6 +1532,129 @@ class _ResultsViewState extends State<ResultsView> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTimeSeriesGraph(int turnIndex) {
+    if (_selectedCategory == 'Edge Angle') {
+      return _buildEdgeAngleGraph(turnIndex);
+    } else if (_selectedCategory == 'Parallel') {
+      return _buildParallelnessGraph(turnIndex);
+    }
+    return const SizedBox();
+  }
+
+  Widget _buildTimeSeriesGraphForMetric(String metric, int turnIndex) {
+    if (metric == 'Edge Angle') {
+      return _buildEdgeAngleGraph(turnIndex);
+    } else if (metric == 'Parallel') {
+      return _buildParallelnessGraph(turnIndex);
+    }
+    return const SizedBox();
+  }
+
+  Widget _buildEdgeAngleGraph(int turnIndex) {
+    final processedLeft = widget.results?.processedLeftSamples as List<ImuSample>?;
+    final processedRight = widget.results?.processedRightSamples as List<ImuSample>?;
+    final segments = widget.results?.segments as List<TurnSegment>?;
+
+    if (processedLeft == null || processedRight == null || segments == null || turnIndex >= segments.length) {
+      return const SizedBox();
+    }
+
+    final segment = segments[turnIndex];
+    final dataPoints = <GraphPoint>[];
+
+    // Get samples for this turn and plot max(left.pitch, right.pitch) over time
+    for (int i = segment.startIndexLeft; i <= segment.endIndexLeft && i < processedLeft.length; i++) {
+      final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
+      
+      if (rightIndex >= segment.startIndexRight && rightIndex <= segment.endIndexRight && rightIndex < processedRight.length) {
+        final leftSample = processedLeft[i];
+        final rightSample = processedRight[rightIndex];
+        final timeSec = leftSample.timestamp.difference(segment.startTime).inMicroseconds / 1000000.0;
+        final maxPitch = math.max(leftSample.pitch.abs(), rightSample.pitch.abs());
+        dataPoints.add(GraphPoint(timeSec, maxPitch));
+      }
+    }
+
+    return TimeSeriesGraph(
+      dataPoints: dataPoints,
+      optimalValue: 45.0,
+      yAxisLabel: 'Edge Angle (°)',
+      durationSeconds: segment.durationSeconds,
+      height: 120,
+    );
+  }
+
+  Widget _buildParallelnessGraph(int turnIndex) {
+    final processedLeft = widget.results?.processedLeftSamples as List<ImuSample>?;
+    final processedRight = widget.results?.processedRightSamples as List<ImuSample>?;
+    final segments = widget.results?.segments as List<TurnSegment>?;
+
+    if (processedLeft == null || processedRight == null || segments == null || turnIndex >= segments.length) {
+      return const SizedBox();
+    }
+
+    final segment = segments[turnIndex];
+    final phase = _parallelPhase;
+    
+    // Determine time range based on selected phase
+    int startIdx, endIdx;
+    double sectionDuration;
+    double optimalLineValue;
+
+    final totalSamples = segment.endIndexLeft - segment.startIndexLeft + 1;
+    final samplesPerThird = (totalSamples / 3.0).round();
+
+    if (phase == 'Whole Turn') {
+      startIdx = segment.startIndexLeft;
+      endIdx = segment.endIndexLeft;
+      sectionDuration = segment.durationSeconds;
+      optimalLineValue = segment.avgParallelness;
+    } else {
+      final thirdDuration = segment.durationSeconds / 3.0;
+      
+      if (phase == 'First Third') {
+        startIdx = segment.startIndexLeft;
+        endIdx = segment.startIndexLeft + samplesPerThird - 1;
+        sectionDuration = thirdDuration;
+        optimalLineValue = segment.beginningParallelness;
+      } else if (phase == 'Middle Third') {
+        startIdx = segment.startIndexLeft + samplesPerThird;
+        endIdx = segment.startIndexLeft + 2 * samplesPerThird - 1;
+        sectionDuration = thirdDuration;
+        optimalLineValue = segment.middleParallelness;
+      } else { // Final Third
+        startIdx = segment.startIndexLeft + 2 * samplesPerThird;
+        endIdx = segment.endIndexLeft;
+        sectionDuration = thirdDuration;
+        optimalLineValue = segment.endParallelness;
+      }
+    }
+
+    final dataPoints = <GraphPoint>[];
+    final sectionStartTime = processedLeft[startIdx].timestamp;
+
+    // Get samples for this section and plot |left.yaw - right.yaw|
+    for (int i = startIdx; i <= endIdx && i < processedLeft.length; i++) {
+      final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
+      
+      if (rightIndex >= segment.startIndexRight && rightIndex <= segment.endIndexRight && rightIndex < processedRight.length) {
+        final leftSample = processedLeft[i];
+        final rightSample = processedRight[rightIndex];
+        final timeSec = leftSample.timestamp.difference(sectionStartTime).inMicroseconds / 1000000.0;
+        final parallelness = (leftSample.yaw - rightSample.yaw).abs();
+        dataPoints.add(GraphPoint(timeSec, parallelness));
+      }
+    }
+
+    return TimeSeriesGraph(
+      dataPoints: dataPoints,
+      optimalValue: optimalLineValue,
+      yAxisLabel: 'Parallelness (°)',
+      durationSeconds: sectionDuration,
+      height: 120,
     );
   }
 }

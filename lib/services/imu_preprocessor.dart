@@ -1,7 +1,7 @@
-/// IMU data preprocessing: calibration offsets, jump correction, unwrapping, averaging, smoothing.
+/// IMU data preprocessing: unwrapping, calibration, jump correction, averaging.
 library;
 
-import '../../models/imu_sample.dart';
+import '../models/imu_sample.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 
@@ -15,7 +15,88 @@ class AnglePoint {
 
 /// Preprocesses IMU data through the full pipeline
 class ImuPreprocessor {
-  /// Apply calibration offset to right sensor yaw
+  /// STEP 1: Unwrap angles to remove ±180° discontinuities
+  static List<ImuSample> unwrapAngles(
+    List<ImuSample> samples, [
+    String label = '',
+  ]) {
+    if (samples.isEmpty) return samples;
+
+    if (kDebugMode) {
+      debugPrint('');
+      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint('🔧 STEP 1: UNWRAP ANGLES ($label)');
+      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint('🔧 Purpose: Remove ±180° wraparound discontinuities');
+      debugPrint('🔧 Input: ${samples.length} samples');
+    }
+
+    final unwrapped = <ImuSample>[];
+    double yawOffset = 0.0;
+    double pitchOffset = 0.0;
+    double rollOffset = 0.0;
+
+    unwrapped.add(samples[0]);
+
+    for (int i = 1; i < samples.length; i++) {
+      final prev = samples[i - 1];
+      final curr = samples[i];
+
+      // Check yaw
+      final yawDiff = curr.yaw - prev.yaw;
+      if (yawDiff > 180) {
+        yawOffset -= 360;
+      } else if (yawDiff < -180) {
+        yawOffset += 360;
+      }
+
+      // Check pitch
+      final pitchDiff = curr.pitch - prev.pitch;
+      if (pitchDiff > 180) {
+        pitchOffset -= 360;
+      } else if (pitchDiff < -180) {
+        pitchOffset += 360;
+      }
+
+      // Check roll
+      final rollDiff = curr.roll - prev.roll;
+      if (rollDiff > 180) {
+        rollOffset -= 360;
+      } else if (rollDiff < -180) {
+        rollOffset += 360;
+      }
+
+      unwrapped.add(ImuSample(
+        timestamp: curr.timestamp,
+        ax: curr.ax,
+        ay: curr.ay,
+        az: curr.az,
+        gx: curr.gx,
+        gy: curr.gy,
+        gz: curr.gz,
+        yaw: curr.yaw + yawOffset,
+        pitch: curr.pitch + pitchOffset,
+        roll: curr.roll + rollOffset,
+        parallelness: curr.parallelness,
+      ));
+    }
+
+    if (kDebugMode) {
+      debugPrint('🔧 SIDE-BY-SIDE COMPARISON:');
+      debugPrint('   Idx | Wrapped Roll | Unwrapped Roll | Wrapped Pitch | Unwrapped Pitch | Wrapped Yaw   | Unwrapped Yaw');
+      debugPrint('   ────|──────────────|────────────────|───────────────|─────────────────|───────────────|───────────────');
+      for (int i = 0; i < samples.length; i++) {
+        final orig = samples[i];
+        final unwr = unwrapped[i];
+        debugPrint('   ${i.toString().padLeft(3)} | ${orig.roll.toStringAsFixed(2).padLeft(12)} | ${unwr.roll.toStringAsFixed(2).padLeft(14)} | ${orig.pitch.toStringAsFixed(2).padLeft(13)} | ${unwr.pitch.toStringAsFixed(2).padLeft(15)} | ${orig.yaw.toStringAsFixed(2).padLeft(13)} | ${unwr.yaw.toStringAsFixed(2).padLeft(13)}');
+      }
+      debugPrint('🔧 Unwrapping complete.');
+    }
+
+    return unwrapped;
+  }
+
+  /// STEP 2: Apply calibration offset to RIGHT sensor yaw
   static List<ImuSample> applyYawOffset(
     List<ImuSample> samples,
     double offset, [
@@ -24,7 +105,7 @@ class ImuPreprocessor {
     if (kDebugMode) {
       debugPrint('');
       debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 STEP 1: APPLY YAW OFFSET ($label)');
+      debugPrint('🔧 STEP 3: APPLY YAW OFFSET ($label)');
       debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
       debugPrint('🔧 Offset: ${offset.toStringAsFixed(2)}° (subtracting from right sensor)');
       debugPrint('🔧 Processing ${samples.length} samples...');
@@ -47,20 +128,22 @@ class ImuPreprocessor {
         roll: s.roll,
         parallelness: s.parallelness,
       ));
-
-      if (kDebugMode) {
-        debugPrint('   [$i] Before: ${s.yaw.toStringAsFixed(2)}°, After: ${newYaw.toStringAsFixed(2)}°');
-      }
     }
 
     if (kDebugMode) {
+      debugPrint('🔧 SIDE-BY-SIDE COMPARISON:');
+      debugPrint('   Idx | Before Yaw   | After Yaw');
+      debugPrint('   ────|──────────────|────────────');
+      for (int i = 0; i < samples.length; i++) {
+        debugPrint('   ${i.toString().padLeft(3)} | ${samples[i].yaw.toStringAsFixed(2).padLeft(12)} | ${corrected[i].yaw.toStringAsFixed(2).padLeft(10)}');
+      }
       debugPrint('🔧 Offset applied to all samples.');
     }
 
     return corrected;
   }
 
-  /// Correct angle jumps larger than threshold (default 10°)
+  /// STEP 3: Correct angle jumps with accumulating offset
   static List<ImuSample> correctAngleJumps(
     List<ImuSample> samples, [
     String label = '',
@@ -75,43 +158,35 @@ class ImuPreprocessor {
       debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
       debugPrint('🔧 Threshold: ${threshold.toStringAsFixed(2)}°');
       debugPrint('🔧 Input: ${samples.length} samples');
-      debugPrint('🔧 INPUT SAMPLES (ALL):');
-    }
-
-    for (int i = 0; i < samples.length; i++) {
-      final s = samples[i];
-      if (kDebugMode) {
-        debugPrint('   [$i] yaw=${s.yaw.toStringAsFixed(2)}°, pitch=${s.pitch.toStringAsFixed(2)}°, roll=${s.roll.toStringAsFixed(2)}°');
-      }
     }
 
     final corrected = <ImuSample>[];
     corrected.add(samples[0]);
 
+    double yawAccumOffset = 0.0;
+    double pitchAccumOffset = 0.0;
+    double rollAccumOffset = 0.0;
+
     for (int i = 1; i < samples.length; i++) {
       final prev = corrected[i - 1];
       final curr = samples[i];
 
-      double correctedYaw = curr.yaw;
-      double correctedPitch = curr.pitch;
-      double correctedRoll = curr.roll;
-
-      // Detect and correct yaw jumps
+      // Detect yaw jump
       final yawDiff = (curr.yaw - prev.yaw).abs();
-      if (yawDiff > threshold) {
-        correctedYaw = prev.yaw;
+      if (yawDiff > threshold && yawDiff < 180) { // Not a wraparound
+        yawAccumOffset += (prev.yaw - curr.yaw);
       }
 
-      // Detect and correct pitch jumps
+      // Detect pitch jump
       final pitchDiff = (curr.pitch - prev.pitch).abs();
-      if (pitchDiff > threshold) {
-        correctedPitch = prev.pitch;
+      if (pitchDiff > threshold && pitchDiff < 180) {
+        pitchAccumOffset += (prev.pitch - curr.pitch);
       }
 
-      // Detect and correct roll jumps
+      // Detect roll jump
       final rollDiff = (curr.roll - prev.roll).abs();
-      if (rollDiff > threshold) {
-        correctedRoll = prev.roll;
+      if (rollDiff > threshold && rollDiff < 180) {
+        rollAccumOffset += (prev.roll - curr.roll);
       }
 
       corrected.add(ImuSample(
@@ -122,18 +197,21 @@ class ImuPreprocessor {
         gx: curr.gx,
         gy: curr.gy,
         gz: curr.gz,
-        yaw: correctedYaw,
-        pitch: correctedPitch,
-        roll: correctedRoll,
+        yaw: curr.yaw + yawAccumOffset,
+        pitch: curr.pitch + pitchAccumOffset,
+        roll: curr.roll + rollAccumOffset,
         parallelness: curr.parallelness,
       ));
     }
 
     if (kDebugMode) {
-      debugPrint('🔧 OUTPUT SAMPLES (ALL):');
-      for (int i = 0; i < corrected.length; i++) {
-        final s = corrected[i];
-        debugPrint('   [$i] yaw=${s.yaw.toStringAsFixed(2)}°, pitch=${s.pitch.toStringAsFixed(2)}°, roll=${s.roll.toStringAsFixed(2)}°');
+      debugPrint('🔧 SIDE-BY-SIDE COMPARISON:');
+      debugPrint('   Idx | Before Roll  | After Roll   | Before Pitch | After Pitch  | Before Yaw   | After Yaw');
+      debugPrint('   ────|──────────────|──────────────|──────────────|──────────────|──────────────|───────────');
+      for (int i = 0; i < samples.length; i++) {
+        final orig = samples[i];
+        final corr = corrected[i];
+        debugPrint('   ${i.toString().padLeft(3)} | ${orig.roll.toStringAsFixed(2).padLeft(12)} | ${corr.roll.toStringAsFixed(2).padLeft(12)} | ${orig.pitch.toStringAsFixed(2).padLeft(12)} | ${corr.pitch.toStringAsFixed(2).padLeft(12)} | ${orig.yaw.toStringAsFixed(2).padLeft(12)} | ${corr.yaw.toStringAsFixed(2).padLeft(9)}');
       }
       debugPrint('🔧 Jump correction complete.');
     }
@@ -141,65 +219,15 @@ class ImuPreprocessor {
     return corrected;
   }
 
-  /// Unwrap individual sensor yaw angles (before averaging)
-  static List<double> unwrapSensorYaw(
-    List<ImuSample> samples, [
-    String label = '',
-  ]) {
-    if (samples.isEmpty) return [];
-
-    if (kDebugMode) {
-      debugPrint('');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 STEP 3: UNWRAP SENSOR YAW ($label)');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 Purpose: Remove ±180° wraparound discontinuities BEFORE averaging');
-      debugPrint('🔧 Input: ${samples.length} samples');
-      debugPrint('🔧 INPUT SAMPLES (ALL):');
-    }
-
-    for (int i = 0; i < samples.length; i++) {
-      if (kDebugMode) {
-        debugPrint('   [$i] wrapped_yaw=${samples[i].yaw.toStringAsFixed(2)}°');
-      }
-    }
-
-    final unwrapped = <double>[];
-    unwrapped.add(samples[0].yaw);
-    double offset = 0.0;
-
-    for (int i = 1; i < samples.length; i++) {
-      final diff = samples[i].yaw - samples[i - 1].yaw;
-      if (diff > 180) {
-        offset -= 360;
-      } else if (diff < -180) {
-        offset += 360;
-      }
-      unwrapped.add(samples[i].yaw + offset);
-    }
-
-    if (kDebugMode) {
-      debugPrint('🔧 OUTPUT UNWRAPPED YAW (ALL):');
-      for (int i = 0; i < unwrapped.length; i++) {
-        debugPrint('   [$i] unwrapped_yaw=${unwrapped[i].toStringAsFixed(2)}°');
-      }
-      debugPrint('🔧 Unwrapping complete.');
-    }
-
-    return unwrapped;
-  }
-
-  /// Average unwrapped yaw signals from both sensors (preserves originals)
-  static List<AnglePoint> averageUnwrappedYawSignals(
+  /// STEP 4: Average yaw signals from both sensors (preserves originals)
+  static List<AnglePoint> averageYawSignals(
     List<ImuSample> left,
     List<ImuSample> right,
-    List<double> unwrappedLeft,
-    List<double> unwrappedRight,
   ) {
     if (kDebugMode) {
       debugPrint('');
       debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 STEP 4: AVERAGE UNWRAPPED YAW SIGNALS');
+      debugPrint('🔧 STEP 4: AVERAGE YAW SIGNALS');
       debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
       debugPrint('🔧 Left samples: ${left.length}, Right samples: ${right.length}');
       debugPrint('🔧 NOTE: Original sensor yaws preserved for parallelness calculation');
@@ -209,130 +237,21 @@ class ImuPreprocessor {
     final minLength = math.min(left.length, right.length);
 
     for (int i = 0; i < minLength; i++) {
-      final avgYaw = (unwrappedLeft[i] + unwrappedRight[i]) / 2.0;
+      final avgYaw = (left[i].yaw + right[i].yaw) / 2.0;
       result.add(AnglePoint(left[i].timestamp, avgYaw));
     }
 
     if (kDebugMode) {
-      debugPrint('🔧 OUTPUT AVERAGED YAW (ALL):');
+      debugPrint('🔧 SIDE-BY-SIDE COMPARISON:');
+      debugPrint('   Idx | Left Yaw     | Right Yaw    | Avg Yaw');
+      debugPrint('   ────|──────────────|──────────────|────────────');
       for (int i = 0; i < result.length; i++) {
-        debugPrint('   [$i] L_unwrapped=${unwrappedLeft[i].toStringAsFixed(2)}°, R_unwrapped=${unwrappedRight[i].toStringAsFixed(2)}°, avg=${result[i].angle.toStringAsFixed(2)}°');
+        debugPrint('   ${i.toString().padLeft(3)} | ${left[i].yaw.toStringAsFixed(2).padLeft(12)} | ${right[i].yaw.toStringAsFixed(2).padLeft(12)} | ${result[i].angle.toStringAsFixed(2).padLeft(10)}');
       }
       debugPrint('🔧 Averaging complete. Created ${result.length} averaged points.');
     }
 
     return result;
-  }
-
-  /// Smooth yaw signal with moving average
-  static List<AnglePoint> smoothYaw(
-    List<AnglePoint> avgYaw, {
-    int windowSize = 5,
-  }) {
-    if (avgYaw.length < windowSize) return avgYaw;
-
-    if (kDebugMode) {
-      debugPrint('');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 STEP 5: SMOOTH AVERAGED YAW');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 Window size: $windowSize samples');
-      debugPrint('🔧 Input: ${avgYaw.length} points');
-    }
-
-    final smoothed = <AnglePoint>[];
-    for (int i = 0; i < avgYaw.length; i++) {
-      final start = math.max(0, i - windowSize ~/ 2);
-      final end = math.min(avgYaw.length, i + windowSize ~/ 2 + 1);
-      final window = avgYaw.sublist(start, end);
-
-      double sum = 0;
-      for (final pt in window) {
-        sum += pt.angle;
-      }
-      final avg = sum / window.length;
-      smoothed.add(AnglePoint(avgYaw[i].time, avg));
-    }
-
-    if (kDebugMode) {
-      debugPrint('🔧 OUTPUT SMOOTHED YAW (ALL):');
-      for (int i = 0; i < smoothed.length; i++) {
-        debugPrint('   [$i] before=${avgYaw[i].angle.toStringAsFixed(2)}°, after=${smoothed[i].angle.toStringAsFixed(2)}°');
-      }
-      debugPrint('🔧 Smoothing complete.');
-    }
-
-    return smoothed;
-  }
-
-  /// Unwrap smoothed yaw for peak detection
-  static List<double> unwrapSmoothedYaw(
-    List<AnglePoint> pts, [
-    String label = '',
-  ]) {
-    if (pts.isEmpty) return [];
-
-    if (kDebugMode) {
-      debugPrint('');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 STEP 6: UNWRAP SMOOTHED YAW');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 Purpose: Remove ±180° wraparound for peak detection');
-      debugPrint('🔧 Input: ${pts.length} smoothed points');
-      debugPrint('🔧 INPUT SMOOTHED YAW (ALL):');
-    }
-
-    for (int i = 0; i < pts.length; i++) {
-      if (kDebugMode) {
-        debugPrint('   [$i] wrapped_yaw=${pts[i].angle.toStringAsFixed(2)}°');
-      }
-    }
-
-    final unwrapped = <double>[];
-    unwrapped.add(pts[0].angle);
-    double offset = 0.0;
-
-    for (int i = 1; i < pts.length; i++) {
-      final diff = pts[i].angle - pts[i - 1].angle;
-      if (diff > 180) {
-        offset -= 360;
-      } else if (diff < -180) {
-        offset += 360;
-      }
-      unwrapped.add(pts[i].angle + offset);
-    }
-
-    if (kDebugMode) {
-      debugPrint('🔧 OUTPUT UNWRAPPED SMOOTHED YAW (ALL):');
-      for (int i = 0; i < unwrapped.length; i++) {
-        debugPrint('   [$i] unwrapped_yaw=${unwrapped[i].toStringAsFixed(2)}°');
-      }
-      debugPrint('🔧 Unwrapping complete.');
-    }
-
-    return unwrapped;
-  }
-
-  /// Wrap angle to ±180° range
-  static double wrapAngle(double angle) {
-    double wrapped = angle % 360;
-    if (wrapped > 180) {
-      wrapped -= 360;
-    } else if (wrapped < -180) {
-      wrapped += 360;
-    }
-    return wrapped;
-  }
-
-  /// Calculate angle difference accounting for wraparound
-  static double angleDiff(double a, double b) {
-    double diff = (a - b) % 360;
-    if (diff > 180) {
-      diff -= 360;
-    } else if (diff < -180) {
-      diff += 360;
-    }
-    return diff;
   }
 
   /// Find nearest sample index for a given timestamp

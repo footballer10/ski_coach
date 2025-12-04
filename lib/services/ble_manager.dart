@@ -393,7 +393,7 @@ class BleManager {
           final actualDiff = deviceId == 'left' 
               ? otherYaw - map['yaw']!  // right - left
               : map['yaw']! - otherYaw; // right - left
-          parallelness = (actualDiff - _yawOffsetRightMinusLeft!).abs();
+          parallelness = actualDiff.abs(); // Yaw difference for parallelness
         }
       }
       
