@@ -1,17 +1,17 @@
-/// Calculate turn smoothness via standard deviation of angular velocity.
+/// Calculate turn shape via standard deviation of angular velocity.
 library;
 
 import '../imu_preprocessor.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 
-class SmoothnessResult {
+class TurnShapeResult {
   final double average;
   final double beginning;
   final double middle;
   final double end;
 
-  SmoothnessResult({
+  TurnShapeResult({
     required this.average,
     required this.beginning,
     required this.middle,
@@ -19,9 +19,9 @@ class SmoothnessResult {
   });
 }
 
-class SmoothnessCalculator {
-  /// Calculate smoothness metrics for a turn segment
-  static SmoothnessResult calculate({
+class TurnShapeCalculator {
+  /// Calculate turn shape metrics for a turn segment
+  static TurnShapeResult calculate({
     required List<AnglePoint> avgYaw,
     required DateTime startTime,
     required DateTime endTime,
@@ -31,7 +31,7 @@ class SmoothnessCalculator {
     if (kDebugMode) {
       debugPrint('');
       debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('📊 METRIC 3: SMOOTHNESS (Angular Velocity Standard Deviation) - ALL SAMPLES');
+      debugPrint('📊 METRIC 3: TURN SHAPE (Angular Velocity Standard Deviation) - ALL SAMPLES');
       debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
       debugPrint('📊 Turn #$turnNumber');
       debugPrint('📊 Angular velocity = Δyaw × sampling_rate (${samplingRate}Hz)');
@@ -79,14 +79,14 @@ class SmoothnessCalculator {
     final sdAverage = (sdBeginning + sdMiddle + sdEnd) / 3.0;
 
     if (kDebugMode) {
-      debugPrint('📊 FINAL SMOOTHNESS TOTALS:');
+      debugPrint('📊 FINAL TURN SHAPE TOTALS:');
       debugPrint('   - 1st third: ${velocitiesBeginning.length} velocities, SD=${sdBeginning.toStringAsFixed(2)}°/s');
       debugPrint('   - Mid third: ${velocitiesMiddle.length} velocities, SD=${sdMiddle.toStringAsFixed(2)}°/s');
       debugPrint('   - End third: ${velocitiesEnd.length} velocities, SD=${sdEnd.toStringAsFixed(2)}°/s');
       debugPrint('   - AVG of 3 SDs: ${sdAverage.toStringAsFixed(2)}°/s');
     }
 
-    return SmoothnessResult(
+    return TurnShapeResult(
       average: sdAverage,
       beginning: sdBeginning,
       middle: sdMiddle,

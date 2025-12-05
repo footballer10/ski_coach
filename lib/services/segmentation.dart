@@ -5,7 +5,7 @@ import '../models/imu_sample.dart';
 import 'imu_preprocessor.dart';
 import 'metrics/edge_angle_calculator.dart';
 import 'metrics/parallelness_calculator.dart';
-import 'metrics/smoothness_calculator.dart';
+import 'metrics/turn_shape_calculator.dart';
 import 'metrics/duration_calculator.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
@@ -24,10 +24,10 @@ class TurnSegment {
   final double beginningParallelness;
   final double middleParallelness;
   final double endParallelness;
-  final double beginningSmoothnessSD;
-  final double middleSmoothnessSD;
-  final double endSmoothnessSD;
-  final double avgSmoothnessSD;
+  final double beginningTurnShapeSD;
+  final double middleTurnShapeSD;
+  final double endTurnShapeSD;
+  final double avgTurnShapeSD;
   final double durationSeconds;
 
   TurnSegment({
@@ -43,10 +43,10 @@ class TurnSegment {
     required this.beginningParallelness,
     required this.middleParallelness,
     required this.endParallelness,
-    required this.beginningSmoothnessSD,
-    required this.middleSmoothnessSD,
-    required this.endSmoothnessSD,
-    required this.avgSmoothnessSD,
+    required this.beginningTurnShapeSD,
+    required this.middleTurnShapeSD,
+    required this.endTurnShapeSD,
+    required this.avgTurnShapeSD,
     required this.durationSeconds,
   });
 }
@@ -179,8 +179,8 @@ class TurnSegmentation {
         turnNumber: k + 1,
       );
 
-      // METRIC 3: Calculate smoothness
-      final smoothnessResult = SmoothnessCalculator.calculate(
+      // METRIC 3: Calculate turn shape
+      final turnShapeResult = TurnShapeCalculator.calculate(
         avgYaw: avgYaw,
         startTime: a.time,
         endTime: b.time,
@@ -209,10 +209,10 @@ class TurnSegmentation {
         beginningParallelness: parallelnessResult.beginning,
         middleParallelness: parallelnessResult.middle,
         endParallelness: parallelnessResult.end,
-        beginningSmoothnessSD: smoothnessResult.beginning,
-        middleSmoothnessSD: smoothnessResult.middle,
-        endSmoothnessSD: smoothnessResult.end,
-        avgSmoothnessSD: smoothnessResult.average,
+        beginningTurnShapeSD: turnShapeResult.beginning,
+        middleTurnShapeSD: turnShapeResult.middle,
+        endTurnShapeSD: turnShapeResult.end,
+        avgTurnShapeSD: turnShapeResult.average,
         durationSeconds: duration,
       );
 
@@ -230,7 +230,7 @@ class TurnSegmentation {
         debugPrint('   METRICS:');
         debugPrint('      • Max Edge Angle: ${seg.maxEdgeAngle.toStringAsFixed(2)}°');
         debugPrint('      • Avg Parallelness: ${seg.avgParallelness.toStringAsFixed(2)}° (1st=${seg.beginningParallelness.toStringAsFixed(2)}°, mid=${seg.middleParallelness.toStringAsFixed(2)}°, end=${seg.endParallelness.toStringAsFixed(2)}°)');
-        debugPrint('      • Avg Smoothness SD: ${seg.avgSmoothnessSD.toStringAsFixed(2)}°/s (1st=${seg.beginningSmoothnessSD.toStringAsFixed(2)}°/s, mid=${seg.middleSmoothnessSD.toStringAsFixed(2)}°/s, end=${seg.endSmoothnessSD.toStringAsFixed(2)}°/s)');
+        debugPrint('      • Avg Turn Shape SD: ${seg.avgTurnShapeSD.toStringAsFixed(2)}°/s (1st=${seg.beginningTurnShapeSD.toStringAsFixed(2)}°/s, mid=${seg.middleTurnShapeSD.toStringAsFixed(2)}°/s, end=${seg.endTurnShapeSD.toStringAsFixed(2)}°/s)');
       }
     }
 

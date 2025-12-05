@@ -327,10 +327,10 @@ enum RunState { recording, processing, results }
     final parallelMiddle = segments.map((s) => s.middleParallelness).toList();
     final parallelEnd = segments.map((s) => s.endParallelness).toList();
     final parallelAvg = segments.map((s) => s.avgParallelness).toList();
-    final smoothBeginning = segments.map((s) => s.beginningSmoothnessSD).toList();
-    final smoothMiddle = segments.map((s) => s.middleSmoothnessSD).toList();
-    final smoothEnd = segments.map((s) => s.endSmoothnessSD).toList();
-    final smoothAvg = segments.map((s) => s.avgSmoothnessSD).toList();
+    final turnShapeBeginning = segments.map((s) => s.beginningTurnShapeSD).toList();
+    final turnShapeMiddle = segments.map((s) => s.middleTurnShapeSD).toList();
+    final turnShapeEnd = segments.map((s) => s.endTurnShapeSD).toList();
+    final turnShapeAvg = segments.map((s) => s.avgTurnShapeSD).toList();
 
     debugPrint('📊 Analysis: ${segments.length} turns detected');
 
@@ -383,10 +383,10 @@ enum RunState { recording, processing, results }
         'parallelMiddle': parallelMiddle,
         'parallelEnd': parallelEnd,
         'parallelAvg': parallelAvg,
-        'smoothBeginning': smoothBeginning,
-        'smoothMiddle': smoothMiddle,
-        'smoothEnd': smoothEnd,
-        'smoothAvg': smoothAvg,
+        'turnShapeBeginning': turnShapeBeginning,
+        'turnShapeMiddle': turnShapeMiddle,
+        'turnShapeEnd': turnShapeEnd,
+        'turnShapeAvg': turnShapeAvg,
         'turnSymmetryRatio': turnSymmetryRatio,
         'turnSymmetryScore': turnSymmetryScore,
     };
@@ -501,10 +501,10 @@ enum RunState { recording, processing, results }
     final parallelMiddle = (_analysisResults!['parallelMiddle'] as List?)?.cast<double>() ?? [];
     final parallelEnd = (_analysisResults!['parallelEnd'] as List?)?.cast<double>() ?? [];
     final parallelAvg = (_analysisResults!['parallelAvg'] as List?)?.cast<double>() ?? [];
-    final smoothBeginning = (_analysisResults!['smoothBeginning'] as List?)?.cast<double>() ?? [];
-    final smoothMiddle = (_analysisResults!['smoothMiddle'] as List?)?.cast<double>() ?? [];
-    final smoothEnd = (_analysisResults!['smoothEnd'] as List?)?.cast<double>() ?? [];
-    final smoothAvg = (_analysisResults!['smoothAvg'] as List?)?.cast<double>() ?? [];
+    final turnShapeBeginning = (_analysisResults!['turnShapeBeginning'] as List?)?.cast<double>() ?? [];
+    final turnShapeMiddle = (_analysisResults!['turnShapeMiddle'] as List?)?.cast<double>() ?? [];
+    final turnShapeEnd = (_analysisResults!['turnShapeEnd'] as List?)?.cast<double>() ?? [];
+    final turnShapeAvg = (_analysisResults!['turnShapeAvg'] as List?)?.cast<double>() ?? [];
     final turnSymmetryRatio = _analysisResults!['turnSymmetryRatio'] as double?;
     final turnSymmetryScore = _analysisResults!['turnSymmetryScore'] as double?;
 
@@ -526,8 +526,8 @@ enum RunState { recording, processing, results }
         scoreSum += Scoring.parallel(parallelAvg[i]);
         scoreCount++;
       }
-      if (i < smoothAvg.length) {
-        scoreSum += Scoring.smoothness(smoothAvg[i]);
+      if (i < turnShapeAvg.length) {
+        scoreSum += Scoring.turnShape(turnShapeAvg[i]);
         scoreCount++;
       }
       
@@ -550,8 +550,8 @@ enum RunState { recording, processing, results }
       final ps = parallelAvg.map((x) => Scoring.parallel(x)).toList();
       sum += ps.reduce((a,b)=>a+b) / ps.length; count++;
     }
-    if (smoothAvg.isNotEmpty) {
-      final ss = smoothAvg.map((x) => Scoring.smoothness(x)).toList();
+    if (turnShapeAvg.isNotEmpty) {
+      final ss = turnShapeAvg.map((x) => Scoring.turnShape(x)).toList();
       sum += ss.reduce((a,b)=>a+b) / ss.length; count++;
     }
     if (turnSymmetryScore != null) { sum += turnSymmetryScore; count++; }
@@ -572,10 +572,10 @@ enum RunState { recording, processing, results }
       parallelMiddle: parallelMiddle,
       parallelEnd: parallelEnd,
       parallelAvg: parallelAvg,
-      smoothBeginning: smoothBeginning,
-      smoothMiddle: smoothMiddle,
-      smoothEnd: smoothEnd,
-      smoothAvg: smoothAvg,
+      turnShapeBeginning: turnShapeBeginning,
+      turnShapeMiddle: turnShapeMiddle,
+      turnShapeEnd: turnShapeEnd,
+      turnShapeAvg: turnShapeAvg,
       turnScores: turnScores,
       turnSymmetryRatio: turnSymmetryRatio,
       turnSymmetryScore: turnSymmetryScore,

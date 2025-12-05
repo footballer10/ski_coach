@@ -15,10 +15,10 @@ class AnalysisResults {
   final List<double> parallelMiddle;
   final List<double> parallelEnd;
   final List<double> parallelAvg;
-  final List<double> smoothBeginning;
-  final List<double> smoothMiddle;
-  final List<double> smoothEnd;
-  final List<double> smoothAvg;
+  final List<double> turnShapeBeginning;
+  final List<double> turnShapeMiddle;
+  final List<double> turnShapeEnd;
+  final List<double> turnShapeAvg;
   final List<double> turnScores; // Per-turn score (avg of 4 categories)
 
   // Aggregates
@@ -46,10 +46,10 @@ class AnalysisResults {
     required this.parallelMiddle,
     required this.parallelEnd,
     required this.parallelAvg,
-    required this.smoothBeginning,
-    required this.smoothMiddle,
-    required this.smoothEnd,
-    required this.smoothAvg,
+    required this.turnShapeBeginning,
+    required this.turnShapeMiddle,
+    required this.turnShapeEnd,
+    required this.turnShapeAvg,
     required this.turnScores,
     required this.turnSymmetryRatio,
     required this.turnSymmetryScore,

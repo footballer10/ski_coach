@@ -21,8 +21,8 @@ class Scoring {
     return v.isFinite ? v.toDouble().clamp(0.0, 100.0) : 0.0;
   }
 
-  /// Smoothness SD: 100 · 0.998946^(x^2)
-  static double smoothness(double sd) {
+  /// Turn Shape SD: 100 · 0.998946^(x^2)
+  static double turnShape(double sd) {
     final v = 100.0 * math.pow(0.998946, math.pow(sd, 2));
     return v.isFinite ? v.toDouble().clamp(0.0, 100.0) : 0.0;
   }
