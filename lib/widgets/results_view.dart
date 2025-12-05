@@ -411,18 +411,6 @@ class _ResultsViewState extends State<ResultsView> {
     });
   }
 
-  void _navigateBack() {
-    if (_navigationHistory.isEmpty) return;
-    final prev = _navigationHistory.removeLast();
-    setState(() {
-      _selectedCategory = prev['category']!;
-      _selectedTurn = prev['turn']!;
-      _categoryPageThird = prev['categoryPageThird']!;
-      _parallelPhase = prev['parallelPhase']!;
-      _turnShapePhase = prev['turnShapePhase']!;
-    });
-  }
-
   void _selectCategory(String category) {
     _pushNavigation();
     setState(() => _selectedCategory = category);
@@ -485,14 +473,14 @@ class _ResultsViewState extends State<ResultsView> {
       case 'Edge Angle':
         return widget.results?.edgeAngles ?? [];
       case 'Parallel':
-        if (phase == 'First Third') return widget.results?.parallelBeginning ?? [];
-        if (phase == 'Middle Third') return widget.results?.parallelMiddle ?? [];
-        if (phase == 'Final Third') return widget.results?.parallelEnd ?? [];
+        if (phase == 'Initiation') return widget.results?.parallelBeginning ?? [];
+        if (phase == 'Control') return widget.results?.parallelMiddle ?? [];
+        if (phase == 'Completion') return widget.results?.parallelEnd ?? [];
         return widget.results?.parallelAvg ?? [];
       case 'Turn Shape':
-        if (phase == 'First Third') return widget.results?.turnShapeBeginning ?? [];
-        if (phase == 'Middle Third') return widget.results?.turnShapeMiddle ?? [];
-        if (phase == 'Final Third') return widget.results?.turnShapeEnd ?? [];
+        if (phase == 'Initiation') return widget.results?.turnShapeBeginning ?? [];
+        if (phase == 'Control') return widget.results?.turnShapeMiddle ?? [];
+        if (phase == 'Completion') return widget.results?.turnShapeEnd ?? [];
         return widget.results?.turnShapeAvg ?? [];
       default:
         return [];
@@ -506,9 +494,9 @@ class _ResultsViewState extends State<ResultsView> {
       case 'Edge Angle':
         return widget.results?.edgeAngles ?? [];
       case 'Parallel':
-        if (phase == 'First Third') return widget.results?.parallelBeginning ?? [];
-        if (phase == 'Middle Third') return widget.results?.parallelMiddle ?? [];
-        if (phase == 'Final Third') return widget.results?.parallelEnd ?? [];
+        if (phase == 'Initiation') return widget.results?.parallelBeginning ?? [];
+        if (phase == 'Control') return widget.results?.parallelMiddle ?? [];
+        if (phase == 'Completion') return widget.results?.parallelEnd ?? [];
         // Default: average of the three phases
         final beginning = widget.results?.parallelBeginning ?? [];
         final middle = widget.results?.parallelMiddle ?? [];
@@ -519,9 +507,9 @@ class _ResultsViewState extends State<ResultsView> {
           (i) => (beginning[i] + middle[i] + end[i]) / 3.0,
         );
       case 'Turn Shape':
-        if (phase == 'First Third') return widget.results?.turnShapeBeginning ?? [];
-        if (phase == 'Middle Third') return widget.results?.turnShapeMiddle ?? [];
-        if (phase == 'Final Third') return widget.results?.turnShapeEnd ?? [];
+        if (phase == 'Initiation') return widget.results?.turnShapeBeginning ?? [];
+        if (phase == 'Control') return widget.results?.turnShapeMiddle ?? [];
+        if (phase == 'Completion') return widget.results?.turnShapeEnd ?? [];
         // Default: average of the three phases
         final beginning = widget.results?.turnShapeBeginning ?? [];
         final middle = widget.results?.turnShapeMiddle ?? [];
@@ -604,6 +592,7 @@ class _ResultsViewState extends State<ResultsView> {
       children: [
         _buildNavigationBar(),
         Expanded(child: _buildContent()),
+        _buildDebugSection(),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: ElevatedButton.icon(
@@ -630,12 +619,6 @@ class _ResultsViewState extends State<ResultsView> {
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
         child: Row(
           children: [
-          if (_navigationHistory.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _navigateBack,
-              tooltip: 'Back',
-            ),
           Expanded(
             child: DropdownButtonFormField<String>(
               initialValue: _selectedCategory,
@@ -700,9 +683,9 @@ class _ResultsViewState extends State<ResultsView> {
                 isExpanded: true,
                 items: const [
                   DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'First Third', child: Text('First Third', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Initiation', child: Text('Initiation', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Control', child: Text('Control', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Completion', child: Text('Completion', style: TextStyle(fontSize: 12, color: Colors.black))),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -735,9 +718,9 @@ class _ResultsViewState extends State<ResultsView> {
                 isExpanded: true,
                 items: const [
                   DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'First Third', child: Text('First Third', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Middle Third', child: Text('Middle Third', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Final Third', child: Text('Final Third', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Initiation', child: Text('Initiation', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Control', child: Text('Control', style: TextStyle(fontSize: 12, color: Colors.black))),
+                  DropdownMenuItem(value: 'Completion', child: Text('Completion', style: TextStyle(fontSize: 12, color: Colors.black))),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _categoryPageThird = value);
@@ -955,6 +938,84 @@ class _ResultsViewState extends State<ResultsView> {
     }
   }
 
+  Widget _buildDebugSection() {
+    final segments = widget.results?.segments as List<TurnSegment>?;
+    if (segments == null || segments.isEmpty) return const SizedBox.shrink();
+
+    return ExpansionTile(
+      title: const Text('Debug: Calculated Values', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      initiallyExpanded: false,
+      children: [
+        // Overall run statistics
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Card(
+            color: Colors.grey[100],
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Run Summary:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('Turns: ${widget.results?.turnCount ?? 0}', style: const TextStyle(fontSize: 10)),
+                  Text('Duration: ${widget.results?.runDurationSeconds ?? 0}s', style: const TextStyle(fontSize: 10)),
+                  Text('Overall Score: ${widget.results?.overallScore?.toStringAsFixed(1) ?? "—"}', style: const TextStyle(fontSize: 10)),
+                  Text('Turn Symmetry: ${widget.results?.turnSymmetryRatio?.toStringAsFixed(3) ?? "—"} (score: ${widget.results?.turnSymmetryScore?.toStringAsFixed(1) ?? "—"})', style: const TextStyle(fontSize: 10)),
+                  Text('Samples: ${widget.results?.leftSampleCount ?? 0}L / ${widget.results?.rightSampleCount ?? 0}R', style: const TextStyle(fontSize: 10)),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+        // Per-turn details
+        Container(
+          constraints: const BoxConstraints(maxHeight: 300),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: segments.length,
+            itemBuilder: (context, i) {
+              final seg = segments[i];
+              final turnNum = i + 1;
+              final dir = seg.direction == 1 ? 'R' : 'L';
+              
+              return ExpansionTile(
+                title: Text('Turn $turnNum ($dir)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                initiallyExpanded: false,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Duration: ${seg.durationSeconds.toStringAsFixed(2)}s', style: const TextStyle(fontSize: 10)),
+                        const Divider(height: 8),
+                        Text('Edge Angle: ${seg.maxEdgeAngle.toStringAsFixed(2)}° (score: ${_scoreForEdgeAngle(seg.maxEdgeAngle).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        const Divider(height: 8),
+                        const Text('Parallel:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        Text('  Whole: ${seg.avgParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.avgParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        Text('  Initiation: ${seg.beginningParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.beginningParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        Text('  Control: ${seg.middleParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.middleParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        Text('  Completion: ${seg.endParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.endParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        const Divider(height: 8),
+                        const Text('Turn Shape:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        Text('  Whole: ${seg.avgTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.avgTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        Text('  Initiation: ${seg.beginningTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.beginningTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        Text('  Control: ${seg.middleTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.middleTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                        Text('  Completion: ${seg.endTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.endTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildOverview() {
     return Column(
       children: [
@@ -1015,11 +1076,11 @@ class _ResultsViewState extends State<ResultsView> {
                       double? val;
                       if (_categoryPageThird == 'Whole Turn' && i < (widget.results?.parallelAvg.length ?? 0)) {
                         val = widget.results!.parallelAvg[i];
-                      } else if (_categoryPageThird == 'First Third' && i < (widget.results?.parallelBeginning.length ?? 0)) {
+                      } else if (_categoryPageThird == 'Initiation' && i < (widget.results?.parallelBeginning.length ?? 0)) {
                         val = widget.results!.parallelBeginning[i];
-                      } else if (_categoryPageThird == 'Middle Third' && i < (widget.results?.parallelMiddle.length ?? 0)) {
+                      } else if (_categoryPageThird == 'Control' && i < (widget.results?.parallelMiddle.length ?? 0)) {
                         val = widget.results!.parallelMiddle[i];
-                      } else if (_categoryPageThird == 'Final Third' && i < (widget.results?.parallelEnd.length ?? 0)) {
+                      } else if (_categoryPageThird == 'Completion' && i < (widget.results?.parallelEnd.length ?? 0)) {
                         val = widget.results!.parallelEnd[i];
                       }
                       if (val != null) {
@@ -1035,11 +1096,11 @@ class _ResultsViewState extends State<ResultsView> {
                       double? val;
                       if (_categoryPageThird == 'Whole Turn' && i < (widget.results?.turnShapeAvg.length ?? 0)) {
                         val = widget.results!.turnShapeAvg[i];
-                      } else if (_categoryPageThird == 'First Third' && i < (widget.results?.turnShapeBeginning.length ?? 0)) {
+                      } else if (_categoryPageThird == 'Initiation' && i < (widget.results?.turnShapeBeginning.length ?? 0)) {
                         val = widget.results!.turnShapeBeginning[i];
-                      } else if (_categoryPageThird == 'Middle Third' && i < (widget.results?.turnShapeMiddle.length ?? 0)) {
+                      } else if (_categoryPageThird == 'Control' && i < (widget.results?.turnShapeMiddle.length ?? 0)) {
                         val = widget.results!.turnShapeMiddle[i];
-                      } else if (_categoryPageThird == 'Final Third' && i < (widget.results?.turnShapeEnd.length ?? 0)) {
+                      } else if (_categoryPageThird == 'Completion' && i < (widget.results?.turnShapeEnd.length ?? 0)) {
                         val = widget.results!.turnShapeEnd[i];
                       }
                       if (val != null) {
@@ -1148,9 +1209,9 @@ class _ResultsViewState extends State<ResultsView> {
       if (_selectedTurn == 'All Turns') {
         if (phase == 'Whole Turn') {
           vals = widget.results?.parallelAvg ?? const [];
-        } else if (phase == 'First Third') vals = widget.results?.parallelBeginning ?? const [];
-        else if (phase == 'Middle Third') vals = widget.results?.parallelMiddle ?? const [];
-        else if (phase == 'Final Third') vals = widget.results?.parallelEnd ?? const [];
+        } else if (phase == 'Initiation') vals = widget.results?.parallelBeginning ?? const [];
+        else if (phase == 'Control') vals = widget.results?.parallelMiddle ?? const [];
+        else if (phase == 'Completion') vals = widget.results?.parallelEnd ?? const [];
         if (vals.isNotEmpty) {
           final avg = vals.reduce((a,b) => a + b) / vals.length;
           valueText = '${avg.toStringAsFixed(1)}°';
@@ -1168,11 +1229,11 @@ class _ResultsViewState extends State<ResultsView> {
           double? val;
           if (phase == 'Whole Turn' && idx < (widget.results?.parallelAvg.length ?? 0)) {
             val = widget.results!.parallelAvg[idx];
-          } else if (phase == 'First Third' && idx < (widget.results?.parallelBeginning.length ?? 0)) {
+          } else if (phase == 'Initiation' && idx < (widget.results?.parallelBeginning.length ?? 0)) {
             val = widget.results!.parallelBeginning[idx];
-          } else if (phase == 'Middle Third' && idx < (widget.results?.parallelMiddle.length ?? 0)) {
+          } else if (phase == 'Control' && idx < (widget.results?.parallelMiddle.length ?? 0)) {
             val = widget.results!.parallelMiddle[idx];
-          } else if (phase == 'Final Third' && idx < (widget.results?.parallelEnd.length ?? 0)) {
+          } else if (phase == 'Completion' && idx < (widget.results?.parallelEnd.length ?? 0)) {
             val = widget.results!.parallelEnd[idx];
           }
           if (val != null) {
@@ -1188,9 +1249,9 @@ class _ResultsViewState extends State<ResultsView> {
       if (_selectedTurn == 'All Turns') {
         if (phase == 'Whole Turn') {
           vals = widget.results?.turnShapeAvg ?? const [];
-        } else if (phase == 'First Third') vals = widget.results?.turnShapeBeginning ?? const [];
-        else if (phase == 'Middle Third') vals = widget.results?.turnShapeMiddle ?? const [];
-        else if (phase == 'Final Third') vals = widget.results?.turnShapeEnd ?? const [];
+        } else if (phase == 'Initiation') vals = widget.results?.turnShapeBeginning ?? const [];
+        else if (phase == 'Control') vals = widget.results?.turnShapeMiddle ?? const [];
+        else if (phase == 'Completion') vals = widget.results?.turnShapeEnd ?? const [];
         if (vals.isNotEmpty) {
           final avg = vals.reduce((a,b) => a + b) / vals.length;
           valueText = '${avg.toStringAsFixed(1)}°/s';
@@ -1208,11 +1269,11 @@ class _ResultsViewState extends State<ResultsView> {
           double? val;
           if (phase == 'Whole Turn' && idx < (widget.results?.turnShapeAvg.length ?? 0)) {
             val = widget.results!.turnShapeAvg[idx];
-          } else if (phase == 'First Third' && idx < (widget.results?.turnShapeBeginning.length ?? 0)) {
+          } else if (phase == 'Initiation' && idx < (widget.results?.turnShapeBeginning.length ?? 0)) {
             val = widget.results!.turnShapeBeginning[idx];
-          } else if (phase == 'Middle Third' && idx < (widget.results?.turnShapeMiddle.length ?? 0)) {
+          } else if (phase == 'Control' && idx < (widget.results?.turnShapeMiddle.length ?? 0)) {
             val = widget.results!.turnShapeMiddle[idx];
-          } else if (phase == 'Final Third' && idx < (widget.results?.turnShapeEnd.length ?? 0)) {
+          } else if (phase == 'Completion' && idx < (widget.results?.turnShapeEnd.length ?? 0)) {
             val = widget.results!.turnShapeEnd[idx];
           }
           if (val != null) {
@@ -1369,11 +1430,11 @@ class _ResultsViewState extends State<ResultsView> {
       double? parallelVal;
       if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
         parallelVal = widget.results!.parallelAvg[selectedTurnIndex];
-      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
         parallelVal = widget.results!.parallelBeginning[selectedTurnIndex];
-      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
+      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
         parallelVal = widget.results!.parallelMiddle[selectedTurnIndex];
-      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
+      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
         parallelVal = widget.results!.parallelEnd[selectedTurnIndex];
       }
       if (parallelVal != null) {
@@ -1385,11 +1446,11 @@ class _ResultsViewState extends State<ResultsView> {
       double? smoothVal;
       if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.turnShapeAvg.length ?? 0)) {
         smoothVal = widget.results!.turnShapeAvg[selectedTurnIndex];
-      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.turnShapeBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.turnShapeBeginning.length ?? 0)) {
         smoothVal = widget.results!.turnShapeBeginning[selectedTurnIndex];
-      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
+      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
         smoothVal = widget.results!.turnShapeMiddle[selectedTurnIndex];
-      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
+      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
         smoothVal = widget.results!.turnShapeEnd[selectedTurnIndex];
       }
       if (smoothVal != null) {
@@ -1437,9 +1498,9 @@ class _ResultsViewState extends State<ResultsView> {
                     menuMaxHeight: 200,
                     items: const [
                       DropdownMenuItem(value: 'Whole Turn', child: Text('Whole', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'First Third', child: Text('1st', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Middle Third', child: Text('Mid', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Final Third', child: Text('Final', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Initiation', child: Text('Init', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Control', child: Text('Ctrl', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Completion', child: Text('Comp', style: TextStyle(fontSize: 9, color: Colors.black))),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -1512,11 +1573,11 @@ class _ResultsViewState extends State<ResultsView> {
       double? val;
       if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
         val = widget.results!.parallelAvg[selectedTurnIndex];
-      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
         val = widget.results!.parallelBeginning[selectedTurnIndex];
-      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
+      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
         val = widget.results!.parallelMiddle[selectedTurnIndex];
-      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
+      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
         val = widget.results!.parallelEnd[selectedTurnIndex];
       }
       if (val != null) {
@@ -1528,11 +1589,11 @@ class _ResultsViewState extends State<ResultsView> {
       double? val;
       if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.turnShapeAvg.length ?? 0)) {
         val = widget.results!.turnShapeAvg[selectedTurnIndex];
-      } else if (phase == 'First Third' && selectedTurnIndex < (widget.results?.turnShapeBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.turnShapeBeginning.length ?? 0)) {
         val = widget.results!.turnShapeBeginning[selectedTurnIndex];
-      } else if (phase == 'Middle Third' && selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
+      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
         val = widget.results!.turnShapeMiddle[selectedTurnIndex];
-      } else if (phase == 'Final Third' && selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
+      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
         val = widget.results!.turnShapeEnd[selectedTurnIndex];
       }
       if (val != null) {
@@ -1687,19 +1748,19 @@ class _ResultsViewState extends State<ResultsView> {
       sectionDuration = segment.durationSeconds;
       optimalLineValue = segment.avgTurnShapeSD;
     } else {
-      final thirdDuration = segment.durationSeconds / 3.0;
+      double thirdDuration = segment.durationSeconds / 3.0;
       
-      if (phase == 'First Third') {
+      if (phase == 'Initiation') {
         startIdx = segment.startIndexLeft;
         endIdx = segment.startIndexLeft + samplesPerThird - 1;
         sectionDuration = thirdDuration;
         optimalLineValue = segment.beginningTurnShapeSD;
-      } else if (phase == 'Middle Third') {
+      } else if (phase == 'Control') {
         startIdx = segment.startIndexLeft + samplesPerThird;
         endIdx = segment.startIndexLeft + 2 * samplesPerThird - 1;
         sectionDuration = thirdDuration;
         optimalLineValue = segment.middleTurnShapeSD;
-      } else { // Final Third
+      } else { // Completion
         startIdx = segment.startIndexLeft + 2 * samplesPerThird;
         endIdx = segment.endIndexLeft;
         sectionDuration = thirdDuration;
@@ -1764,19 +1825,19 @@ class _ResultsViewState extends State<ResultsView> {
       sectionDuration = segment.durationSeconds;
       optimalLineValue = segment.avgParallelness;
     } else {
-      final thirdDuration = segment.durationSeconds / 3.0;
+      double thirdDuration = segment.durationSeconds / 3.0;
       
-      if (phase == 'First Third') {
+      if (phase == 'Initiation') {
         startIdx = segment.startIndexLeft;
         endIdx = segment.startIndexLeft + samplesPerThird - 1;
         sectionDuration = thirdDuration;
         optimalLineValue = segment.beginningParallelness;
-      } else if (phase == 'Middle Third') {
+      } else if (phase == 'Control') {
         startIdx = segment.startIndexLeft + samplesPerThird;
         endIdx = segment.startIndexLeft + 2 * samplesPerThird - 1;
         sectionDuration = thirdDuration;
         optimalLineValue = segment.middleParallelness;
-      } else { // Final Third
+      } else { // Completion
         startIdx = segment.startIndexLeft + 2 * samplesPerThird;
         endIdx = segment.endIndexLeft;
         sectionDuration = thirdDuration;
