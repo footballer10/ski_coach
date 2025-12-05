@@ -352,9 +352,6 @@ class _ResultsViewState extends State<ResultsView> {
   String _parallelPhase = 'Whole Turn';
   String _turnShapePhase = 'Whole Turn';
   
-  // Navigation history stack
-  final List<Map<String, String>> _navigationHistory = [];
-  
   final List<String> _categories = const [
     'All Categories',
     'Turn Duration',
@@ -403,35 +400,11 @@ class _ResultsViewState extends State<ResultsView> {
     return Scoring.turnShape(x);
   }
 
-  void _navigateBack() {
-    if (_navigationHistory.isEmpty) return;
-    final prev = _navigationHistory.removeLast();
-    setState(() {
-      _selectedCategory = prev['category']!;
-      _selectedTurn = prev['turn']!;
-      _categoryPageThird = prev['categoryPageThird']!;
-      _parallelPhase = prev['parallelPhase']!;
-      _turnShapePhase = prev['turnShapePhase']!;
-    });
-  }
-
-  void _pushNavigation() {
-    _navigationHistory.add({
-      'category': _selectedCategory,
-      'turn': _selectedTurn,
-      'categoryPageThird': _categoryPageThird,
-      'parallelPhase': _parallelPhase,
-      'turnShapePhase': _turnShapePhase,
-    });
-  }
-
   void _selectCategory(String category) {
-    _pushNavigation();
     setState(() => _selectedCategory = category);
   }
 
   void _selectTurn(String turn) {
-    _pushNavigation();
     setState(() {
       _selectedTurn = turn;
       _parallelPhase = 'Whole Turn';
@@ -440,7 +413,6 @@ class _ResultsViewState extends State<ResultsView> {
   }
   
   void _selectCategoryAndTurn(String category, String turn) {
-    _pushNavigation();
     setState(() {
       _selectedCategory = category;
       _selectedTurn = turn;
@@ -654,11 +626,6 @@ class _ResultsViewState extends State<ResultsView> {
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
         child: Row(
           children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _navigationHistory.isNotEmpty ? _navigateBack : null,
-              tooltip: 'Back',
-            ),
             Expanded(
               child: DropdownButtonFormField<String>(
               initialValue: _selectedCategory,
@@ -729,7 +696,6 @@ class _ResultsViewState extends State<ResultsView> {
                 ],
                 onChanged: (value) {
                   if (value != null) {
-                    _pushNavigation();
                     setState(() {
                       if (_selectedCategory == 'Parallel') {
                         _parallelPhase = value;
@@ -1467,7 +1433,6 @@ class _ResultsViewState extends State<ResultsView> {
                     ],
                     onChanged: (value) {
                       if (value != null) {
-                        _pushNavigation();
                         setState(() {
                           if (metric == 'Parallel') {
                             _parallelPhase = value;
