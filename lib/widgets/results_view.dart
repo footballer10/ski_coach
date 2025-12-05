@@ -1552,9 +1552,27 @@ class _ResultsViewState extends State<ResultsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Value: $valueText', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text('Score: $scoreText', style: const TextStyle(fontSize: 16)),
+                  // Category, Value, and Score all in one line with same prominent text size
+                  Row(
+                    children: [
+                      Text(
+                        '$_selectedCategory: ',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        valueText,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
+                      const Text(
+                        ' | Score: ',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        scoreText,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   // Add time series graph for Edge Angle, Parallel, or Turn Shape
                   if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel' || _selectedCategory == 'Turn Shape')) ...[
@@ -1565,18 +1583,15 @@ class _ResultsViewState extends State<ResultsView> {
                     const SizedBox(height: 16),
                   ],
                   if (selectedTurnIndex != null) ...[
-                    SizedBox(
-                      height: 180,
-                      child: DotPlot(
-                        values: _getValuesForCategory(
-                          _selectedCategory,
-                          _selectedCategory == 'Parallel' ? _parallelPhase : (_selectedCategory == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
-                        ),
-                        highlightIndex: selectedTurnIndex,
-                        optimalValue: _getOptimalForCategory(_selectedCategory),
-                        units: _getUnitsForCategory(_selectedCategory),
-                        height: 180,
+                    DotPlot(
+                      values: _getValuesForCategory(
+                        _selectedCategory,
+                        _selectedCategory == 'Parallel' ? _parallelPhase : (_selectedCategory == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
                       ),
+                      highlightIndex: selectedTurnIndex,
+                      optimalValue: _getOptimalForCategory(_selectedCategory),
+                      units: _getUnitsForCategory(_selectedCategory),
+                      height: 180,  // This is now a minimum, DotPlot will calculate actual height
                     ),
                   ] else ...[
                     const Text('[No turn selected]', style: TextStyle(fontStyle: FontStyle.italic)),
