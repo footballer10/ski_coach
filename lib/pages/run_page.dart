@@ -483,40 +483,58 @@ enum RunState { recording, processing, results }
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!_recording) ...[  
-            Text(
-              'Recording Session',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
-                    const SizedBox(height: 12),
-                    _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
-                  ],
-                ),
+          Text(
+            'Recording Session',
+            style: Theme.of(context).textTheme.headlineSmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
+                  const SizedBox(height: 12),
+                  _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-          ],
-          if (_recording) const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _recording ? null : _startRecording,
-            icon: const Icon(Icons.fiber_manual_record, size: 28),
-            label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-              backgroundColor: _recording ? Colors.grey : Colors.red,
-              foregroundColor: Colors.white,
-            ),
           ),
-          if (_recording) ...[  
-            const SizedBox(height: 8),
+          const SizedBox(height: 16),
+          if (!_recording)
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: _startRecording,
+                    icon: const Icon(Icons.fiber_manual_record, size: 28),
+                    label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: ElevatedButton.icon(
+                    onPressed: _calibrateAcceleration,
+                    icon: const Icon(Icons.settings_input_component, size: 20),
+                    label: const Text('Accel Cal', style: TextStyle(fontSize: 16)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          if (_recording)
             ElevatedButton.icon(
               onPressed: _stopRecording,
               icon: const Icon(Icons.stop, size: 28),
@@ -527,8 +545,6 @@ enum RunState { recording, processing, results }
                 foregroundColor: Colors.white,
               ),
             ),
-          ],
-          if (_recording) const Spacer(),
         ],
       ),
     );
@@ -561,7 +577,6 @@ enum RunState { recording, processing, results }
          errorMessage: error,
          onNewRun: widget.onRecordAgain,
          onReconnect: showReconnectButton ? widget.onManualReconnect : null,
-         onCalibrateAcceleration: _calibrateAcceleration,
          showReconnectButton: showReconnectButton,
          showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
        );
@@ -670,7 +685,6 @@ enum RunState { recording, processing, results }
     return ResultsView(
       results: resultsModel,
       onNewRun: widget.onRecordAgain,
-      onCalibrateAcceleration: _calibrateAcceleration,
       showReconnectButton: false,
     );
   }

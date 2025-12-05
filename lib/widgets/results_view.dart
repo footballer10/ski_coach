@@ -323,7 +323,6 @@ class ResultsView extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
-  final VoidCallback? onCalibrateAcceleration;
   final bool showReconnectButton;
   final bool showTryAgainButton;
 
@@ -333,7 +332,6 @@ class ResultsView extends StatefulWidget {
     this.errorMessage,
     required this.onNewRun,
     this.onReconnect,
-    this.onCalibrateAcceleration,
     this.showReconnectButton = true,
     this.showTryAgainButton = true,
   });
@@ -596,37 +594,15 @@ class _ResultsViewState extends State<ResultsView> {
         Expanded(child: _buildContent()),
         Padding(
           padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: widget.onNewRun,
-                  icon: const Icon(Icons.add, size: 24),
-                  label: const Text('Start New Run'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-              if (widget.onCalibrateAcceleration != null) const SizedBox(width: 8),
-              if (widget.onCalibrateAcceleration != null)
-                Expanded(
-                  flex: 1,
-                  child: ElevatedButton.icon(
-                    onPressed: widget.onCalibrateAcceleration,
-                    icon: const Icon(Icons.settings_input_component, size: 20),
-                    label: const Text('Accel Cal'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-            ],
+          child: ElevatedButton.icon(
+            onPressed: widget.onNewRun,
+            icon: const Icon(Icons.add, size: 24),
+            label: const Text('Start New Run'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
           ),
         ),
       ],
@@ -1316,7 +1292,7 @@ class _ResultsViewState extends State<ResultsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnScores.length ?? 0))
+          if (selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnScores.length ?? 0)) ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -1335,6 +1311,8 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+          ],
           _buildMetricModule('Turn Duration', 0),
           const SizedBox(height: 8),
           _buildMetricModule('Edge Angle', 0),
