@@ -13,6 +13,8 @@ dependencies:
   flutter_reactive_ble: ^5.0.2
   path_provider: ^2.0.14
   cupertino_icons: ^1.0.8
+  http: ^1.6.0
+  llama_cpp_dart: ^0.1.2+1
 
 dev_dependencies:
   flutter_test:
@@ -21,3 +23,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  assets:
+    - assets/models/
+    - assets/data/
