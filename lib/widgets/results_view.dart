@@ -885,56 +885,57 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildRightPaneVisualization() {
+    final turnCount = (widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5;
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 8),
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: List.generate((widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5, (i) {
+          child: ListView.builder(
+            itemCount: turnCount,
+            itemBuilder: (context, i) {
               final dirs = widget.results?.turnDirections ?? const [];
               final direction = i < dirs.length 
                   ? (dirs[i] == 1 ? '(R)' : '(L)')
                   : '';
               final turnLabel = 'Turn ${i + 1} $direction'.trim();
               final isSelected = _selectedTurn == turnLabel;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => _selectTurn(turnLabel),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue : Colors.grey[400],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${i + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+              return GestureDetector(
+                onTap: () => _selectTurn(turnLabel),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.blue : Colors.grey[400],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${i + 1}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 2),
-                            Text(
-                            (i < (widget.results?.turnScores.length ?? 0))
-                              ? widget.results!.turnScores[i].toStringAsFixed(1)
-                              : '—',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          (i < (widget.results?.turnScores.length ?? 0))
+                            ? widget.results!.turnScores[i].toStringAsFixed(1)
+                            : '—',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               );
-            }),
+            },
           ),
         ),
       ),
