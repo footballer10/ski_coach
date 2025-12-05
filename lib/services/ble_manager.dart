@@ -36,6 +36,13 @@ class BleManager {
 
   // Yaw calibration: offset between left and right sensors at connection
   double? _yawOffsetRightMinusLeft;
+  
+  // Calibration state: collect samples when both sensors connect
+  bool _isCalibrating = false;
+  final Map<String, List<double>> _calibrationSamples = {};
+  static const int _calibrationSampleCount = 50;
+  static const int _calibrationStartSample = 40; // Skip first 40 samples
+  static const int _calibrationEndSample = 50;   // Use samples 40-50
 
   /// Get the calibrated yaw offset (right - left) established at connection
   double? get yawOffset => _yawOffsetRightMinusLeft;
@@ -83,6 +90,10 @@ class BleManager {
         // Ensure a sample controller exists only upon successful connection
         _sampleControllers[deviceId] ??= StreamController<Map<String, double>>.broadcast();
         _subscribeCharacteristic(deviceId);
+        
+        // Start calibration if both sensors are now connected
+        _checkAndStartCalibration();
+        
         if (!completer.isCompleted) completer.complete(true);
       } else if (update.connectionState == DeviceConnectionState.disconnected) {
         if (!completer.isCompleted) completer.complete(false);
@@ -139,11 +150,91 @@ class BleManager {
     } catch (_) {}
     _sampleControllers.remove(deviceId);
     _latest.remove(deviceId);
+    
+    // Reset calibration if either sensor disconnects
+    _isCalibrating = false;
+    _calibrationSamples.clear();
+    _yawOffsetRightMinusLeft = null;
+    if (kDebugMode) {
+      debugPrint('🎯 Calibration reset due to sensor disconnect');
+    }
   }
 
   /// Check if a device is currently connected (subscription active)
   bool isConnected(String deviceId) {
     return _connSubs.containsKey(deviceId);
+  }
+  
+  /// Check if both sensors are connected and start calibration
+  void _checkAndStartCalibration() {
+    // Check if we have both left and right sensors connected
+    final hasLeft = _connSubs.keys.any((id) => id.toLowerCase().contains('left'));
+    final hasRight = _connSubs.keys.any((id) => id.toLowerCase().contains('right'));
+    
+    if (hasLeft && hasRight && !_isCalibrating && _yawOffsetRightMinusLeft == null) {
+      _startCalibration();
+    }
+  }
+  
+  /// Start calibration process - collect samples from both sensors
+  void _startCalibration() {
+    _isCalibrating = true;
+    _calibrationSamples.clear();
+    _calibrationSamples['left'] = [];
+    _calibrationSamples['right'] = [];
+    if (kDebugMode) {
+      debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+      debugPrint('🎯 STARTING YAW CALIBRATION');
+      debugPrint('🎯 Collecting $_calibrationSampleCount samples from each sensor...');
+      debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+    }
+  }
+  
+  /// Try to calibrate with current samples
+  void _tryCalibrate(String deviceId, double yaw) {
+    if (!_isCalibrating) return;
+    
+    // Determine which sensor this is
+    final sensorKey = deviceId.toLowerCase().contains('left') ? 'left' : 'right';
+    
+    // Add sample to calibration buffer
+    if (_calibrationSamples[sensorKey] != null && 
+        _calibrationSamples[sensorKey]!.length < _calibrationSampleCount) {
+      _calibrationSamples[sensorKey]!.add(yaw);
+    }
+    
+    // Check if we have enough samples from both sensors
+    final leftCount = _calibrationSamples['left']?.length ?? 0;
+    final rightCount = _calibrationSamples['right']?.length ?? 0;
+    
+    if (leftCount >= _calibrationSampleCount && rightCount >= _calibrationSampleCount) {
+      // Calculate offset using samples 40-50
+      final leftSamples = _calibrationSamples['left']!;
+      final rightSamples = _calibrationSamples['right']!;
+      
+      final leftAvg = leftSamples.skip(_calibrationStartSample)
+          .take(_calibrationEndSample - _calibrationStartSample)
+          .reduce((a, b) => a + b) / (_calibrationEndSample - _calibrationStartSample);
+      final rightAvg = rightSamples.skip(_calibrationStartSample)
+          .take(_calibrationEndSample - _calibrationStartSample)
+          .reduce((a, b) => a + b) / (_calibrationEndSample - _calibrationStartSample);
+      
+      _yawOffsetRightMinusLeft = rightAvg - leftAvg;
+      _isCalibrating = false;
+      _calibrationSamples.clear();
+      
+      if (kDebugMode) {
+        debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+        debugPrint('🎯 YAW OFFSET CALIBRATION COMPLETE');
+        debugPrint('🎯 Used samples $_calibrationStartSample-$_calibrationEndSample after connection');
+        debugPrint('🎯 Left sensor average: ${leftAvg.toStringAsFixed(2)}°');
+        debugPrint('🎯 Right sensor average: ${rightAvg.toStringAsFixed(2)}°');
+        debugPrint('🎯 Offset (right - left): ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
+        debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+      }
+    } else if (kDebugMode && (leftCount % 10 == 0 || rightCount % 10 == 0)) {
+      debugPrint('🎯 Calibration progress: Left=$leftCount/$_calibrationSampleCount, Right=$rightCount/$_calibrationSampleCount');
+    }
   }
 
   /// Disconnect all connected devices
@@ -171,8 +262,15 @@ class BleManager {
     _isRecording = true;
     _recordingStartTime = DateTime.now();
     _recordedSamples.clear();
-    _yawOffsetRightMinusLeft = null; // Reset calibration for new recording
-    if (kDebugMode) debugPrint('🔴 Recording started');
+    // Keep existing calibration - don't reset it
+    if (kDebugMode) {
+      debugPrint('🔴 Recording started');
+      if (_yawOffsetRightMinusLeft != null) {
+        debugPrint('🔴 Using calibrated yaw offset: ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
+      } else {
+        debugPrint('⚠️  WARNING: Recording started without calibration!');
+      }
+    }
   }
 
   /// Stop recording and return the recorded data
@@ -369,26 +467,9 @@ class BleManager {
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
       
-      // Calibrate yaw offset: wait for 50 samples after both sensors start to get stable values
-      if (_yawOffsetRightMinusLeft == null && _isRecording) {
-        final leftSamples = _recordedSamples['left'];
-        final rightSamples = _recordedSamples['right'];
-        if (leftSamples != null && leftSamples.length >= 50 && 
-            rightSamples != null && rightSamples.length >= 50) {
-          // Use samples 40-50 (after sensors stabilize) for offset calculation
-          final leftAvg = leftSamples.skip(40).take(10).map((s) => s.yaw).reduce((a, b) => a + b) / 10;
-          final rightAvg = rightSamples.skip(40).take(10).map((s) => s.yaw).reduce((a, b) => a + b) / 10;
-          _yawOffsetRightMinusLeft = rightAvg - leftAvg;
-          if (kDebugMode) {
-            debugPrint('🎯 ════════════════════════════════════════════════════════════════');
-            debugPrint('🎯 YAW OFFSET CALIBRATION COMPLETE');
-            debugPrint('🎯 Used samples 40-50 after both sensors started streaming');
-            debugPrint('🎯 Right avg: ${rightAvg.toStringAsFixed(2)}°');
-            debugPrint('🎯 Left avg: ${leftAvg.toStringAsFixed(2)}°');
-            debugPrint('🎯 Offset (right - left): ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
-            debugPrint('🎯 ════════════════════════════════════════════════════════════════');
-          }
-        }
+      // Feed calibration system if active
+      if (_isCalibrating) {
+        _tryCalibrate(deviceId, map['yaw']!);
       }
       
       // Compute parallelness if we have a calibrated offset and paired sample
