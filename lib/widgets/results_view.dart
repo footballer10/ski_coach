@@ -323,6 +323,7 @@ class ResultsView extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
+  final VoidCallback? onCalibrateAcceleration;
   final bool showReconnectButton;
   final bool showTryAgainButton;
 
@@ -332,6 +333,7 @@ class ResultsView extends StatefulWidget {
     this.errorMessage,
     required this.onNewRun,
     this.onReconnect,
+    this.onCalibrateAcceleration,
     this.showReconnectButton = true,
     this.showTryAgainButton = true,
   });
@@ -399,6 +401,18 @@ class _ResultsViewState extends State<ResultsView> {
   
   double _scoreForTurnShapeSD(double x) {
     return Scoring.turnShape(x);
+  }
+
+  void _navigateBack() {
+    if (_navigationHistory.isEmpty) return;
+    final prev = _navigationHistory.removeLast();
+    setState(() {
+      _selectedCategory = prev['category']!;
+      _selectedTurn = prev['turn']!;
+      _categoryPageThird = prev['categoryPageThird']!;
+      _parallelPhase = prev['parallelPhase']!;
+      _turnShapePhase = prev['turnShapePhase']!;
+    });
   }
 
   void _pushNavigation() {
@@ -594,15 +608,37 @@ class _ResultsViewState extends State<ResultsView> {
         Expanded(child: _buildContent()),
         Padding(
           padding: const EdgeInsets.all(12.0),
-          child: ElevatedButton.icon(
-            onPressed: widget.onNewRun,
-            icon: const Icon(Icons.add, size: 24),
-            label: const Text('Start New Run'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: ElevatedButton.icon(
+                  onPressed: widget.onNewRun,
+                  icon: const Icon(Icons.add, size: 24),
+                  label: const Text('Start New Run'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              if (widget.onCalibrateAcceleration != null) const SizedBox(width: 8),
+              if (widget.onCalibrateAcceleration != null)
+                Expanded(
+                  flex: 1,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onCalibrateAcceleration,
+                    icon: const Icon(Icons.settings_input_component, size: 20),
+                    label: const Text('Accel Cal'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -618,8 +654,13 @@ class _ResultsViewState extends State<ResultsView> {
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
         child: Row(
           children: [
-          Expanded(
-            child: DropdownButtonFormField<String>(
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _navigationHistory.isNotEmpty ? _navigateBack : null,
+              tooltip: 'Back',
+            ),
+            Expanded(
+              child: DropdownButtonFormField<String>(
               initialValue: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Category',

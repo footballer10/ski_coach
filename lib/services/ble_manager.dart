@@ -228,16 +228,21 @@ class BleManager {
   
   /// Start calibration process - collect samples from both sensors
   void _startCalibration() {
-    _isCalibrating = true;
-    _calibrationSamples.clear();
-    _calibrationSamples['left'] = [];
-    _calibrationSamples['right'] = [];
-    if (kDebugMode) {
-      debugPrint('🎯 ════════════════════════════════════════════════════════════════');
-      debugPrint('🎯 STARTING YAW CALIBRATION');
-      debugPrint('🎯 Collecting $_calibrationSampleCount samples from each sensor...');
-      debugPrint('🎯 ════════════════════════════════════════════════════════════════');
-    }
+    // Wait 5 seconds before starting calibration to allow sensors to settle and start outputting real data
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!_isCalibrating && _yawOffsetRightMinusLeft == null) {
+        _isCalibrating = true;
+        _calibrationSamples.clear();
+        _calibrationSamples['left'] = [];
+        _calibrationSamples['right'] = [];
+        if (kDebugMode) {
+          debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+          debugPrint('🎯 STARTING YAW CALIBRATION (after 5s settling time)');
+          debugPrint('🎯 Collecting $_calibrationSampleCount samples from each sensor...');
+          debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+        }
+      }
+    });
   }
   
   /// Try to calibrate with current samples

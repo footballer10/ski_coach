@@ -577,6 +577,7 @@ enum RunState { recording, processing, results }
          errorMessage: error,
          onNewRun: widget.onRecordAgain,
          onReconnect: showReconnectButton ? widget.onManualReconnect : null,
+         onCalibrateAcceleration: _calibrateAcceleration,
          showReconnectButton: showReconnectButton,
          showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
        );
@@ -685,6 +686,7 @@ enum RunState { recording, processing, results }
     return ResultsView(
       results: resultsModel,
       onNewRun: widget.onRecordAgain,
+      onCalibrateAcceleration: _calibrateAcceleration,
       showReconnectButton: false,
     );
   }
