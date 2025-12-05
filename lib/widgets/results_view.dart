@@ -155,6 +155,54 @@ class DotPlot extends StatelessWidget {
       columnCounts[columnIndex].add(i);
     }
     
+    // Trim empty columns from start and end
+    int firstNonEmpty = 0;
+    int lastNonEmpty = numColumns - 1;
+    
+    for (int i = 0; i < numColumns; i++) {
+      if (columnCounts[i].isNotEmpty) {
+        firstNonEmpty = i;
+        break;
+      }
+    }
+    
+    for (int i = numColumns - 1; i >= 0; i--) {
+      if (columnCounts[i].isNotEmpty) {
+        lastNonEmpty = i;
+        break;
+      }
+    }
+    
+    // Ensure we have at least 6 columns and at most 11
+    final minColumns = 6;
+    final maxColumns = 11;
+    int trimmedNumColumns = lastNonEmpty - firstNonEmpty + 1;
+    
+    // Expand to minimum columns if needed
+    if (trimmedNumColumns < minColumns) {
+      final expansion = minColumns - trimmedNumColumns;
+      final leftExpansion = expansion ~/ 2;
+      final rightExpansion = expansion - leftExpansion;
+      firstNonEmpty = math.max(0, firstNonEmpty - leftExpansion);
+      lastNonEmpty = math.min(numColumns - 1, lastNonEmpty + rightExpansion);
+      trimmedNumColumns = lastNonEmpty - firstNonEmpty + 1;
+    }
+    
+    // Contract to maximum columns if needed
+    if (trimmedNumColumns > maxColumns) {
+      final contraction = trimmedNumColumns - maxColumns;
+      final leftContraction = contraction ~/ 2;
+      final rightContraction = contraction - leftContraction;
+      firstNonEmpty = firstNonEmpty + leftContraction;
+      lastNonEmpty = lastNonEmpty - rightContraction;
+      trimmedNumColumns = lastNonEmpty - firstNonEmpty + 1;
+    }
+    
+    // Create trimmed columns and data
+    final trimmedColumns = scaler.columns.sublist(firstNonEmpty, lastNonEmpty + 1);
+    final trimmedColumnCounts = columnCounts.sublist(firstNonEmpty, lastNonEmpty + 1);
+    final adjustedOptimalColumn = scaler.optimalColumn - firstNonEmpty;
+    
     final dotSize = 6.0;
     final plotHeight = height - 30; // Reserve 30px for labels
     
@@ -165,22 +213,23 @@ class DotPlot extends StatelessWidget {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final columnWidth = (constraints.maxWidth - 20) / numColumns;
+                final columnWidth = (constraints.maxWidth - 20) / trimmedNumColumns;
                 return Stack(
                   children: [
-                    // Optimal line
-                    Positioned(
-                      left: 10 + scaler.optimalColumn * columnWidth + columnWidth / 2,
-                      top: 0,
-                      bottom: 30,
-                      child: CustomPaint(
-                        painter: DottedLinePainter(color: Colors.red),
-                        size: Size(1, plotHeight),
+                    // Optimal line (only show if in visible range)
+                    if (adjustedOptimalColumn >= 0 && adjustedOptimalColumn < trimmedNumColumns)
+                      Positioned(
+                        left: 10 + adjustedOptimalColumn * columnWidth + columnWidth / 2,
+                        top: 0,
+                        bottom: 30,
+                        child: CustomPaint(
+                          painter: DottedLinePainter(color: Colors.red),
+                          size: Size(1, plotHeight),
+                        ),
                       ),
-                    ),
                     // Dots
-                    ...List.generate(numColumns, (colIndex) {
-                      final dotsInColumn = columnCounts[colIndex];
+                    ...List.generate(trimmedNumColumns, (colIndex) {
+                      final dotsInColumn = trimmedColumnCounts[colIndex];
                       return Positioned(
                         left: 10 + colIndex * columnWidth,
                         bottom: 30,
@@ -215,11 +264,11 @@ class DotPlot extends StatelessWidget {
                       bottom: 0,
                       height: 30,
                       child: Row(
-                        children: List.generate(numColumns, (i) {
+                        children: List.generate(trimmedNumColumns, (i) {
                           return Expanded(
                             child: Center(
                               child: Text(
-                                scaler.columns[i].toStringAsFixed(2),
+                                trimmedColumns[i].toStringAsFixed(2),
                                 style: const TextStyle(fontSize: 9),
                               ),
                             ),
