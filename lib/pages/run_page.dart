@@ -483,70 +483,52 @@ enum RunState { recording, processing, results }
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Recording Session',
-            style: Theme.of(context).textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
-                  const SizedBox(height: 12),
-                  _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
-                ],
-              ),
+          if (!_recording) ...[  
+            Text(
+              'Recording Session',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: _recording ? null : _startRecording,
-                  icon: const Icon(Icons.fiber_manual_record, size: 28),
-                  label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                    backgroundColor: _recording ? Colors.grey : Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 1,
-                child: ElevatedButton.icon(
-                  onPressed: _recording ? null : _calibrateAcceleration,
-                  icon: const Icon(Icons.settings_input_component, size: 20),
-                  label: const Text('Accel Cal', style: TextStyle(fontSize: 16)),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-                    backgroundColor: _recording ? Colors.grey : Colors.purple,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (_recording)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: ElevatedButton.icon(
-                onPressed: _stopRecording,
-                icon: const Icon(Icons.stop, size: 28),
-                label: const Text('Stop Recording', style: TextStyle(fontSize: 20)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
+                    const SizedBox(height: 12),
+                    _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
+                  ],
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+          ],
+          if (_recording) const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _recording ? null : _startRecording,
+            icon: const Icon(Icons.fiber_manual_record, size: 28),
+            label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+              backgroundColor: _recording ? Colors.grey : Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          if (_recording) ...[  
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: _stopRecording,
+              icon: const Icon(Icons.stop, size: 28),
+              label: const Text('Stop Recording', style: TextStyle(fontSize: 20)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+          if (_recording) const Spacer(),
         ],
       ),
     );
@@ -579,6 +561,7 @@ enum RunState { recording, processing, results }
          errorMessage: error,
          onNewRun: widget.onRecordAgain,
          onReconnect: showReconnectButton ? widget.onManualReconnect : null,
+         onCalibrateAcceleration: _calibrateAcceleration,
          showReconnectButton: showReconnectButton,
          showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
        );
@@ -588,8 +571,11 @@ enum RunState { recording, processing, results }
     final rightCount = _analysisResults!['rightSampleCount'] ?? 0;
     final leftSegments = (_analysisResults!['leftSegments'] as List?)?.cast<List<int>>() ?? [];
     final rightSegments = (_analysisResults!['rightSegments'] as List?)?.cast<List<int>>() ?? [];
-      final duration = _analysisResults!['duration'] ?? 0;
-      final startTime = _analysisResults!['startTime'] as DateTime?;
+    final duration = _analysisResults!['duration'] ?? 0;
+    final startTime = _analysisResults!['startTime'] as DateTime?;
+    final processedLeftSamples = _analysisResults!['processedLeftSamples'];
+    final processedRightSamples = _analysisResults!['processedRightSamples'];
+    final segments = _analysisResults!['segments'];
     final turnCount = _analysisResults!['turnCount'] ?? 0;
     final turnDurations = (_analysisResults!['turnDurations'] as List?)?.cast<double>() ?? [];
     final edgeAngles = (_analysisResults!['edgeAngles'] as List?)?.cast<double>() ?? [];
@@ -677,10 +663,14 @@ enum RunState { recording, processing, results }
       turnSymmetryRatio: turnSymmetryRatio,
       turnSymmetryScore: turnSymmetryScore,
       overallScore: overallScore,
+      processedLeftSamples: processedLeftSamples,
+      processedRightSamples: processedRightSamples,
+      segments: segments,
     );
     return ResultsView(
       results: resultsModel,
       onNewRun: widget.onRecordAgain,
+      onCalibrateAcceleration: _calibrateAcceleration,
       showReconnectButton: false,
     );
   }

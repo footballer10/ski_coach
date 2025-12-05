@@ -323,6 +323,7 @@ class ResultsView extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
+  final VoidCallback? onCalibrateAcceleration;
   final bool showReconnectButton;
   final bool showTryAgainButton;
 
@@ -332,6 +333,7 @@ class ResultsView extends StatefulWidget {
     this.errorMessage,
     required this.onNewRun,
     this.onReconnect,
+    this.onCalibrateAcceleration,
     this.showReconnectButton = true,
     this.showTryAgainButton = true,
   });
@@ -592,18 +594,39 @@ class _ResultsViewState extends State<ResultsView> {
       children: [
         _buildNavigationBar(),
         Expanded(child: _buildContent()),
-        _buildDebugSection(),
         Padding(
           padding: const EdgeInsets.all(12.0),
-          child: ElevatedButton.icon(
-            onPressed: widget.onNewRun,
-            icon: const Icon(Icons.add, size: 24),
-            label: const Text('Start New Run'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: ElevatedButton.icon(
+                  onPressed: widget.onNewRun,
+                  icon: const Icon(Icons.add, size: 24),
+                  label: const Text('Start New Run'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              if (widget.onCalibrateAcceleration != null) const SizedBox(width: 8),
+              if (widget.onCalibrateAcceleration != null)
+                Expanded(
+                  flex: 1,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onCalibrateAcceleration,
+                    icon: const Icon(Icons.settings_input_component, size: 20),
+                    label: const Text('Accel Cal'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -936,84 +959,6 @@ class _ResultsViewState extends State<ResultsView> {
       case ViewMode.categoryTurn:
         return _buildCategoryTurn();
     }
-  }
-
-  Widget _buildDebugSection() {
-    final segments = widget.results?.segments as List<TurnSegment>?;
-    if (segments == null || segments.isEmpty) return const SizedBox.shrink();
-
-    return ExpansionTile(
-      title: const Text('Debug: Calculated Values', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-      initiallyExpanded: false,
-      children: [
-        // Overall run statistics
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Card(
-            color: Colors.grey[100],
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Run Summary:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text('Turns: ${widget.results?.turnCount ?? 0}', style: const TextStyle(fontSize: 10)),
-                  Text('Duration: ${widget.results?.runDurationSeconds ?? 0}s', style: const TextStyle(fontSize: 10)),
-                  Text('Overall Score: ${widget.results?.overallScore?.toStringAsFixed(1) ?? "—"}', style: const TextStyle(fontSize: 10)),
-                  Text('Turn Symmetry: ${widget.results?.turnSymmetryRatio?.toStringAsFixed(3) ?? "—"} (score: ${widget.results?.turnSymmetryScore?.toStringAsFixed(1) ?? "—"})', style: const TextStyle(fontSize: 10)),
-                  Text('Samples: ${widget.results?.leftSampleCount ?? 0}L / ${widget.results?.rightSampleCount ?? 0}R', style: const TextStyle(fontSize: 10)),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const Divider(height: 1),
-        // Per-turn details
-        Container(
-          constraints: const BoxConstraints(maxHeight: 300),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: segments.length,
-            itemBuilder: (context, i) {
-              final seg = segments[i];
-              final turnNum = i + 1;
-              final dir = seg.direction == 1 ? 'R' : 'L';
-              
-              return ExpansionTile(
-                title: Text('Turn $turnNum ($dir)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                initiallyExpanded: false,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Duration: ${seg.durationSeconds.toStringAsFixed(2)}s', style: const TextStyle(fontSize: 10)),
-                        const Divider(height: 8),
-                        Text('Edge Angle: ${seg.maxEdgeAngle.toStringAsFixed(2)}° (score: ${_scoreForEdgeAngle(seg.maxEdgeAngle).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        const Divider(height: 8),
-                        const Text('Parallel:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                        Text('  Whole: ${seg.avgParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.avgParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        Text('  Initiation: ${seg.beginningParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.beginningParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        Text('  Control: ${seg.middleParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.middleParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        Text('  Completion: ${seg.endParallelness.toStringAsFixed(2)}° (score: ${_scoreForParallelness(seg.endParallelness).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        const Divider(height: 8),
-                        const Text('Turn Shape:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                        Text('  Whole: ${seg.avgTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.avgTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        Text('  Initiation: ${seg.beginningTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.beginningTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        Text('  Control: ${seg.middleTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.middleTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                        Text('  Completion: ${seg.endTurnShapeSD.toStringAsFixed(2)}°/s (score: ${_scoreForTurnShapeSD(seg.endTurnShapeSD).toStringAsFixed(1)})', style: const TextStyle(fontSize: 10)),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildOverview() {
@@ -1390,7 +1335,6 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ),
             ),
-          if (selectedTurnIndex != null) const SizedBox(height: 8),
           _buildMetricModule('Turn Duration', 0),
           const SizedBox(height: 8),
           _buildMetricModule('Edge Angle', 0),

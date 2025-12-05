@@ -21,6 +21,8 @@ class BleManager {
       Uuid.parse("0000FFE5-0000-1000-8000-00805F9A34FB");
   static final Uuid _char =
       Uuid.parse("0000FFE4-0000-1000-8000-00805F9A34FB");
+  static final Uuid _charWrite =
+      Uuid.parse("0000FFE9-0000-1000-8000-00805F9A34FB");
 
   // For storing Bluetooth connections
   final Map<String, StreamSubscription> _connSubs = {};
@@ -39,6 +41,11 @@ class BleManager {
   
   // Device ID to sensor side mapping (deviceId -> 'left' or 'right')
   final Map<String, String> _deviceSideMapping = {};
+  
+  // Axis remapping for mirrored sensor mounting
+  // When sensors are mounted on opposite feet, their axes are mirrored
+  // Set this to true if right sensor shows gravity in different axis than left
+  static const bool _mirrorRightSensorAxes = true;
   
   // Calibration state: collect samples when both sensors connect
   bool _isCalibrating = false;
@@ -63,7 +70,7 @@ class BleManager {
     try {
       final char = QualifiedCharacteristic(
         serviceId: _service,
-        characteristicId: _char,
+        characteristicId: _charWrite,
         deviceId: deviceId,
       );
       
@@ -435,9 +442,18 @@ class BleManager {
       // Packet format: 0x55 0x61 AXL AXH AYL AYH AZL AZH WXL WXH WYL WYH WZL WZH RollL RollH PitchL PitchH YawL YawH
       if (type == 0x61 && i + 20 <= bytes.length) {
         // Acceleration (bytes 2-7): Low byte first, high byte second
-        final ax = _toScaledAccel(bytes[i + 2], bytes[i + 3]);
-        final ay = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
-        final az = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
+        double ax = _toScaledAccel(bytes[i + 2], bytes[i + 3]);
+        double ay = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
+        double az = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
+        
+        // Apply axis remapping for right sensor (mirrored mounting)
+        final sensorSide = _deviceSideMapping[deviceId];
+        if (_mirrorRightSensorAxes && sensorSide == 'right') {
+          // Swap Y and Z axes for right sensor to match left sensor orientation
+          final temp = ay;
+          ay = az;
+          az = temp;
+        }
         
         // Angular velocity / Gyro (bytes 8-13)
         final gx = _toScaledGyro(bytes[i + 8], bytes[i + 9]);
