@@ -369,18 +369,24 @@ class BleManager {
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
       
-      // Calibrate yaw offset: wait for ~20 samples to ensure stable unwrapped values
+      // Calibrate yaw offset: wait for 50 samples after both sensors start to get stable values
       if (_yawOffsetRightMinusLeft == null && _isRecording) {
         final leftSamples = _recordedSamples['left'];
         final rightSamples = _recordedSamples['right'];
-        if (leftSamples != null && leftSamples.length >= 20 && 
-            rightSamples != null && rightSamples.length >= 20) {
-          // Use average of first 20 samples after unwrapping for stable offset
-          final leftAvg = leftSamples.take(20).map((s) => s.yaw).reduce((a, b) => a + b) / 20;
-          final rightAvg = rightSamples.take(20).map((s) => s.yaw).reduce((a, b) => a + b) / 20;
+        if (leftSamples != null && leftSamples.length >= 50 && 
+            rightSamples != null && rightSamples.length >= 50) {
+          // Use samples 40-50 (after sensors stabilize) for offset calculation
+          final leftAvg = leftSamples.skip(40).take(10).map((s) => s.yaw).reduce((a, b) => a + b) / 10;
+          final rightAvg = rightSamples.skip(40).take(10).map((s) => s.yaw).reduce((a, b) => a + b) / 10;
           _yawOffsetRightMinusLeft = rightAvg - leftAvg;
           if (kDebugMode) {
-            debugPrint('🎯 Yaw calibration (20-sample avg): right=${rightAvg.toStringAsFixed(2)}° left=${leftAvg.toStringAsFixed(2)}° offset=${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
+            debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+            debugPrint('🎯 YAW OFFSET CALIBRATION COMPLETE');
+            debugPrint('🎯 Used samples 40-50 after both sensors started streaming');
+            debugPrint('🎯 Right avg: ${rightAvg.toStringAsFixed(2)}°');
+            debugPrint('🎯 Left avg: ${leftAvg.toStringAsFixed(2)}°');
+            debugPrint('🎯 Offset (right - left): ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
+            debugPrint('🎯 ════════════════════════════════════════════════════════════════');
           }
         }
       }

@@ -1310,9 +1310,10 @@ class _ResultsViewState extends State<ResultsView> {
       }
     }
     
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(12.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnScores.length ?? 0))
             Card(
@@ -1334,20 +1335,13 @@ class _ResultsViewState extends State<ResultsView> {
               ),
             ),
           if (selectedTurnIndex != null) const SizedBox(height: 8),
-          Expanded(
-            child: GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.6,
-        children: [
           _buildMetricModule('Turn Duration', 0),
+          const SizedBox(height: 8),
           _buildMetricModule('Edge Angle', 0),
+          const SizedBox(height: 8),
           _buildMetricModule('Parallel', 0),
+          const SizedBox(height: 8),
           _buildMetricModule('Turn Shape', 0),
-        ],
-            ),
-          ),
         ],
       ),
     );
