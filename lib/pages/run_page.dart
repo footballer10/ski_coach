@@ -316,9 +316,7 @@ enum RunState { recording, processing, results }
     // Re-process to get the corrected samples (same pipeline as segmentation)
     final unwrappedLeft = ImuPreprocessor.unwrapAngles(leftImu, 'LEFT');
     final unwrappedRight = ImuPreprocessor.unwrapAngles(rightImu, 'RIGHT');
-    final correctedLeft = ImuPreprocessor.correctAngleJumps(unwrappedLeft, 'LEFT');
-    final correctedRight = ImuPreprocessor.correctAngleJumps(unwrappedRight, 'RIGHT');
-    final correctedRightYaw = ImuPreprocessor.applyYawOffset(correctedRight, yawOffset, 'RIGHT');
+    final correctedRightYaw = ImuPreprocessor.applyYawOffset(unwrappedRight, yawOffset, 'RIGHT');
     
     final turnDurations = segments.map((s) => s.durationSeconds).toList();
     final edgeAngles = segments.map((s) => s.maxEdgeAngle).toList();
@@ -368,7 +366,7 @@ enum RunState { recording, processing, results }
       'rightSampleCount': rightSamples.length,
       'leftSamples': leftSamples,
       'rightSamples': rightSamples,
-      'processedLeftSamples': correctedLeft,
+      'processedLeftSamples': unwrappedLeft,
       'processedRightSamples': correctedRightYaw,
       'segments': segments,
         'duration': leftSamples.isNotEmpty && leftSamples.length > 1

@@ -1413,22 +1413,28 @@ class _ResultsViewState extends State<ResultsView> {
                   ),
                 ),
               ],
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               // Add time series graph for Edge Angle or Parallel in metric modules
               if (selectedTurnIndex != null && (metric == 'Edge Angle' || metric == 'Parallel')) ...[
-                _buildTimeSeriesGraphForMetric(metric, selectedTurnIndex),
-                const SizedBox(height: 4),
+                SizedBox(
+                  height: 120,
+                  child: _buildTimeSeriesGraphForMetric(metric, selectedTurnIndex),
+                ),
+                const SizedBox(height: 8),
               ],
               if (selectedTurnIndex != null) ...[
-                DotPlot(
-                  values: _getValuesForMetric(
-                    metric,
-                    metric == 'Parallel' ? _parallelPhase : (metric == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
+                SizedBox(
+                  height: 80,
+                  child: DotPlot(
+                    values: _getValuesForMetric(
+                      metric,
+                      metric == 'Parallel' ? _parallelPhase : (metric == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
+                    ),
+                    highlightIndex: selectedTurnIndex,
+                    optimalValue: _getOptimalForCategory(metric),
+                    units: _getUnitsForCategory(metric),
+                    height: 80,
                   ),
-                  highlightIndex: selectedTurnIndex,
-                  optimalValue: _getOptimalForCategory(metric),
-                  units: _getUnitsForCategory(metric),
-                  height: 60,
                 ),
               ],
             ],
@@ -1493,35 +1499,41 @@ class _ResultsViewState extends State<ResultsView> {
     }
     
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Value: $valueText', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text('Score: $scoreText', style: const TextStyle(fontSize: 14)),
+                  Text('Value: $valueText', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
+                  Text('Score: $scoreText', style: const TextStyle(fontSize: 16)),
+                  const SizedBox(height: 16),
                   // Add time series graph for Edge Angle or Parallel
                   if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel')) ...[
-                    _buildTimeSeriesGraph(selectedTurnIndex),
-                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 180,
+                      child: _buildTimeSeriesGraph(selectedTurnIndex),
+                    ),
+                    const SizedBox(height: 16),
                   ],
                   if (selectedTurnIndex != null) ...[
-                    DotPlot(
-                      values: _getValuesForCategory(
-                        _selectedCategory,
-                        _selectedCategory == 'Parallel' ? _parallelPhase : (_selectedCategory == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
+                    SizedBox(
+                      height: 180,
+                      child: DotPlot(
+                        values: _getValuesForCategory(
+                          _selectedCategory,
+                          _selectedCategory == 'Parallel' ? _parallelPhase : (_selectedCategory == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
+                        ),
+                        highlightIndex: selectedTurnIndex,
+                        optimalValue: _getOptimalForCategory(_selectedCategory),
+                        units: _getUnitsForCategory(_selectedCategory),
+                        height: 180,
                       ),
-                      highlightIndex: selectedTurnIndex,
-                      optimalValue: _getOptimalForCategory(_selectedCategory),
-                      units: _getUnitsForCategory(_selectedCategory),
-                      height: 150,
                     ),
                   ] else ...[
                     const Text('[No turn selected]', style: TextStyle(fontStyle: FontStyle.italic)),

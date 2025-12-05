@@ -369,15 +369,18 @@ class BleManager {
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
       
-      // Calibrate yaw offset on first samples from both sensors
+      // Calibrate yaw offset: wait for ~20 samples to ensure stable unwrapped values
       if (_yawOffsetRightMinusLeft == null && _isRecording) {
         final leftSamples = _recordedSamples['left'];
         final rightSamples = _recordedSamples['right'];
-        if (leftSamples != null && leftSamples.isNotEmpty && 
-            rightSamples != null && rightSamples.isNotEmpty) {
-          _yawOffsetRightMinusLeft = rightSamples.first.yaw - leftSamples.first.yaw;
+        if (leftSamples != null && leftSamples.length >= 20 && 
+            rightSamples != null && rightSamples.length >= 20) {
+          // Use average of first 20 samples after unwrapping for stable offset
+          final leftAvg = leftSamples.take(20).map((s) => s.yaw).reduce((a, b) => a + b) / 20;
+          final rightAvg = rightSamples.take(20).map((s) => s.yaw).reduce((a, b) => a + b) / 20;
+          _yawOffsetRightMinusLeft = rightAvg - leftAvg;
           if (kDebugMode) {
-            debugPrint('🎯 Yaw calibration: right=${rightSamples.first.yaw.toStringAsFixed(2)}° left=${leftSamples.first.yaw.toStringAsFixed(2)}° offset=${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
+            debugPrint('🎯 Yaw calibration (20-sample avg): right=${rightAvg.toStringAsFixed(2)}° left=${leftAvg.toStringAsFixed(2)}° offset=${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
           }
         }
       }
