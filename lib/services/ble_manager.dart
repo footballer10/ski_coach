@@ -43,9 +43,9 @@ class BleManager {
   // Calibration state: collect samples when both sensors connect
   bool _isCalibrating = false;
   final Map<String, List<double>> _calibrationSamples = {};
-  static const int _calibrationSampleCount = 50;
-  static const int _calibrationStartSample = 40; // Skip first 40 samples
-  static const int _calibrationEndSample = 50;   // Use samples 40-50
+  static const int _calibrationSampleCount = 100;  // Increased from 50 to allow more settling time
+  static const int _calibrationStartSample = 80;   // Skip first 80 samples
+  static const int _calibrationEndSample = 100;    // Use samples 80-100
 
   /// Get the calibrated yaw offset (right - left) established at connection
   double? get yawOffset => _yawOffsetRightMinusLeft;
@@ -55,6 +55,36 @@ class BleManager {
     _deviceSideMapping[deviceId] = side;
     if (kDebugMode) {
       debugPrint('🎯 Registered device $deviceId as $side sensor');
+    }
+  }
+  
+  /// Send acceleration calibration command to a device
+  Future<void> calibrateAcceleration(String deviceId) async {
+    try {
+      final char = QualifiedCharacteristic(
+        serviceId: _service,
+        characteristicId: _char,
+        deviceId: deviceId,
+      );
+      
+      // Step 1: Unlock (must complete within 10 seconds)
+      await _ble.writeCharacteristicWithoutResponse(char, value: [0xFF, 0xAA, 0x69, 0x88, 0xB5]);
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Step 2: Acceleration calibration command
+      await _ble.writeCharacteristicWithoutResponse(char, value: [0xFF, 0xAA, 0x01, 0x01, 0x00]);
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Step 3: Save command
+      await _ble.writeCharacteristicWithoutResponse(char, value: [0xFF, 0xAA, 0x00, 0x00, 0x00]);
+      
+      if (kDebugMode) {
+        debugPrint('✅ Acceleration calibration command sent to $deviceId');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Failed to send acceleration calibration: $e');
+      }
     }
   }
 
