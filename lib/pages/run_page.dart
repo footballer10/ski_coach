@@ -64,6 +64,11 @@ enum RunState { recording, processing, results }
   @override
   void initState() {
     super.initState();
+    
+    // Register which device is left and which is right for calibration
+    widget.bleMgr.registerDeviceSide(widget.leftId, 'left');
+    widget.bleMgr.registerDeviceSide(widget.rightId, 'right');
+    
     _subscribeToSamples();
     _startWatchdogs();
     

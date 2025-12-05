@@ -37,6 +37,9 @@ class BleManager {
   // Yaw calibration: offset between left and right sensors at connection
   double? _yawOffsetRightMinusLeft;
   
+  // Device ID to sensor side mapping (deviceId -> 'left' or 'right')
+  final Map<String, String> _deviceSideMapping = {};
+  
   // Calibration state: collect samples when both sensors connect
   bool _isCalibrating = false;
   final Map<String, List<double>> _calibrationSamples = {};
@@ -46,6 +49,14 @@ class BleManager {
 
   /// Get the calibrated yaw offset (right - left) established at connection
   double? get yawOffset => _yawOffsetRightMinusLeft;
+  
+  /// Register which device ID corresponds to which sensor side ('left' or 'right')
+  void registerDeviceSide(String deviceId, String side) {
+    _deviceSideMapping[deviceId] = side;
+    if (kDebugMode) {
+      debugPrint('🎯 Registered device $deviceId as $side sensor');
+    }
+  }
 
   /// Stream of BLE status (ready, unauthorized, etc)
   Stream<BleStatus> get statusStream => _ble.statusStream;
@@ -167,8 +178,8 @@ class BleManager {
   /// Check if both sensors are streaming data and start calibration
   void _checkAndStartCalibration() {
     // Only start calibration if we've received data from both sensors
-    final hasLeftData = _latest.keys.any((id) => id.toLowerCase().contains('left'));
-    final hasRightData = _latest.keys.any((id) => id.toLowerCase().contains('right'));
+    final hasLeftData = _latest.keys.any((id) => _deviceSideMapping[id] == 'left');
+    final hasRightData = _latest.keys.any((id) => _deviceSideMapping[id] == 'right');
     
     if (hasLeftData && hasRightData && !_isCalibrating && _yawOffsetRightMinusLeft == null) {
       _startCalibration();
@@ -196,8 +207,14 @@ class BleManager {
   void _tryCalibrate(String deviceId, double yaw) {
     if (!_isCalibrating) return;
     
-    // Determine which sensor this is
-    final sensorKey = deviceId.toLowerCase().contains('left') ? 'left' : 'right';
+    // Determine which sensor this is using the mapping
+    final sensorKey = _deviceSideMapping[deviceId];
+    if (sensorKey == null) {
+      if (kDebugMode) {
+        debugPrint('⚠️  Warning: Device $deviceId not registered for calibration');
+      }
+      return;
+    }
     
     // Add sample to calibration buffer
     if (_calibrationSamples[sensorKey] != null && 
