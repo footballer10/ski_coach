@@ -354,7 +354,7 @@ class _ResultsViewState extends State<ResultsView> {
   
   final List<String> _categories = const [
     'All Categories',
-    'Turn Duration',
+    'Duration',
     'Edge Angle',
     'Parallel',
     'Turn Shape',
@@ -424,7 +424,7 @@ class _ResultsViewState extends State<ResultsView> {
   // Helper methods for dot plots
   double _getOptimalForCategory(String category) {
     switch (category) {
-      case 'Turn Duration':
+      case 'Duration':
         return 2.0;
       case 'Edge Angle':
         return 45.0;
@@ -439,7 +439,7 @@ class _ResultsViewState extends State<ResultsView> {
 
   String _getUnitsForCategory(String category) {
     switch (category) {
-      case 'Turn Duration':
+      case 'Duration':
         return 's';
       case 'Edge Angle':
         return '°';
@@ -454,7 +454,7 @@ class _ResultsViewState extends State<ResultsView> {
 
   List<double> _getValuesForCategory(String category, String phase) {
     switch (category) {
-      case 'Turn Duration':
+      case 'Duration':
         return widget.results?.turnDurationsSeconds ?? [];
       case 'Edge Angle':
         return widget.results?.edgeAngles ?? [];
@@ -475,7 +475,7 @@ class _ResultsViewState extends State<ResultsView> {
 
   List<double> _getValuesForMetric(String metric, String phase) {
     switch (metric) {
-      case 'Turn Duration':
+      case 'Duration':
         return widget.results?.turnDurationsSeconds ?? [];
       case 'Edge Angle':
         return widget.results?.edgeAngles ?? [];
@@ -1051,7 +1051,7 @@ class _ResultsViewState extends State<ResultsView> {
                                 'Turn ${i + 1}',
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                               ),
-                              if (_selectedCategory == 'Turn Duration') ...[
+                              if (_selectedCategory == 'Duration') ...[
                                 const SizedBox(width: 8),
                                 Text(
                                   '$turnDuration | Score: $turnDurationScore',
@@ -1101,7 +1101,7 @@ class _ResultsViewState extends State<ResultsView> {
     String optimalText = '—';
     String scoreText = '—';
 
-    if (_selectedCategory == 'Turn Duration') {
+    if (_selectedCategory == 'Duration') {
       optimalText = '2.000s';
       final durations = widget.results?.turnDurationsSeconds ?? const [];
       if (_selectedTurn == 'All Turns') {
@@ -1320,7 +1320,7 @@ class _ResultsViewState extends State<ResultsView> {
             ),
             const SizedBox(height: 8),
           ],
-          _buildMetricModule('Turn Duration', 0),
+          _buildMetricModule('Duration', 0),
           const SizedBox(height: 8),
           _buildMetricModule('Edge Angle', 0),
           const SizedBox(height: 8),
@@ -1346,7 +1346,7 @@ class _ResultsViewState extends State<ResultsView> {
     
     String valueText = '—';
     String scoreText = '—';
-    if (metric == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
+    if (metric == 'Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
       final x = widget.results!.turnDurationsSeconds[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(3)}s';
       scoreText = _scoreForDuration(x).toStringAsFixed(1);
@@ -1426,10 +1426,10 @@ class _ResultsViewState extends State<ResultsView> {
                     dropdownColor: Colors.white,
                     menuMaxHeight: 200,
                     items: const [
-                      DropdownMenuItem(value: 'Whole Turn', child: Text('Whole', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Initiation', child: Text('Init', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Control', child: Text('Ctrl', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Completion', child: Text('Comp', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Initiation', child: Text('Initiation', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Control', child: Text('Control', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(value: 'Completion', child: Text('Completion', style: TextStyle(fontSize: 9, color: Colors.black))),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -1488,7 +1488,7 @@ class _ResultsViewState extends State<ResultsView> {
     
     String valueText = '—';
     String scoreText = '—';
-    if (_selectedCategory == 'Turn Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
+    if (_selectedCategory == 'Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
       final x = widget.results!.turnDurationsSeconds[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(3)}s';
       scoreText = _scoreForDuration(x).toStringAsFixed(1);
