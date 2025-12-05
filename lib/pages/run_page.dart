@@ -414,27 +414,29 @@ enum RunState { recording, processing, results }
       'processedLeftSamples': unwrappedLeft,
       'processedRightSamples': correctedRightYaw,
       'segments': segments,
-        'duration': leftSamples.isNotEmpty && leftSamples.length > 1
+      'duration': leftSamples.isNotEmpty && leftSamples.length > 1
           ? leftSamples.last.timestamp.difference(leftSamples.first.timestamp).inSeconds
           : 0,
-        'startTime': leftSamples.isNotEmpty ? leftSamples.first.timestamp : null,
-        'turnCount': segments.length,
-        'turnDurations': turnDurations,
-        'edgeAngles': edgeAngles,
-        'turnDirections': turnDirections,
-        'parallelBeginning': parallelBeginning,
-        'parallelMiddle': parallelMiddle,
-        'parallelEnd': parallelEnd,
-        'parallelAvg': parallelAvg,
-        'turnShapeBeginning': turnShapeBeginning,
-        'turnShapeMiddle': turnShapeMiddle,
-        'turnShapeEnd': turnShapeEnd,
-        'turnShapeAvg': turnShapeAvg,
-        'turnSymmetryRatio': turnSymmetryRatio,
-        'turnSymmetryScore': turnSymmetryScore,
+      'startTime': leftSamples.isNotEmpty ? leftSamples.first.timestamp : null,
+      'turnCount': segments.length,
+      'turnDurations': turnDurations,
+      'edgeAngles': edgeAngles,
+      'turnDirections': turnDirections,
+      'parallelBeginning': parallelBeginning,
+      'parallelMiddle': parallelMiddle,
+      'parallelEnd': parallelEnd,
+      'parallelAvg': parallelAvg,
+      'turnShapeBeginning': turnShapeBeginning,
+      'turnShapeMiddle': turnShapeMiddle,
+      'turnShapeEnd': turnShapeEnd,
+      'turnShapeAvg': turnShapeAvg,
+      'turnSymmetryRatio': turnSymmetryRatio,
+      'turnSymmetryScore': turnSymmetryScore,
     };
 
-    debugPrint('📊 Results ready: ${results['turnCount']} turns');
+    _printDebugTurnAnalysis(segments);
+
+    debugPrint('📊 Results ready: ${results['turnCount']} turns');
 
     if (!mounted) return;
 
@@ -444,6 +446,35 @@ enum RunState { recording, processing, results }
     });
     // Notify parent that results are shown
     widget.onResultsShown?.call();
+  }
+
+  void _printDebugTurnAnalysis(List<dynamic> segments) {
+    if (segments.isEmpty) {
+      debugPrint('No turns detected.');
+      return;
+    }
+    debugPrint('═══════════════════════════════════════════════════════════════════════');
+    debugPrint('DEBUG: Calculated values for every category and section of every turn');
+    for (int i = 0; i < segments.length; i++) {
+      final seg = segments[i];
+      final turnNum = i + 1;
+      final dir = seg.direction == 1 ? 'R' : 'L';
+      debugPrint('Turn $turnNum ($dir):');
+      debugPrint('  Duration: ${seg.durationSeconds.toStringAsFixed(2)}s');
+      debugPrint('  Edge Angle: ${seg.maxEdgeAngle.toStringAsFixed(2)}° (score: ${Scoring.edgeAngle(seg.maxEdgeAngle).toStringAsFixed(1)})');
+      debugPrint('  Parallelness:');
+      debugPrint('    Whole: ${seg.avgParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.avgParallelness).toStringAsFixed(1)})');
+      debugPrint('    Initiation: ${seg.beginningParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.beginningParallelness).toStringAsFixed(1)})');
+      debugPrint('    Control: ${seg.middleParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.middleParallelness).toStringAsFixed(1)})');
+      debugPrint('    Completion: ${seg.endParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.endParallelness).toStringAsFixed(1)})');
+      debugPrint('  Turn Shape:');
+      debugPrint('    Whole: ${seg.avgTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.avgTurnShapeSD).toStringAsFixed(1)})');
+      debugPrint('    Initiation: ${seg.beginningTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.beginningTurnShapeSD).toStringAsFixed(1)})');
+      debugPrint('    Control: ${seg.middleTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.middleTurnShapeSD).toStringAsFixed(1)})');
+      debugPrint('    Completion: ${seg.endTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.endTurnShapeSD).toStringAsFixed(1)})');
+      debugPrint('');
+    }
+    debugPrint('═══════════════════════════════════════════════════════════════════════');
   }
 
   Widget _buildRecordingView() {
