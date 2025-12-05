@@ -1083,34 +1083,34 @@ class _ResultsViewState extends State<ResultsView> {
                             children: [
                               Text(
                                 'Turn ${i + 1}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                               ),
                               if (_selectedCategory == 'Turn Duration') ...[
                                 const SizedBox(width: 8),
                                 Text(
                                   '$turnDuration | Score: $turnDurationScore',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(fontSize: 10),
                                 ),
                               ],
                               if (_selectedCategory == 'Edge Angle') ...[
                                 const SizedBox(width: 8),
                                 Text(
                                   '$edgeAngle | Score: $edgeAngleScore',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(fontSize: 10),
                                 ),
                               ],
                               if (_selectedCategory == 'Parallel') ...[
                                 const SizedBox(width: 8),
                                 Text(
                                   '$parallelText | Score: $parallelScoreText',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(fontSize: 10),
                                 ),
                               ],
                               if (_selectedCategory == 'Turn Shape') ...[
                                 const SizedBox(width: 8),
                                 Text(
                                   '$smoothText | Score: $smoothScoreText',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(fontSize: 10),
                                 ),
                               ],
                             ],
@@ -1435,14 +1435,14 @@ class _ResultsViewState extends State<ResultsView> {
               Flexible(
                 child: Text(
                   metric,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text('Val: $valueText', style: const TextStyle(fontSize: 9)),
-              Text('Score: $scoreText', style: const TextStyle(fontSize: 9)),
+              const SizedBox(height: 4),
+              Text('Val: $valueText', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              Text('Score: $scoreText', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue)),
               if (showDropdown) ...[
                 const SizedBox(height: 2),
                 SizedBox(
