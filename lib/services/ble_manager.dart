@@ -91,8 +91,7 @@ class BleManager {
         _sampleControllers[deviceId] ??= StreamController<Map<String, double>>.broadcast();
         _subscribeCharacteristic(deviceId);
         
-        // Start calibration if both sensors are now connected
-        _checkAndStartCalibration();
+        // Calibration will start automatically when both sensors start streaming data
         
         if (!completer.isCompleted) completer.complete(true);
       } else if (update.connectionState == DeviceConnectionState.disconnected) {
@@ -165,14 +164,17 @@ class BleManager {
     return _connSubs.containsKey(deviceId);
   }
   
-  /// Check if both sensors are connected and start calibration
+  /// Check if both sensors are streaming data and start calibration
   void _checkAndStartCalibration() {
-    // Check if we have both left and right sensors connected
-    final hasLeft = _connSubs.keys.any((id) => id.toLowerCase().contains('left'));
-    final hasRight = _connSubs.keys.any((id) => id.toLowerCase().contains('right'));
+    // Only start calibration if we've received data from both sensors
+    final hasLeftData = _latest.keys.any((id) => id.toLowerCase().contains('left'));
+    final hasRightData = _latest.keys.any((id) => id.toLowerCase().contains('right'));
     
-    if (hasLeft && hasRight && !_isCalibrating && _yawOffsetRightMinusLeft == null) {
+    if (hasLeftData && hasRightData && !_isCalibrating && _yawOffsetRightMinusLeft == null) {
       _startCalibration();
+      if (kDebugMode) {
+        debugPrint('🎯 Both sensors streaming - starting calibration');
+      }
     }
   }
   
@@ -466,6 +468,11 @@ class BleManager {
     final map = _latest[deviceId]!;
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
+      
+      // Check if we should start calibration (both sensors now have data)
+      if (!_isCalibrating && _yawOffsetRightMinusLeft == null) {
+        _checkAndStartCalibration();
+      }
       
       // Feed calibration system if active
       if (_isCalibrating) {
