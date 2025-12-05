@@ -5,6 +5,7 @@ import 'package:ski_coach/models/analysis_results.dart';
 import 'package:ski_coach/widgets/time_series_graph.dart';
 import 'package:ski_coach/models/imu_sample.dart';
 import 'package:ski_coach/services/segmentation.dart';
+import 'package:ski_coach/services/ai_coach.dart';
 
 /// Dot plot scaler for creating histogram columns
 class DotPlotScaler {
@@ -352,6 +353,11 @@ class _ResultsViewState extends State<ResultsView> {
   String _parallelPhase = 'Whole Turn';
   String _turnShapePhase = 'Whole Turn';
   
+  // AI Coaching state
+  String _coachingAdvice = '';
+  bool _loadingCoachingAdvice = false;
+  String? _coachingError;
+  
   final List<String> _categories = const [
     'All Categories',
     'Duration',
@@ -511,6 +517,70 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Generate coaching advice when results are shown
+    if (widget.results != null) {
+      Future.microtask(() => _generateCoachingAdvice());
+    }
+  }
+
+  Future<void> _generateCoachingAdvice() async {
+    if (widget.results == null) {
+      return;
+    }
+    
+    setState(() {
+      _loadingCoachingAdvice = true;
+      _coachingError = null;
+    });
+    
+    try {
+      final aiCoach = getAICoach();
+      
+      // Calculate scores for all categories
+      final categoryScores = {
+        'Duration': widget.results?.turnDurationsSeconds.isNotEmpty == true
+            ? (widget.results!.turnDurationsSeconds.map((x) => Scoring.duration(x)).reduce((a, b) => a + b) / widget.results!.turnDurationsSeconds.length)
+            : 0.0,
+        'Edge Angle': widget.results?.edgeAngles.isNotEmpty == true
+            ? (widget.results!.edgeAngles.map((x) => Scoring.edgeAngle(x)).reduce((a, b) => a + b) / widget.results!.edgeAngles.length)
+            : 0.0,
+        'Parallel': widget.results?.parallelAvg.isNotEmpty == true
+            ? (widget.results!.parallelAvg.map((x) => Scoring.parallel(x)).reduce((a, b) => a + b) / widget.results!.parallelAvg.length)
+            : 0.0,
+        'Turn Shape': widget.results?.turnShapeAvg.isNotEmpty == true
+            ? (widget.results!.turnShapeAvg.map((x) => Scoring.turnShape(x)).reduce((a, b) => a + b) / widget.results!.turnShapeAvg.length)
+            : 0.0,
+      };
+      
+      final advice = await aiCoach.generateCoachingAdvice(
+        edgeAngleScore: categoryScores['Edge Angle'] ?? 0.0,
+        parallelScore: categoryScores['Parallel'] ?? 0.0,
+        turnShapeScore: categoryScores['Turn Shape'] ?? 0.0,
+        durationScore: categoryScores['Duration'] ?? 0.0,
+        runScore: widget.results?.overallScore ?? 0.0,
+        categoryScores: categoryScores,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _coachingAdvice = advice;
+          _loadingCoachingAdvice = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('🤖 Error generating coaching advice: $e');
+      if (mounted) {
+        setState(() {
+          _coachingError = 'Failed to generate advice: $e';
+          _loadingCoachingAdvice = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Show error state if present
     if (widget.errorMessage != null) {
@@ -578,6 +648,9 @@ class _ResultsViewState extends State<ResultsView> {
       children: [
         _buildNavigationBar(),
         Expanded(child: _buildContent()),
+        // AI Coaching Advice Widget
+        if (_coachingAdvice.isNotEmpty || _loadingCoachingAdvice || _coachingError != null)
+          _buildCoachingAdviceWidget(),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
@@ -614,6 +687,52 @@ class _ResultsViewState extends State<ResultsView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCoachingAdviceWidget() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      elevation: 4,
+      color: Colors.blue[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.psychology, color: Colors.blue, size: 24),
+                const SizedBox(width: 12),
+                const Text(
+                  'AI Coach Advice',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_loadingCoachingAdvice)
+              const Center(
+                child: SizedBox(
+                  height: 40,
+                  width: 40,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (_coachingError != null)
+              Text(
+                _coachingError!,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              )
+            else
+              SelectableText(
+                _coachingAdvice,
+                style: const TextStyle(fontSize: 13, height: 1.6),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

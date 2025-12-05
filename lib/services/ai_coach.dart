@@ -7,10 +7,27 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
+// Global singleton instance
+AICoach? _aiCoachInstance;
+
+// Get global AICoach instance
+AICoach getAICoach() {
+  return _aiCoachInstance ?? AICoach._();
+}
+
 class AICoach {
+  static final AICoach _instance = AICoach._();
+  
+  factory AICoach() {
+    return _instance;
+  }
+  
+  AICoach._();
+  
   LlamaProcessor? _processor;
   bool _isInitialized = false;
   final List<String> _lastThreeDrills = [];
+  String _systemPrompt = ''; // Can be set via setSystemPrompt()
   
   static const String _handbookContext = '''
 FIS Drills and Exercises Handbook Knowledge:
@@ -85,6 +102,11 @@ Metric to Drill Mapping:
       debugPrint('🤖 ❌ AI Coach initialization failed: $e');
       _isInitialized = false;
     }
+  }
+
+  void setSystemPrompt(String prompt) {
+    _systemPrompt = prompt;
+    debugPrint('🤖 System prompt set (${prompt.length} characters)');
   }
 
   Future<String> generateCoachingAdvice({
