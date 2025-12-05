@@ -1063,39 +1063,40 @@ class _ResultsViewState extends State<ResultsView> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                            Text(
-                              'Turn ${i + 1}',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                            if (_selectedCategory == 'Turn Duration') ...[
-                              const SizedBox(width: 8),
                               Text(
-                                '$turnDuration | Score: $turnDurationScore',
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                'Turn ${i + 1}',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              if (_selectedCategory == 'Turn Duration') ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$turnDuration | Score: $turnDurationScore',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                              if (_selectedCategory == 'Edge Angle') ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$edgeAngle | Score: $edgeAngleScore',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                              if (_selectedCategory == 'Parallel') ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$parallelText | Score: $parallelScoreText',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                              if (_selectedCategory == 'Turn Shape') ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$smoothText | Score: $smoothScoreText',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
                             ],
-                            if (_selectedCategory == 'Edge Angle') ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                '$edgeAngle | Score: $edgeAngleScore',
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
-                              ),
-                            ],
-                            if (_selectedCategory == 'Parallel') ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                '$parallelText | Score: $parallelScoreText',
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
-                              ),
-                            ],
-                            if (_selectedCategory == 'Turn Shape') ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                '$smoothText | Score: $smoothScoreText',
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
                       ),
                     ),
