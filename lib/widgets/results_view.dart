@@ -155,21 +155,15 @@ class DotPlot extends StatelessWidget {
       columnCounts[columnIndex].add(i);
     }
     
-    // Trim empty columns from start and end
-    int firstNonEmpty = 0;
-    int lastNonEmpty = numColumns - 1;
+    // Trim empty columns from start and end, but keep optimal column
+    int firstNonEmpty = scaler.optimalColumn;  // Start with optimal
+    int lastNonEmpty = scaler.optimalColumn;   // Start with optimal
     
+    // Expand to include all data points
     for (int i = 0; i < numColumns; i++) {
       if (columnCounts[i].isNotEmpty) {
-        firstNonEmpty = i;
-        break;
-      }
-    }
-    
-    for (int i = numColumns - 1; i >= 0; i--) {
-      if (columnCounts[i].isNotEmpty) {
-        lastNonEmpty = i;
-        break;
+        firstNonEmpty = math.min(firstNonEmpty, i);
+        lastNonEmpty = math.max(lastNonEmpty, i);
       }
     }
     
@@ -1561,8 +1555,8 @@ class _ResultsViewState extends State<ResultsView> {
                   const SizedBox(height: 8),
                   Text('Score: $scoreText', style: const TextStyle(fontSize: 16)),
                   const SizedBox(height: 16),
-                  // Add time series graph for Edge Angle or Parallel
-                  if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel')) ...[
+                  // Add time series graph for Edge Angle, Parallel, or Turn Shape
+                  if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel' || _selectedCategory == 'Turn Shape')) ...[
                     SizedBox(
                       height: 180,
                       child: _buildTimeSeriesGraph(selectedTurnIndex),
@@ -1600,6 +1594,8 @@ class _ResultsViewState extends State<ResultsView> {
       return _buildEdgeAngleGraph(turnIndex);
     } else if (_selectedCategory == 'Parallel') {
       return _buildParallelnessGraph(turnIndex);
+    } else if (_selectedCategory == 'Turn Shape') {
+      return _buildTurnShapeGraph(turnIndex);
     }
     return const SizedBox();
   }
@@ -1609,6 +1605,8 @@ class _ResultsViewState extends State<ResultsView> {
       return _buildEdgeAngleGraph(turnIndex);
     } else if (metric == 'Parallel') {
       return _buildParallelnessGraph(turnIndex);
+    } else if (metric == 'Turn Shape') {
+      return _buildTurnShapeGraph(turnIndex);
     }
     return const SizedBox();
   }
@@ -1643,6 +1641,83 @@ class _ResultsViewState extends State<ResultsView> {
       optimalValue: 45.0,
       yAxisLabel: 'Edge Angle (°)',
       durationSeconds: segment.durationSeconds,
+      height: 120,
+    );
+  }
+
+  Widget _buildTurnShapeGraph(int turnIndex) {
+    final processedLeft = widget.results?.processedLeftSamples as List<ImuSample>?;
+    final processedRight = widget.results?.processedRightSamples as List<ImuSample>?;
+    final segments = widget.results?.segments as List<TurnSegment>?;
+
+    if (processedLeft == null || processedRight == null || segments == null || turnIndex >= segments.length) {
+      return const SizedBox();
+    }
+
+    final segment = segments[turnIndex];
+    final phase = _turnShapePhase;
+    
+    // Determine time range based on selected phase
+    int startIdx, endIdx;
+    double sectionDuration;
+    double optimalLineValue;
+
+    final totalSamples = segment.endIndexLeft - segment.startIndexLeft + 1;
+    final samplesPerThird = (totalSamples / 3.0).round();
+
+    if (phase == 'Whole Turn') {
+      startIdx = segment.startIndexLeft;
+      endIdx = segment.endIndexLeft;
+      sectionDuration = segment.durationSeconds;
+      optimalLineValue = segment.avgTurnShapeSD;
+    } else {
+      final thirdDuration = segment.durationSeconds / 3.0;
+      
+      if (phase == 'First Third') {
+        startIdx = segment.startIndexLeft;
+        endIdx = segment.startIndexLeft + samplesPerThird - 1;
+        sectionDuration = thirdDuration;
+        optimalLineValue = segment.beginningTurnShapeSD;
+      } else if (phase == 'Middle Third') {
+        startIdx = segment.startIndexLeft + samplesPerThird;
+        endIdx = segment.startIndexLeft + 2 * samplesPerThird - 1;
+        sectionDuration = thirdDuration;
+        optimalLineValue = segment.middleTurnShapeSD;
+      } else { // Final Third
+        startIdx = segment.startIndexLeft + 2 * samplesPerThird;
+        endIdx = segment.endIndexLeft;
+        sectionDuration = thirdDuration;
+        optimalLineValue = segment.endTurnShapeSD;
+      }
+    }
+
+    final dataPoints = <GraphPoint>[];
+    final sectionStartTime = processedLeft[startIdx].timestamp;
+
+    // Calculate angular velocity for this section
+    for (int i = startIdx; i <= endIdx && i < processedLeft.length; i++) {
+      final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
+      
+      if (rightIndex >= segment.startIndexRight && rightIndex <= segment.endIndexRight && rightIndex < processedRight.length) {
+        // Calculate average angular velocity magnitude at this point
+        final leftSample = processedLeft[i];
+        final rightSample = processedRight[rightIndex];
+        final timeSec = leftSample.timestamp.difference(sectionStartTime).inMicroseconds / 1000000.0;
+        
+        // Average of left and right angular velocity magnitudes
+        final leftAngVel = math.sqrt(leftSample.gx * leftSample.gx + leftSample.gy * leftSample.gy + leftSample.gz * leftSample.gz);
+        final rightAngVel = math.sqrt(rightSample.gx * rightSample.gx + rightSample.gy * rightSample.gy + rightSample.gz * rightSample.gz);
+        final avgAngVel = (leftAngVel + rightAngVel) / 2.0;
+        
+        dataPoints.add(GraphPoint(timeSec, avgAngVel));
+      }
+    }
+
+    return TimeSeriesGraph(
+      dataPoints: dataPoints,
+      optimalValue: optimalLineValue,
+      yAxisLabel: 'Angular Velocity (°/s)',
+      durationSeconds: sectionDuration,
       height: 120,
     );
   }
