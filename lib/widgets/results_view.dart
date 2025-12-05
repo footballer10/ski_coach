@@ -203,11 +203,17 @@ class DotPlot extends StatelessWidget {
     final trimmedColumnCounts = columnCounts.sublist(firstNonEmpty, lastNonEmpty + 1);
     final adjustedOptimalColumn = scaler.optimalColumn - firstNonEmpty;
     
+    // Calculate required height based on max dots in any column
+    final maxDotsInColumn = trimmedColumnCounts.map((col) => col.length).reduce(math.max);
     final dotSize = 6.0;
-    final plotHeight = height - 30; // Reserve 30px for labels
+    final dotSpacing = 2.0; // vertical margin is 1px on each side
+    final minPlotHeight = 60.0;
+    final labelHeight = 30.0;
+    final calculatedPlotHeight = math.max(minPlotHeight, maxDotsInColumn * (dotSize + dotSpacing) + 10);
+    final totalHeight = calculatedPlotHeight + labelHeight;
     
     return SizedBox(
-      height: height,
+      height: totalHeight,
       child: Column(
         children: [
           Expanded(
@@ -224,7 +230,7 @@ class DotPlot extends StatelessWidget {
                         bottom: 30,
                         child: CustomPaint(
                           painter: DottedLinePainter(color: Colors.red),
-                          size: Size(1, plotHeight),
+                          size: Size(1, calculatedPlotHeight),
                         ),
                       ),
                     // Dots
@@ -976,18 +982,18 @@ class _ResultsViewState extends State<ResultsView> {
 
   Widget _buildCategoryAllTurns() {
     final actualTurnCount = (widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildCategorySummary(),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                children: List.generate(actualTurnCount, (i) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: _buildCategorySummary(),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            itemCount: actualTurnCount,
+            itemBuilder: (context, i) {
                   // Create turn label with direction to match _turns list
                   final dirs = widget.results?.turnDirections ?? const [];
                   final direction = i < dirs.length 
@@ -1048,17 +1054,15 @@ class _ResultsViewState extends State<ResultsView> {
                     }
                   return GestureDetector(
                     onTap: () => _selectCategoryAndTurn(_selectedCategory, turnLabel),
-                    child: Container(
-                      height: 40,
-                      margin: const EdgeInsets.symmetric(vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[400],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                    child: Card(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: Container(
+                        height: 50,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
                             Text(
                               'Turn ${i + 1}',
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -1096,14 +1100,14 @@ class _ResultsViewState extends State<ResultsView> {
                       ),
                     ),
                   );
-                }),
-              ),
-            ),
+            },
           ),
-          const SizedBox(height: 12),
-          _buildCategoryDotPlot(),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: _buildCategoryDotPlot(),
+        ),
+      ],
     );
   }
 
