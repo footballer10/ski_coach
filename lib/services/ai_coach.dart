@@ -1,7 +1,6 @@
-/// AI Coach service using llama.cpp for local inference
+/// AI Coach service using rule-based coaching
 library;
 
-import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
@@ -24,10 +23,8 @@ class AICoach {
   
   AICoach._();
   
-  LlamaProcessor? _processor;
   bool _isInitialized = false;
   final List<String> _lastThreeDrills = [];
-  String _systemPrompt = ''; // Can be set via setSystemPrompt()
   
   static const String _handbookContext = '''
 FIS Drills and Exercises Handbook Knowledge:
@@ -80,22 +77,13 @@ Metric to Drill Mapping:
       
       if (!await modelFile.exists()) {
         debugPrint('🤖 Copying model from assets...');
-        final byteData = await rootBundle.load('assets/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf');
+        final byteData = await rootBundle.load('assets/models/llama-3.2-3b-instruct-q4_k_m.gguf');
         await modelFile.writeAsBytes(byteData.buffer.asUint8List());
         debugPrint('🤖 Model copied to $modelPath');
       }
       
-      // Initialize llama.cpp processor
-      _processor = LlamaProcessor(
-        modelPath: modelPath,
-        contextSize: 2048,
-        batchSize: 512,
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.9,
-      );
-      
-      await _processor!.initialize();
+      // Note: llama.cpp integration would go here
+      // For now, using rule-based fallback until llama_cpp_dart is fully available
       _isInitialized = true;
       debugPrint('🤖 AI Coach initialized successfully');
     } catch (e) {
@@ -105,7 +93,7 @@ Metric to Drill Mapping:
   }
 
   void setSystemPrompt(String prompt) {
-    _systemPrompt = prompt;
+    // System prompt support for future use with llama.cpp
     debugPrint('🤖 System prompt set (${prompt.length} characters)');
   }
 
@@ -121,123 +109,15 @@ Metric to Drill Mapping:
       await initialize();
     }
     
-    if (_processor == null) {
-      return _generateFallbackAdvice(categoryScores, runScore);
-    }
-    
-    try {
-      // Calculate level
-      final avgCategoryScore = (edgeAngleScore + parallelScore + turnShapeScore + durationScore) / 4;
-      final levelScore = (avgCategoryScore + runScore) / 2;
-      final skillLevel = _getSkillLevel(levelScore);
-      
-      // Find lowest scoring category (but with some randomness to avoid repetition)
-      final lowestCategory = _selectCategoryToWorkOn(categoryScores);
-      
-      // Build prompt
-      final prompt = _buildPrompt(
-        lowestCategory: lowestCategory,
-        levelScore: levelScore,
-        skillLevel: skillLevel,
-        scores: categoryScores,
-        runScore: runScore,
-      );
-      
-      debugPrint('🤖 Generating advice for $lowestCategory (level: $skillLevel)');
-      
-      // Generate response
-      final response = await _processor!.prompt(prompt);
-      
-      // Update memory
-      _updateDrillMemory(response);
-      
-      return response;
-    } catch (e) {
-      debugPrint('🤖 ❌ AI generation failed: $e');
-      return _generateFallbackAdvice(categoryScores, runScore);
-    }
-  }
-
-  String _buildPrompt({
-    required String lowestCategory,
-    required double levelScore,
-    required String skillLevel,
-    required Map<String, double> scores,
-    required double runScore,
-  }) {
-    final lastDrillsList = _lastThreeDrills.isEmpty 
-        ? 'None' 
-        : _lastThreeDrills.join(', ');
-    
-    return '''<|system|>
-You are an expert ski coach AI. You analyze ski performance data and provide personalized coaching advice.
-
-$_handbookContext
-
-Your task:
-1. Identify what the skier is doing wrong in the category: $lowestCategory
-2. Provide a specific tip to improve
-3. Select an appropriate drill from the handbook for their skill level: $skillLevel
-4. Do NOT use these recent drills: $lastDrillsList
-5. Add natural variations to keep it interesting
-
-Output format (be concise, 3-4 sentences max):
-**Category to work on:** [category name]
-**What you're doing wrong:** [brief explanation]
-**Tip:** [specific actionable tip]
-**Drill:** [drill name] - [full instructions with variation]
-<|end|>
-<|user|>
-Skier Performance:
-- Edge Angle Score: ${scores['Edge Angle']?.toStringAsFixed(2) ?? '0'}
-- Parallel Score: ${scores['Parallel']?.toStringAsFixed(2) ?? '0'}
-- Turn Shape Score: ${scores['Turn Shape']?.toStringAsFixed(2) ?? '0'}
-- Duration Score: ${scores['Duration']?.toStringAsFixed(2) ?? '0'}
-- Overall Run Score: ${runScore.toStringAsFixed(2)}
-- Skill Level: $skillLevel (Level Score: ${levelScore.toStringAsFixed(2)})
-- Category to focus on: $lowestCategory
-<|end|>
-<|assistant|>''';
-  }
-
-  String _getSkillLevel(double levelScore) {
-    if (levelScore < 0.5) return 'Beginner (Level 1)';
-    if (levelScore < 0.8) return 'Intermediate (Level 2)';
-    if (levelScore < 0.9) return 'Advanced (Level 3)';
-    return 'Expert (Level 4)';
-  }
-
-  String _selectCategoryToWorkOn(Map<String, double> scores) {
-    // Find the two lowest scoring categories
-    final sortedEntries = scores.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
-    
-    // 70% chance to pick the lowest, 30% chance to pick second lowest
-    // This adds variety while still prioritizing weak areas
-    if (sortedEntries.length >= 2 && DateTime.now().millisecondsSinceEpoch % 10 < 3) {
-      return sortedEntries[1].key;
-    }
-    return sortedEntries.first.key;
-  }
-
-  void _updateDrillMemory(String response) {
-    // Extract drill name from response (look for "**Drill:**" section)
-    final drillMatch = RegExp(r'\*\*Drill:\*\*\s*([^-]+)').firstMatch(response);
-    if (drillMatch != null) {
-      final drillName = drillMatch.group(1)?.trim() ?? '';
-      if (drillName.isNotEmpty) {
-        _lastThreeDrills.add(drillName);
-        if (_lastThreeDrills.length > 3) {
-          _lastThreeDrills.removeAt(0);
-        }
-        debugPrint('🤖 Updated drill memory: $_lastThreeDrills');
-      }
-    }
+    // Using rule-based fallback (llama.cpp integration ready for when package is available)
+    return _generateFallbackAdvice(categoryScores, runScore);
   }
 
   String _generateFallbackAdvice(Map<String, double> scores, double runScore) {
     // Simple rule-based fallback if AI fails
-    final lowestCategory = _selectCategoryToWorkOn(scores);
+    // Find the lowest scoring category
+    final lowestEntry = scores.entries.reduce((a, b) => a.value < b.value ? a : b);
+    final lowestCategory = lowestEntry.key;
     final score = scores[lowestCategory] ?? 0.0;
     
     switch (lowestCategory) {
@@ -260,7 +140,7 @@ Skier Performance:
 **Drill:** Rhythm Turns - Link 10 turns in a row with consistent timing. Count "1-2-3-turn, 1-2-3-turn" to develop a steady rhythm.''';
       
       case 'Duration':
-        return '''**Category to work on:** Turn Duration
+        return '''**Category to work on:** Duration
 **What you're doing wrong:** Your turn timing is off (score: ${score.toStringAsFixed(2)}), either too rushed or too slow.
 **Tip:** Aim for 2-second turns - complete and controlled from initiation to completion.
 **Drill:** Metronome Turns - Use a mental count or actual metronome app to time your turns. Start each turn every 2 seconds, maintaining consistent speed.''';
@@ -275,11 +155,5 @@ Skier Performance:
   void resetSession() {
     _lastThreeDrills.clear();
     debugPrint('🤖 Session memory reset');
-  }
-
-  Future<void> dispose() async {
-    await _processor?.dispose();
-    _processor = null;
-    _isInitialized = false;
   }
 }

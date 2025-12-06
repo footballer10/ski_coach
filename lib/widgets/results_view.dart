@@ -905,7 +905,7 @@ class _ResultsViewState extends State<ResultsView> {
     final items = _categories.skip(1).toList();
     if (includeSimilarity) items.add('Turn Symmetry');
     
-    // Precompute Turn Duration average value and score
+    // Precompute Duration average value and score
     String turnDurationVal = '—';
     String turnDurationScore = '—';
       final durations = widget.results?.turnDurationsSeconds ?? const [];
@@ -973,7 +973,7 @@ class _ResultsViewState extends State<ResultsView> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 8),
               title: Text(cat, style: const TextStyle(fontSize: 14)),
               subtitle: Text(
-                cat == 'Turn Duration'
+                cat == 'Duration'
                     ? 'Val: $turnDurationVal | Score: $turnDurationScore'
                     : cat == 'Edge Angle'
                         ? 'Val: $edgeAngleVal | Score: $edgeAngleScore'
@@ -1256,9 +1256,13 @@ class _ResultsViewState extends State<ResultsView> {
       if (_selectedTurn == 'All Turns') {
         if (phase == 'Whole Turn') {
           vals = widget.results?.parallelAvg ?? const [];
-        } else if (phase == 'Initiation') vals = widget.results?.parallelBeginning ?? const [];
-        else if (phase == 'Control') vals = widget.results?.parallelMiddle ?? const [];
-        else if (phase == 'Completion') vals = widget.results?.parallelEnd ?? const [];
+        } else if (phase == 'Initiation') {
+          vals = widget.results?.parallelBeginning ?? const [];
+        } else if (phase == 'Control') {
+          vals = widget.results?.parallelMiddle ?? const [];
+        } else if (phase == 'Completion') {
+          vals = widget.results?.parallelEnd ?? const [];
+        }
         if (vals.isNotEmpty) {
           final avg = vals.reduce((a,b) => a + b) / vals.length;
           valueText = '${avg.toStringAsFixed(1)}°';
@@ -1296,9 +1300,13 @@ class _ResultsViewState extends State<ResultsView> {
       if (_selectedTurn == 'All Turns') {
         if (phase == 'Whole Turn') {
           vals = widget.results?.turnShapeAvg ?? const [];
-        } else if (phase == 'Initiation') vals = widget.results?.turnShapeBeginning ?? const [];
-        else if (phase == 'Control') vals = widget.results?.turnShapeMiddle ?? const [];
-        else if (phase == 'Completion') vals = widget.results?.turnShapeEnd ?? const [];
+        } else if (phase == 'Initiation') {
+          vals = widget.results?.turnShapeBeginning ?? const [];
+        } else if (phase == 'Control') {
+          vals = widget.results?.turnShapeMiddle ?? const [];
+        } else if (phase == 'Completion') {
+          vals = widget.results?.turnShapeEnd ?? const [];
+        }
         if (vals.isNotEmpty) {
           final avg = vals.reduce((a,b) => a + b) / vals.length;
           valueText = '${avg.toStringAsFixed(1)}°/s';
@@ -1565,8 +1573,8 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ],
               const SizedBox(height: 8),
-              // Add time series graph for Edge Angle or Parallel in metric modules
-              if (selectedTurnIndex != null && (metric == 'Edge Angle' || metric == 'Parallel')) ...[
+              // Add time series graph for Edge Angle only (no Turn Shape graph per request)
+              if (selectedTurnIndex != null && metric == 'Edge Angle') ...[
                 SizedBox(
                   height: 120,
                   child: _buildTimeSeriesGraphForMetric(metric, selectedTurnIndex),
@@ -1579,7 +1587,9 @@ class _ResultsViewState extends State<ResultsView> {
                   child: DotPlot(
                     values: _getValuesForMetric(
                       metric,
-                      metric == 'Parallel' ? _parallelPhase : (metric == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
+                      metric == 'Parallel'
+                          ? _parallelPhase
+                          : (metric == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
                     ),
                     highlightIndex: selectedTurnIndex,
                     optimalValue: _getOptimalForCategory(metric),
@@ -1682,8 +1692,8 @@ class _ResultsViewState extends State<ResultsView> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Add time series graph for Edge Angle, Parallel, or Turn Shape
-                  if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel' || _selectedCategory == 'Turn Shape')) ...[
+                  // Add time series graph for Edge Angle or Parallel (Turn Shape has no time series graph)
+                  if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel')) ...[
                     SizedBox(
                       height: 180,
                       child: _buildTimeSeriesGraph(selectedTurnIndex),
@@ -1718,8 +1728,6 @@ class _ResultsViewState extends State<ResultsView> {
       return _buildEdgeAngleGraph(turnIndex);
     } else if (_selectedCategory == 'Parallel') {
       return _buildParallelnessGraph(turnIndex);
-    } else if (_selectedCategory == 'Turn Shape') {
-      return _buildTurnShapeGraph(turnIndex);
     }
     return const SizedBox();
   }
@@ -1729,8 +1737,6 @@ class _ResultsViewState extends State<ResultsView> {
       return _buildEdgeAngleGraph(turnIndex);
     } else if (metric == 'Parallel') {
       return _buildParallelnessGraph(turnIndex);
-    } else if (metric == 'Turn Shape') {
-      return _buildTurnShapeGraph(turnIndex);
     }
     return const SizedBox();
   }
@@ -1765,83 +1771,6 @@ class _ResultsViewState extends State<ResultsView> {
       optimalValue: 45.0,
       yAxisLabel: 'Edge Angle (°)',
       durationSeconds: segment.durationSeconds,
-      height: 120,
-    );
-  }
-
-  Widget _buildTurnShapeGraph(int turnIndex) {
-    final processedLeft = widget.results?.processedLeftSamples as List<ImuSample>?;
-    final processedRight = widget.results?.processedRightSamples as List<ImuSample>?;
-    final segments = widget.results?.segments as List<TurnSegment>?;
-
-    if (processedLeft == null || processedRight == null || segments == null || turnIndex >= segments.length) {
-      return const SizedBox();
-    }
-
-    final segment = segments[turnIndex];
-    final phase = _turnShapePhase;
-    
-    // Determine time range based on selected phase
-    int startIdx, endIdx;
-    double sectionDuration;
-    double optimalLineValue;
-
-    final totalSamples = segment.endIndexLeft - segment.startIndexLeft + 1;
-    final samplesPerThird = (totalSamples / 3.0).round();
-
-    if (phase == 'Whole Turn') {
-      startIdx = segment.startIndexLeft;
-      endIdx = segment.endIndexLeft;
-      sectionDuration = segment.durationSeconds;
-      optimalLineValue = segment.avgTurnShapeSD;
-    } else {
-      double thirdDuration = segment.durationSeconds / 3.0;
-      
-      if (phase == 'Initiation') {
-        startIdx = segment.startIndexLeft;
-        endIdx = segment.startIndexLeft + samplesPerThird - 1;
-        sectionDuration = thirdDuration;
-        optimalLineValue = segment.beginningTurnShapeSD;
-      } else if (phase == 'Control') {
-        startIdx = segment.startIndexLeft + samplesPerThird;
-        endIdx = segment.startIndexLeft + 2 * samplesPerThird - 1;
-        sectionDuration = thirdDuration;
-        optimalLineValue = segment.middleTurnShapeSD;
-      } else { // Completion
-        startIdx = segment.startIndexLeft + 2 * samplesPerThird;
-        endIdx = segment.endIndexLeft;
-        sectionDuration = thirdDuration;
-        optimalLineValue = segment.endTurnShapeSD;
-      }
-    }
-
-    final dataPoints = <GraphPoint>[];
-    final sectionStartTime = processedLeft[startIdx].timestamp;
-
-    // Calculate angular velocity for this section
-    for (int i = startIdx; i <= endIdx && i < processedLeft.length; i++) {
-      final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
-      
-      if (rightIndex >= segment.startIndexRight && rightIndex <= segment.endIndexRight && rightIndex < processedRight.length) {
-        // Calculate average angular velocity magnitude at this point
-        final leftSample = processedLeft[i];
-        final rightSample = processedRight[rightIndex];
-        final timeSec = leftSample.timestamp.difference(sectionStartTime).inMicroseconds / 1000000.0;
-        
-        // Average of left and right angular velocity magnitudes
-        final leftAngVel = math.sqrt(leftSample.gx * leftSample.gx + leftSample.gy * leftSample.gy + leftSample.gz * leftSample.gz);
-        final rightAngVel = math.sqrt(rightSample.gx * rightSample.gx + rightSample.gy * rightSample.gy + rightSample.gz * rightSample.gz);
-        final avgAngVel = (leftAngVel + rightAngVel) / 2.0;
-        
-        dataPoints.add(GraphPoint(timeSec, avgAngVel));
-      }
-    }
-
-    return TimeSeriesGraph(
-      dataPoints: dataPoints,
-      optimalValue: optimalLineValue,
-      yAxisLabel: 'Angular Velocity (°/s)',
-      durationSeconds: sectionDuration,
       height: 120,
     );
   }

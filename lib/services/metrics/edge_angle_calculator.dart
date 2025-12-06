@@ -29,7 +29,7 @@ class EdgeAngleCalculator {
     double maxEdgeAngle = 0.0;
 
     // Check left sensor - filter out unrealistic values
-    for (int i = startIdxLeft; i <= endIdxLeft; i++) {
+    for (int i = startIdxLeft; i <= endIdxLeft && i < leftSamples.length; i++) {
       final pitch = leftSamples[i].pitch.abs();
       // Only consider pitch values that are reasonable for skiing (0-90 degrees)
       if (pitch <= 90.0 && pitch > maxEdgeAngle) {
@@ -47,7 +47,7 @@ class EdgeAngleCalculator {
     }
 
     // Check right sensor - filter out unrealistic values
-    for (int i = startIdxRight; i <= endIdxRight; i++) {
+    for (int i = startIdxRight; i <= endIdxRight && i < rightSamples.length; i++) {
       final pitch = rightSamples[i].pitch.abs();
       // Only consider pitch values that are reasonable for skiing (0-90 degrees)
       if (pitch <= 90.0 && pitch > maxEdgeAngle) {

@@ -315,61 +315,7 @@ class _AppControllerState extends State<AppController> {
               ),
             ),
           
-          // Navigation arrows (only when multiple runs exist and not on connection screen)
-          if (_showArrows && _runPages.length > 1 && !_showConnectionOverlay && _currentPage > 0)
-            Positioned(
-              left: 16,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 32, color: Colors.white),
-                    onPressed: () {
-                      final currentPage = _pageController.page?.round() ?? 0;
-                      if (currentPage > 0) {
-                        _pageController.animateToPage(
-                          currentPage - 1,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ),
-          if (_showArrows && _runPages.length > 1 && !_showConnectionOverlay && _currentPage < _runPages.length - 1)
-            Positioned(
-              right: 16,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios, size: 32, color: Colors.white),
-                    onPressed: () {
-                      final currentPage = _pageController.page?.round() ?? 0;
-                      if (currentPage < _runPages.length - 1) {
-                        _pageController.animateToPage(
-                          currentPage + 1,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ),
+          // Navigation arrows removed per user request
           
           // Page indicator dots (only when runs exist and not on connection screen)
           if (_runPages.isNotEmpty && !_showConnectionOverlay)
