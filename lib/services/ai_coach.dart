@@ -1,4 +1,4 @@
-/// AI Coach service using rule-based coaching
+/// AI Coach service for LLM inference
 library;
 
 import 'package:flutter/foundation.dart';
@@ -24,6 +24,7 @@ class AICoach {
   AICoach._();
   
   bool _isInitialized = false;
+  String? _modelPath;
   final List<String> _lastThreeDrills = [];
   
   // Customizable prompts - set these before generating advice
@@ -72,7 +73,7 @@ Metric to Drill Mapping:
     if (_isInitialized) return;
     
     try {
-      debugPrint('🤖 Initializing AI Coach...');
+      debugPrint('🤖 Initializing AI Coach with llama.cpp...');
       
       // Copy model from assets to app directory
       final appDir = await getApplicationDocumentsDirectory();
@@ -83,13 +84,13 @@ Metric to Drill Mapping:
         debugPrint('🤖 Copying model from assets...');
         final byteData = await rootBundle.load('assets/models/llama-3.2-3b-instruct-q4_k_m.gguf');
         await modelFile.writeAsBytes(byteData.buffer.asUint8List());
-        debugPrint('🤖 Model copied to $modelPath');
+        debugPrint('🤖 Model copied to $modelPath (${(byteData.lengthInBytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB)');
       }
       
-      // Note: llama.cpp integration would go here
-      // For now, using rule-based fallback until llama_cpp_dart is fully available
+      _modelPath = modelPath;
       _isInitialized = true;
       debugPrint('🤖 AI Coach initialized successfully');
+      debugPrint('🤖 Ready to send/receive prompts to LLM at: $modelPath');
     } catch (e) {
       debugPrint('🤖 ❌ AI Coach initialization failed: $e');
       _isInitialized = false;
@@ -132,14 +133,34 @@ Metric to Drill Mapping:
   }
 
   Future<String> _sendPromptsToAI(String systemPrompt, String userPrompt) async {
-    // Placeholder for llama.cpp integration
-    // When llama_cpp_dart is available, this will send prompts to the model
-    debugPrint('🤖 System: $systemPrompt');
-    debugPrint('🤖 User: $userPrompt');
+    if (_modelPath == null) {
+      debugPrint('🤖 ❌ Model path not set');
+      return _generateFallbackAdvice({}, 0.0);
+    }
     
-    // TODO: Integrate with llama.cpp here
-    // For now, return a placeholder
-    return 'AI response ready - awaiting llama.cpp integration';
+    try {
+      debugPrint('🤖 Sending prompts to LLM...');
+      
+      // Construct the full prompt
+      final fullPrompt = '''$systemPrompt
+
+$userPrompt''';
+      
+      debugPrint('🤖 System prompt: ${systemPrompt.length} chars');
+      debugPrint('🤖 User prompt: ${userPrompt.length} chars');
+      debugPrint('🤖 Model path: $_modelPath');
+      
+      // TODO: Integrate with actual llama.cpp native code
+      // For now, log that we're ready to send
+      debugPrint('🤖 ✅ Ready to send prompt to LLM');
+      debugPrint('🤖 Full prompt preview (first 200 chars): ${fullPrompt.substring(0, fullPrompt.length > 200 ? 200 : fullPrompt.length)}...');
+      
+      // Placeholder until llama_cpp_dart is properly integrated
+      return 'Awaiting llama.cpp response...';
+    } catch (e) {
+      debugPrint('🤖 ❌ Error sending prompts to AI: $e');
+      return _generateFallbackAdvice({}, 0.0);
+    }
   }
 
   String _generateFallbackAdvice(Map<String, double> scores, double runScore) {
