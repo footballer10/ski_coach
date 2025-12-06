@@ -26,6 +26,10 @@ class AICoach {
   bool _isInitialized = false;
   final List<String> _lastThreeDrills = [];
   
+  // Customizable prompts - set these before generating advice
+  String? _systemPrompt;
+  String? _userPrompt;
+  
   static const String _handbookContext = '''
 FIS Drills and Exercises Handbook Knowledge:
 
@@ -93,9 +97,17 @@ Metric to Drill Mapping:
   }
 
   void setSystemPrompt(String prompt) {
-    // System prompt support for future use with llama.cpp
+    _systemPrompt = prompt;
     debugPrint('🤖 System prompt set (${prompt.length} characters)');
   }
+
+  void setUserPrompt(String prompt) {
+    _userPrompt = prompt;
+    debugPrint('🤖 User prompt set (${prompt.length} characters)');
+  }
+
+  String? getSystemPrompt() => _systemPrompt;
+  String? getUserPrompt() => _userPrompt;
 
   Future<String> generateCoachingAdvice({
     required double edgeAngleScore,
@@ -109,8 +121,25 @@ Metric to Drill Mapping:
       await initialize();
     }
     
-    // Using rule-based fallback (llama.cpp integration ready for when package is available)
+    // If custom prompts are set, use them (ready for llama.cpp integration)
+    if (_systemPrompt != null && _userPrompt != null) {
+      debugPrint('🤖 Using custom system and user prompts');
+      return _sendPromptsToAI(_systemPrompt!, _userPrompt!);
+    }
+    
+    // Otherwise use rule-based fallback
     return _generateFallbackAdvice(categoryScores, runScore);
+  }
+
+  Future<String> _sendPromptsToAI(String systemPrompt, String userPrompt) async {
+    // Placeholder for llama.cpp integration
+    // When llama_cpp_dart is available, this will send prompts to the model
+    debugPrint('🤖 System: $systemPrompt');
+    debugPrint('🤖 User: $userPrompt');
+    
+    // TODO: Integrate with llama.cpp here
+    // For now, return a placeholder
+    return 'AI response ready - awaiting llama.cpp integration';
   }
 
   String _generateFallbackAdvice(Map<String, double> scores, double runScore) {

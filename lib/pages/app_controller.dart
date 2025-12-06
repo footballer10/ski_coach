@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'connection_page.dart';
 import 'run_page.dart';
+import 'ai_prompt_tester.dart';
 
 /// Main controller that manages all run pages and handles connection state.
 class AppController extends StatefulWidget {
@@ -317,6 +318,24 @@ class _AppControllerState extends State<AppController> {
           
           // Navigation arrows removed per user request
           
+          // AI Prompt Tester button (top-right corner)
+          if (_runPages.isNotEmpty && !_showConnectionOverlay)
+            Positioned(
+              top: 16,
+              right: 16,
+              child: FloatingActionButton.small(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AIPromptTester(),
+                    ),
+                  );
+                },
+                backgroundColor: Colors.orange.shade600,
+                child: const Icon(Icons.psychology, size: 20),
+              ),
+            ),
           // Page indicator dots (only when runs exist and not on connection screen)
           if (_runPages.isNotEmpty && !_showConnectionOverlay)
             Positioned(
