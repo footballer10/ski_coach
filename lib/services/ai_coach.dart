@@ -47,7 +47,7 @@ class AICoach {
       
       if (!await modelFile.exists()) {
         debugPrint('🤖 Copying model from assets to app storage (this may take a moment)...');
-        final byteData = await rootBundle.load('assets/models/llama-3.2-3b-instruct-q4_k_m.gguf');
+        final byteData = await rootBundle.load('assets/models/llama-3.1-8b-instruct-q4_k_m.gguf');
         await modelFile.writeAsBytes(byteData.buffer.asUint8List());
         final sizeGB = byteData.lengthInBytes / 1024 / 1024 / 1024;
         debugPrint('🤖 ✅ Model copied: ${sizeGB.toStringAsFixed(2)} GB');
@@ -150,7 +150,7 @@ class AICoach {
       final combinedPrompt = '$systemPrompt\n\n$userPrompt';
       
       debugPrint('🤖 Combined prompt: ${combinedPrompt.length} chars');
-      debugPrint('🤖 Sending to on-device Llama 3.2-3B model...');
+      debugPrint('🤖 Sending to on-device Llama 3.1 8B model...');
       
       // TODO: Integrate llama_cpp_dart when API is confirmed
       // For now, this will show you exactly what prompts are being sent
