@@ -554,6 +554,30 @@ class _ResultsViewState extends State<ResultsView> {
             : 0.0,
       };
       
+      // Set user prompt with run data - CUSTOMIZE THIS FORMAT AS NEEDED
+      final avgEdgeAngle = widget.results?.edgeAngles.isNotEmpty == true
+          ? widget.results!.edgeAngles.reduce((a, b) => a + b) / widget.results!.edgeAngles.length
+          : 0.0;
+      final avgParallel = widget.results?.parallelAvg.isNotEmpty == true
+          ? widget.results!.parallelAvg.reduce((a, b) => a + b) / widget.results!.parallelAvg.length
+          : 0.0;
+      final avgTurnShape = widget.results?.turnShapeAvg.isNotEmpty == true
+          ? widget.results!.turnShapeAvg.reduce((a, b) => a + b) / widget.results!.turnShapeAvg.length
+          : 0.0;
+      final avgDuration = widget.results?.turnDurationsSeconds.isNotEmpty == true
+          ? widget.results!.turnDurationsSeconds.reduce((a, b) => a + b) / widget.results!.turnDurationsSeconds.length
+          : 0.0;
+      
+      aiCoach.setUserPrompt(
+        'Run Analysis:\n'
+        'Overall Score: ${widget.results?.overallScore?.toStringAsFixed(1) ?? "N/A"}\n'
+        'Edge Angle: ${avgEdgeAngle.toStringAsFixed(1)}° (Score: ${categoryScores["Edge Angle"]?.toStringAsFixed(1)})\n'
+        'Parallel: ${avgParallel.toStringAsFixed(1)}° (Score: ${categoryScores["Parallel"]?.toStringAsFixed(1)})\n'
+        'Turn Shape: ${avgTurnShape.toStringAsFixed(2)} (Score: ${categoryScores["Turn Shape"]?.toStringAsFixed(1)})\n'
+        'Duration: ${avgDuration.toStringAsFixed(2)}s (Score: ${categoryScores["Duration"]?.toStringAsFixed(1)})\n\n'
+        'What should I focus on to improve my skiing?'
+      );
+      
       final advice = await aiCoach.generateCoachingAdvice(
         edgeAngleScore: categoryScores['Edge Angle'] ?? 0.0,
         parallelScore: categoryScores['Parallel'] ?? 0.0,

@@ -29,7 +29,7 @@ class AICoach {
   // Customizable prompts
   String? _systemPrompt; // Set once - contains instructions/personality for the LLM
   String? _userPrompt;   // Set per run - the actual query with ski run data
-  
+
   /// Initialize AI Coach:
   /// 1. Copies 2.3GB model from assets to app documents (first run only)
   /// 2. Gets ready to receive system and user prompts
@@ -152,18 +152,21 @@ class AICoach {
       debugPrint('🤖 Combined prompt: ${combinedPrompt.length} chars');
       debugPrint('🤖 Sending to on-device Llama 3.2-3B model...');
       
-      // ⚠️ TODO: Wire up actual llama_cpp_dart inference
-      // The llama_cpp_dart package needs to be properly integrated here.
-      // Expected API (once available):
-      //   - Load context: final llama = await LLamaContext.load(modelPath: _modelPath);
-      //   - Run inference: final response = await llama.prompt(combinedPrompt);
-      //   - Return response string
+      // TODO: Integrate llama_cpp_dart when API is confirmed
+      // For now, this will show you exactly what prompts are being sent
+      // Once llama_cpp_dart API is verified, uncomment and use:
+      // import 'package:llama_cpp_dart/llama_cpp_dart.dart';
+      // _llama ??= await LlamaContext.load(modelPath: _modelPath!, nCtx: 8192);
+      // final response = await _llama!.prompt(prompt: combinedPrompt, temperature: 0.7, maxTokens: 512);
+      // return response;
       
-      // For now, throwing error so you see it needs implementation
       throw UnimplementedError(
-        'LLM inference not yet wired - ready to send:\n\n'
-        'SYSTEM PROMPT ($systemPrompt.length chars):\n${systemPrompt.substring(0, systemPrompt.length > 200 ? 200 : systemPrompt.length)}...\n\n'
-        'USER PROMPT (${userPrompt.length} chars):\n${userPrompt.substring(0, userPrompt.length > 200 ? 200 : userPrompt.length)}...'
+        '✅ PROMPTS READY TO SEND:\n\n'
+        '📋 SYSTEM PROMPT (${systemPrompt.length} chars):\n'
+        '${systemPrompt.substring(0, systemPrompt.length > 300 ? 300 : systemPrompt.length)}...\n\n'
+        '📋 USER PROMPT (${userPrompt.length} chars):\n'
+        '${userPrompt.substring(0, userPrompt.length > 300 ? 300 : userPrompt.length)}...\n\n'
+        '🔧 Next: Wire up llama_cpp_dart API with correct class/method names'
       );
       
     } catch (e) {

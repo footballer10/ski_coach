@@ -9,8 +9,12 @@ void main() async {
   final aiCoach = getAICoach();
   await aiCoach.initialize();
   
-  // Set system prompt (currently blank, can be customized later)
-  // aiCoach.setSystemPrompt("Your custom system prompt here");
+  // Set system prompt - PASTE YOUR SYSTEM PROMPT HERE
+  aiCoach.setSystemPrompt(
+    "You are an expert ski coach AI. Analyze the skier's performance data and provide "
+    "clear, actionable coaching advice. Focus on the weakest category and suggest specific "
+    "drills to improve technique. Keep responses concise and skiing-focused."
+  );
   
   runApp(const MyApp());
 }
