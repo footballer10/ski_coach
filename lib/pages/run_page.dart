@@ -260,45 +260,7 @@ enum RunState { recording, processing, results }
     setState(() => _recording = true);
   }
 
-  Future<void> _calibrateAcceleration() async {
-    // Show dialog while calibrating
-    if (!mounted) return;
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        title: Text('Calibrating...'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Keep sensors still and level.\nCalibration will take a few seconds.'),
-          ],
-        ),
-      ),
-    );
-    
-    // Send calibration commands to both sensors
-    await widget.bleMgr.calibrateAcceleration(widget.leftId);
-    await Future.delayed(const Duration(milliseconds: 200));
-    await widget.bleMgr.calibrateAcceleration(widget.rightId);
-    
-    // Wait for calibration to complete
-    await Future.delayed(const Duration(seconds: 3));
-    
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ Acceleration calibration complete'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
+  // ...existing code...
 
   Future<void> _stopRecording() async {
     setState(() {
@@ -503,36 +465,15 @@ enum RunState { recording, processing, results }
           ),
           const SizedBox(height: 16),
           if (!_recording)
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: _startRecording,
-                    icon: const Icon(Icons.fiber_manual_record, size: 28),
-                    label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: ElevatedButton.icon(
-                    onPressed: _calibrateAcceleration,
-                    icon: const Icon(Icons.settings_input_component, size: 20),
-                    label: const Text('Accel Cal', style: TextStyle(fontSize: 16)),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+            ElevatedButton.icon(
+              onPressed: _startRecording,
+              icon: const Icon(Icons.fiber_manual_record, size: 28),
+              label: const Text('Start Recording', style: TextStyle(fontSize: 20)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
             ),
           if (_recording)
             ElevatedButton.icon(
@@ -577,7 +518,7 @@ enum RunState { recording, processing, results }
          errorMessage: error,
          onNewRun: widget.onRecordAgain,
          onReconnect: showReconnectButton ? widget.onManualReconnect : null,
-         onCalibrateAcceleration: _calibrateAcceleration,
+         // ...existing code...
          showReconnectButton: showReconnectButton,
          showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
        );
@@ -686,7 +627,7 @@ enum RunState { recording, processing, results }
     return ResultsView(
       results: resultsModel,
       onNewRun: widget.onRecordAgain,
-      onCalibrateAcceleration: _calibrateAcceleration,
+      // ...existing code...
       showReconnectButton: false,
     );
   }

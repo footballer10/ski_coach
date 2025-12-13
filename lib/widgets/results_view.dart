@@ -9,74 +9,193 @@ import 'package:ski_coach/services/ai_coach.dart';
 
 /// Dot plot scaler for creating histogram columns
 class DotPlotScaler {
-  final double b;           // Starting value
-  final double d;           // Step size
-  final int optimalColumn;  // Which column index has the optimal line
+  final double b; // Starting value
+  final double d; // Step size
+  final int optimalColumn; // Which column index has the optimal line
   final List<double> columns; // Trimmed columns containing data
-  final int startColumn;    // First column index in full range
-  final int endColumn;      // Last column index in full range
-  
+  final int startColumn; // First column index in full range
+  final int endColumn; // Last column index in full range
+
   DotPlotScaler({
     required double minValue,
     required double maxValue,
     required double optimalValue,
-  }) : 
-    d = _calculateD(minValue, maxValue, optimalValue),
-    b = _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)),
-    startColumn = _calculateStartColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))),
-    endColumn = _calculateEndColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))),
-    columns = _calculateTrimmedColumns(_calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)), _calculateD(minValue, maxValue, optimalValue), _calculateStartColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))), _calculateEndColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)))),
-    optimalColumn = _findOptimalColumn(_calculateTrimmedColumns(_calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)), _calculateD(minValue, maxValue, optimalValue), _calculateStartColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue))), _calculateEndColumn(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue), _calculateB(minValue, maxValue, optimalValue, _calculateD(minValue, maxValue, optimalValue)))), optimalValue);
-  
-  static double _calculateD(double minValue, double maxValue, double optimalValue) {
+  }) : d = _calculateD(minValue, maxValue, optimalValue),
+       b = _calculateB(
+         minValue,
+         maxValue,
+         optimalValue,
+         _calculateD(minValue, maxValue, optimalValue),
+       ),
+       startColumn = _calculateStartColumn(
+         minValue,
+         maxValue,
+         optimalValue,
+         _calculateD(minValue, maxValue, optimalValue),
+         _calculateB(
+           minValue,
+           maxValue,
+           optimalValue,
+           _calculateD(minValue, maxValue, optimalValue),
+         ),
+       ),
+       endColumn = _calculateEndColumn(
+         minValue,
+         maxValue,
+         optimalValue,
+         _calculateD(minValue, maxValue, optimalValue),
+         _calculateB(
+           minValue,
+           maxValue,
+           optimalValue,
+           _calculateD(minValue, maxValue, optimalValue),
+         ),
+       ),
+       columns = _calculateTrimmedColumns(
+         _calculateB(
+           minValue,
+           maxValue,
+           optimalValue,
+           _calculateD(minValue, maxValue, optimalValue),
+         ),
+         _calculateD(minValue, maxValue, optimalValue),
+         _calculateStartColumn(
+           minValue,
+           maxValue,
+           optimalValue,
+           _calculateD(minValue, maxValue, optimalValue),
+           _calculateB(
+             minValue,
+             maxValue,
+             optimalValue,
+             _calculateD(minValue, maxValue, optimalValue),
+           ),
+         ),
+         _calculateEndColumn(
+           minValue,
+           maxValue,
+           optimalValue,
+           _calculateD(minValue, maxValue, optimalValue),
+           _calculateB(
+             minValue,
+             maxValue,
+             optimalValue,
+             _calculateD(minValue, maxValue, optimalValue),
+           ),
+         ),
+       ),
+       optimalColumn = _findOptimalColumn(
+         _calculateTrimmedColumns(
+           _calculateB(
+             minValue,
+             maxValue,
+             optimalValue,
+             _calculateD(minValue, maxValue, optimalValue),
+           ),
+           _calculateD(minValue, maxValue, optimalValue),
+           _calculateStartColumn(
+             minValue,
+             maxValue,
+             optimalValue,
+             _calculateD(minValue, maxValue, optimalValue),
+             _calculateB(
+               minValue,
+               maxValue,
+               optimalValue,
+               _calculateD(minValue, maxValue, optimalValue),
+             ),
+           ),
+           _calculateEndColumn(
+             minValue,
+             maxValue,
+             optimalValue,
+             _calculateD(minValue, maxValue, optimalValue),
+             _calculateB(
+               minValue,
+               maxValue,
+               optimalValue,
+               _calculateD(minValue, maxValue, optimalValue),
+             ),
+           ),
+         ),
+         optimalValue,
+       );
+
+  static double _calculateD(
+    double minValue,
+    double maxValue,
+    double optimalValue,
+  ) {
     final greatest = math.max(math.max(minValue, maxValue), optimalValue);
     final least = math.min(math.min(minValue, maxValue), optimalValue);
     final range = greatest - least;
     final rawD = range / 10.0;
     return _roundUpTo1SF(rawD);
   }
-  
-  static double _calculateB(double minValue, double maxValue, double optimalValue, double d) {
+
+  static double _calculateB(
+    double minValue,
+    double maxValue,
+    double optimalValue,
+    double d,
+  ) {
     final least = math.min(math.min(minValue, maxValue), optimalValue);
     final greatest = math.max(math.max(minValue, maxValue), optimalValue);
-    
+
     // Start by rounding down the least value
     double b = _roundToMultipleOf(least, d);
-    
+
     // Ensure the greatest value fits within 11 columns (b + 10*d must be >= greatest)
     while (b + 10 * d < greatest) {
       b -= d;
     }
-    
+
     // Also ensure the least value fits (b should be <= least)
     while (b > least) {
       b -= d;
     }
-    
+
     return b;
   }
-  
-  static int _calculateStartColumn(double minValue, double maxValue, double optimalValue, double d, double b) {
+
+  static int _calculateStartColumn(
+    double minValue,
+    double maxValue,
+    double optimalValue,
+    double d,
+    double b,
+  ) {
     final least = math.min(math.min(minValue, maxValue), optimalValue);
-    
+
     // Find which column the least value falls into
     int startCol = ((least - b) / d).floor();
     return math.max(0, startCol);
   }
-  
-  static int _calculateEndColumn(double minValue, double maxValue, double optimalValue, double d, double b) {
+
+  static int _calculateEndColumn(
+    double minValue,
+    double maxValue,
+    double optimalValue,
+    double d,
+    double b,
+  ) {
     final greatest = math.max(math.max(minValue, maxValue), optimalValue);
-    
+
     // Find which column the greatest value falls into
     int endCol = ((greatest - b) / d).ceil();
     return math.min(10, endCol);
   }
-  
-  static List<double> _calculateTrimmedColumns(double b, double d, int startCol, int endCol) {
+
+  static List<double> _calculateTrimmedColumns(
+    double b,
+    double d,
+    int startCol,
+    int endCol,
+  ) {
     final numCols = endCol - startCol + 1;
     return List.generate(numCols, (i) => b + (startCol + i) * d);
   }
-  
+
   static int _findOptimalColumn(List<double> columns, double optimalValue) {
     int closestIndex = 0;
     double closestDistance = (columns[0] - optimalValue).abs();
@@ -89,18 +208,20 @@ class DotPlotScaler {
     }
     return closestIndex;
   }
-  
+
   static double _roundUpTo1SF(double value) {
     if (value <= 0) return 0.1;
-    final magnitude = math.pow(10, (math.log(value) / math.ln10).floor()).toDouble();
+    final magnitude = math
+        .pow(10, (math.log(value) / math.ln10).floor())
+        .toDouble();
     return (value / magnitude).ceil() * magnitude;
   }
-  
+
   static double _roundToMultipleOf(double value, double multiple) {
     if (multiple <= 0) return value;
     return (value / multiple).floor() * multiple;
   }
-  
+
   int findColumnIndex(double value) {
     int closestIndex = 0;
     double closestDistance = (columns[0] - value).abs();
@@ -122,7 +243,7 @@ class DotPlot extends StatelessWidget {
   final double optimalValue;
   final String units;
   final double height;
-  
+
   const DotPlot({
     super.key,
     required this.values,
@@ -131,35 +252,38 @@ class DotPlot extends StatelessWidget {
     required this.units,
     this.height = 100,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     if (values.isEmpty) {
-      return SizedBox(height: height, child: const Center(child: Text('No data')));
+      return SizedBox(
+        height: height,
+        child: const Center(child: Text('No data')),
+      );
     }
-    
+
     final minValue = values.reduce(math.min);
     final maxValue = values.reduce(math.max);
-    
+
     final scaler = DotPlotScaler(
       minValue: minValue,
       maxValue: maxValue,
       optimalValue: optimalValue,
     );
-    
+
     final numColumns = scaler.columns.length;
-    
+
     // Group values into columns
     final columnCounts = List.generate(numColumns, (_) => <int>[]);
     for (int i = 0; i < values.length; i++) {
       final columnIndex = scaler.findColumnIndex(values[i]);
       columnCounts[columnIndex].add(i);
     }
-    
+
     // Trim empty columns from start and end, but keep optimal column
-    int firstNonEmpty = scaler.optimalColumn;  // Start with optimal
-    int lastNonEmpty = scaler.optimalColumn;   // Start with optimal
-    
+    int firstNonEmpty = scaler.optimalColumn; // Start with optimal
+    int lastNonEmpty = scaler.optimalColumn; // Start with optimal
+
     // Expand to include all data points
     for (int i = 0; i < numColumns; i++) {
       if (columnCounts[i].isNotEmpty) {
@@ -167,12 +291,12 @@ class DotPlot extends StatelessWidget {
         lastNonEmpty = math.max(lastNonEmpty, i);
       }
     }
-    
+
     // Ensure we have at least 6 columns and at most 11
     final minColumns = 6;
     final maxColumns = 11;
     int trimmedNumColumns = lastNonEmpty - firstNonEmpty + 1;
-    
+
     // Expand to minimum columns if needed
     if (trimmedNumColumns < minColumns) {
       final expansion = minColumns - trimmedNumColumns;
@@ -182,7 +306,7 @@ class DotPlot extends StatelessWidget {
       lastNonEmpty = math.min(numColumns - 1, lastNonEmpty + rightExpansion);
       trimmedNumColumns = lastNonEmpty - firstNonEmpty + 1;
     }
-    
+
     // Contract to maximum columns if needed
     if (trimmedNumColumns > maxColumns) {
       final contraction = trimmedNumColumns - maxColumns;
@@ -192,21 +316,32 @@ class DotPlot extends StatelessWidget {
       lastNonEmpty = lastNonEmpty - rightContraction;
       trimmedNumColumns = lastNonEmpty - firstNonEmpty + 1;
     }
-    
+
     // Create trimmed columns and data
-    final trimmedColumns = scaler.columns.sublist(firstNonEmpty, lastNonEmpty + 1);
-    final trimmedColumnCounts = columnCounts.sublist(firstNonEmpty, lastNonEmpty + 1);
+    final trimmedColumns = scaler.columns.sublist(
+      firstNonEmpty,
+      lastNonEmpty + 1,
+    );
+    final trimmedColumnCounts = columnCounts.sublist(
+      firstNonEmpty,
+      lastNonEmpty + 1,
+    );
     final adjustedOptimalColumn = scaler.optimalColumn - firstNonEmpty;
-    
+
     // Calculate required height based on max dots in any column
-    final maxDotsInColumn = trimmedColumnCounts.map((col) => col.length).reduce(math.max);
+    final maxDotsInColumn = trimmedColumnCounts
+        .map((col) => col.length)
+        .reduce(math.max);
     final dotSize = 6.0;
     final dotSpacing = 2.0; // vertical margin is 1px on each side
     final minPlotHeight = 60.0;
     final labelHeight = 30.0;
-    final calculatedPlotHeight = math.max(minPlotHeight, maxDotsInColumn * (dotSize + dotSpacing) + 10);
+    final calculatedPlotHeight = math.max(
+      minPlotHeight,
+      maxDotsInColumn * (dotSize + dotSpacing) + 10,
+    );
     final totalHeight = calculatedPlotHeight + labelHeight;
-    
+
     return SizedBox(
       height: totalHeight,
       child: Column(
@@ -214,13 +349,18 @@ class DotPlot extends StatelessWidget {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final columnWidth = (constraints.maxWidth - 20) / trimmedNumColumns;
+                final columnWidth =
+                    (constraints.maxWidth - 20) / trimmedNumColumns;
                 return Stack(
                   children: [
                     // Optimal line (only show if in visible range)
-                    if (adjustedOptimalColumn >= 0 && adjustedOptimalColumn < trimmedNumColumns)
+                    if (adjustedOptimalColumn >= 0 &&
+                        adjustedOptimalColumn < trimmedNumColumns)
                       Positioned(
-                        left: 10 + adjustedOptimalColumn * columnWidth + columnWidth / 2,
+                        left:
+                            10 +
+                            adjustedOptimalColumn * columnWidth +
+                            columnWidth / 2,
                         top: 0,
                         bottom: 30,
                         child: CustomPaint(
@@ -242,14 +382,20 @@ class DotPlot extends StatelessWidget {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: dotsInColumn.reversed.map((turnIndex) {
-                                final isHighlighted = highlightIndex != null && turnIndex == highlightIndex;
+                                final isHighlighted =
+                                    highlightIndex != null &&
+                                    turnIndex == highlightIndex;
                                 return Container(
-                                  margin: const EdgeInsets.symmetric(vertical: 1),
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 1,
+                                  ),
                                   width: dotSize,
                                   height: dotSize,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isHighlighted ? Colors.blue : Colors.grey,
+                                    color: isHighlighted
+                                        ? Colors.blue
+                                        : Colors.grey,
                                   ),
                                 );
                               }).toList(),
@@ -290,30 +436,26 @@ class DotPlot extends StatelessWidget {
 
 class DottedLinePainter extends CustomPainter {
   final Color color;
-  
+
   const DottedLinePainter({required this.color});
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
-    
+
     const dashHeight = 4.0;
     const dashSpace = 4.0;
     double startY = 0;
-    
+
     while (startY < size.height) {
-      canvas.drawLine(
-        Offset(0, startY),
-        Offset(0, startY + dashHeight),
-        paint,
-      );
+      canvas.drawLine(Offset(0, startY), Offset(0, startY + dashHeight), paint);
       startY += dashHeight + dashSpace;
     }
   }
-  
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
@@ -324,7 +466,6 @@ class ResultsView extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
-  final VoidCallback? onCalibrateAcceleration;
   final bool showReconnectButton;
   final bool showTryAgainButton;
 
@@ -334,7 +475,6 @@ class ResultsView extends StatefulWidget {
     this.errorMessage,
     required this.onNewRun,
     this.onReconnect,
-    this.onCalibrateAcceleration,
     this.showReconnectButton = true,
     this.showTryAgainButton = true,
   });
@@ -348,16 +488,18 @@ enum ViewMode { overview, categoryAll, turnAll, categoryTurn }
 class _ResultsViewState extends State<ResultsView> {
   String _selectedCategory = 'All Categories';
   String _selectedTurn = 'All Turns';
-  String _categoryPageThird = 'Whole Turn'; // For Parallel/Turn Shape category page
+  String _categoryPageThird =
+      'Whole Turn'; // For Parallel/Turn Shape category page
   // Phase selections per current turn
   String _parallelPhase = 'Whole Turn';
   String _turnShapePhase = 'Whole Turn';
-  
+
   // AI Coaching state
   String _coachingAdvice = '';
   bool _loadingCoachingAdvice = false;
   String? _coachingError;
-  
+  bool _aiProcessing = false;
+
   final List<String> _categories = const [
     'All Categories',
     'Duration',
@@ -367,23 +509,23 @@ class _ResultsViewState extends State<ResultsView> {
   ];
 
   List<String> get _turns {
-    final count = (widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5;
+    final count = (widget.results?.turnCount ?? 0) > 0
+        ? (widget.results?.turnCount ?? 0)
+        : 5;
     return [
       'All Turns',
       ...List.generate(count, (i) {
         final dirs = widget.results?.turnDirections ?? const [];
-        final direction = i < dirs.length 
-            ? (dirs[i] == 1 ? '(R)' : '(L)')
-            : '';
+        final direction = i < dirs.length ? (dirs[i] == 1 ? '(R)' : '(L)') : '';
         return 'Turn ${i + 1} $direction'.trim();
-      })
+      }),
     ];
   }
 
   ViewMode get _viewMode {
     final allCat = _selectedCategory == 'All Categories';
     final allTurn = _selectedTurn == 'All Turns';
-    
+
     if (allCat && allTurn) return ViewMode.overview;
     if (!allCat && allTurn) return ViewMode.categoryAll;
     if (allCat && !allTurn) return ViewMode.turnAll;
@@ -401,7 +543,7 @@ class _ResultsViewState extends State<ResultsView> {
   double _scoreForParallelness(double x) {
     return Scoring.parallel(x);
   }
-  
+
   double _scoreForTurnShapeSD(double x) {
     return Scoring.turnShape(x);
   }
@@ -417,7 +559,7 @@ class _ResultsViewState extends State<ResultsView> {
       _turnShapePhase = 'Whole Turn';
     });
   }
-  
+
   void _selectCategoryAndTurn(String category, String turn) {
     setState(() {
       _selectedCategory = category;
@@ -465,12 +607,16 @@ class _ResultsViewState extends State<ResultsView> {
       case 'Edge Angle':
         return widget.results?.edgeAngles ?? [];
       case 'Parallel':
-        if (phase == 'Initiation') return widget.results?.parallelBeginning ?? [];
+        if (phase == 'Initiation') {
+          return widget.results?.parallelBeginning ?? [];
+        }
         if (phase == 'Control') return widget.results?.parallelMiddle ?? [];
         if (phase == 'Completion') return widget.results?.parallelEnd ?? [];
         return widget.results?.parallelAvg ?? [];
       case 'Turn Shape':
-        if (phase == 'Initiation') return widget.results?.turnShapeBeginning ?? [];
+        if (phase == 'Initiation') {
+          return widget.results?.turnShapeBeginning ?? [];
+        }
         if (phase == 'Control') return widget.results?.turnShapeMiddle ?? [];
         if (phase == 'Completion') return widget.results?.turnShapeEnd ?? [];
         return widget.results?.turnShapeAvg ?? [];
@@ -486,27 +632,35 @@ class _ResultsViewState extends State<ResultsView> {
       case 'Edge Angle':
         return widget.results?.edgeAngles ?? [];
       case 'Parallel':
-        if (phase == 'Initiation') return widget.results?.parallelBeginning ?? [];
+        if (phase == 'Initiation') {
+          return widget.results?.parallelBeginning ?? [];
+        }
         if (phase == 'Control') return widget.results?.parallelMiddle ?? [];
         if (phase == 'Completion') return widget.results?.parallelEnd ?? [];
         // Default: average of the three phases
         final beginning = widget.results?.parallelBeginning ?? [];
         final middle = widget.results?.parallelMiddle ?? [];
         final end = widget.results?.parallelEnd ?? [];
-        if (beginning.isEmpty || middle.isEmpty || end.isEmpty) return widget.results?.parallelAvg ?? [];
+        if (beginning.isEmpty || middle.isEmpty || end.isEmpty) {
+          return widget.results?.parallelAvg ?? [];
+        }
         return List.generate(
           beginning.length,
           (i) => (beginning[i] + middle[i] + end[i]) / 3.0,
         );
       case 'Turn Shape':
-        if (phase == 'Initiation') return widget.results?.turnShapeBeginning ?? [];
+        if (phase == 'Initiation') {
+          return widget.results?.turnShapeBeginning ?? [];
+        }
         if (phase == 'Control') return widget.results?.turnShapeMiddle ?? [];
         if (phase == 'Completion') return widget.results?.turnShapeEnd ?? [];
         // Default: average of the three phases
         final beginning = widget.results?.turnShapeBeginning ?? [];
         final middle = widget.results?.turnShapeMiddle ?? [];
         final end = widget.results?.turnShapeEnd ?? [];
-        if (beginning.isEmpty || middle.isEmpty || end.isEmpty) return widget.results?.turnShapeAvg ?? [];
+        if (beginning.isEmpty || middle.isEmpty || end.isEmpty) {
+          return widget.results?.turnShapeAvg ?? [];
+        }
         return List.generate(
           beginning.length,
           (i) => (beginning[i] + middle[i] + end[i]) / 3.0,
@@ -519,65 +673,222 @@ class _ResultsViewState extends State<ResultsView> {
   @override
   void initState() {
     super.initState();
-    // Generate coaching advice when results are shown
+    // Start AI processing immediately but don't block UI
     if (widget.results != null) {
+      setState(() {
+        _aiProcessing = true;
+        _loadingCoachingAdvice = true;
+        _coachingError = null;
+      });
       Future.microtask(() => _generateCoachingAdvice());
     }
   }
 
   Future<void> _generateCoachingAdvice() async {
     if (widget.results == null) {
+      setState(() {
+        _aiProcessing = false;
+        _loadingCoachingAdvice = false;
+      });
       return;
     }
-    
-    setState(() {
-      _loadingCoachingAdvice = true;
-      _coachingError = null;
-    });
-    
+
+    // _loadingCoachingAdvice and _aiProcessing already set to true in initState
+
     try {
       final aiCoach = getAICoach();
-      
+
       // Calculate scores for all categories
-      final categoryScores = {
-        'Duration': widget.results?.turnDurationsSeconds.isNotEmpty == true
-            ? (widget.results!.turnDurationsSeconds.map((x) => Scoring.duration(x)).reduce((a, b) => a + b) / widget.results!.turnDurationsSeconds.length)
-            : 0.0,
-        'Edge Angle': widget.results?.edgeAngles.isNotEmpty == true
-            ? (widget.results!.edgeAngles.map((x) => Scoring.edgeAngle(x)).reduce((a, b) => a + b) / widget.results!.edgeAngles.length)
-            : 0.0,
-        'Parallel': widget.results?.parallelAvg.isNotEmpty == true
-            ? (widget.results!.parallelAvg.map((x) => Scoring.parallel(x)).reduce((a, b) => a + b) / widget.results!.parallelAvg.length)
-            : 0.0,
-        'Turn Shape': widget.results?.turnShapeAvg.isNotEmpty == true
-            ? (widget.results!.turnShapeAvg.map((x) => Scoring.turnShape(x)).reduce((a, b) => a + b) / widget.results!.turnShapeAvg.length)
-            : 0.0,
-      };
-      
-      // Set user prompt with run data - CUSTOMIZE THIS FORMAT AS NEEDED
+      final durationScore =
+          widget.results?.turnDurationsSeconds.isNotEmpty == true
+          ? (widget.results!.turnDurationsSeconds
+                    .map((x) => Scoring.duration(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.turnDurationsSeconds.length)
+          : 0.0;
+      final edgeAngleScore = widget.results?.edgeAngles.isNotEmpty == true
+          ? (widget.results!.edgeAngles
+                    .map((x) => Scoring.edgeAngle(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.edgeAngles.length)
+          : 0.0;
+      final parallelScore = widget.results?.parallelAvg.isNotEmpty == true
+          ? (widget.results!.parallelAvg
+                    .map((x) => Scoring.parallel(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.parallelAvg.length)
+          : 0.0;
+      final turnShapeScore = widget.results?.turnShapeAvg.isNotEmpty == true
+          ? (widget.results!.turnShapeAvg
+                    .map((x) => Scoring.turnShape(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.turnShapeAvg.length)
+          : 0.0;
+      final symmetryScore = widget.results?.turnSymmetryScore ?? 0.0;
+
+      // Calculate phase scores for parallelness
+      final parallelInitScore =
+          widget.results?.parallelBeginning.isNotEmpty == true
+          ? (widget.results!.parallelBeginning
+                    .map((x) => Scoring.parallel(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.parallelBeginning.length)
+          : 0.0;
+      final parallelControlScore =
+          widget.results?.parallelMiddle.isNotEmpty == true
+          ? (widget.results!.parallelMiddle
+                    .map((x) => Scoring.parallel(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.parallelMiddle.length)
+          : 0.0;
+      final parallelCompletionScore =
+          widget.results?.parallelEnd.isNotEmpty == true
+          ? (widget.results!.parallelEnd
+                    .map((x) => Scoring.parallel(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.parallelEnd.length)
+          : 0.0;
+
+      // Calculate phase scores for turn shape
+      final shapeInitScore =
+          widget.results?.turnShapeBeginning.isNotEmpty == true
+          ? (widget.results!.turnShapeBeginning
+                    .map((x) => Scoring.turnShape(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.turnShapeBeginning.length)
+          : 0.0;
+      final shapeControlScore =
+          widget.results?.turnShapeMiddle.isNotEmpty == true
+          ? (widget.results!.turnShapeMiddle
+                    .map((x) => Scoring.turnShape(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.turnShapeMiddle.length)
+          : 0.0;
+      final shapeCompletionScore =
+          widget.results?.turnShapeEnd.isNotEmpty == true
+          ? (widget.results!.turnShapeEnd
+                    .map((x) => Scoring.turnShape(x))
+                    .reduce((a, b) => a + b) /
+                widget.results!.turnShapeEnd.length)
+          : 0.0;
+
+      // Calculate measured values
+      final avgDuration =
+          widget.results?.turnDurationsSeconds.isNotEmpty == true
+          ? widget.results!.turnDurationsSeconds.reduce((a, b) => a + b) /
+                widget.results!.turnDurationsSeconds.length
+          : 0.0;
       final avgEdgeAngle = widget.results?.edgeAngles.isNotEmpty == true
-          ? widget.results!.edgeAngles.reduce((a, b) => a + b) / widget.results!.edgeAngles.length
+          ? widget.results!.edgeAngles.reduce((a, b) => a + b) /
+                widget.results!.edgeAngles.length
           : 0.0;
-      final avgParallel = widget.results?.parallelAvg.isNotEmpty == true
-          ? widget.results!.parallelAvg.reduce((a, b) => a + b) / widget.results!.parallelAvg.length
+      final avgParallelInit =
+          widget.results?.parallelBeginning.isNotEmpty == true
+          ? widget.results!.parallelBeginning.reduce((a, b) => a + b) /
+                widget.results!.parallelBeginning.length
           : 0.0;
-      final avgTurnShape = widget.results?.turnShapeAvg.isNotEmpty == true
-          ? widget.results!.turnShapeAvg.reduce((a, b) => a + b) / widget.results!.turnShapeAvg.length
+      final avgParallelControl =
+          widget.results?.parallelMiddle.isNotEmpty == true
+          ? widget.results!.parallelMiddle.reduce((a, b) => a + b) /
+                widget.results!.parallelMiddle.length
           : 0.0;
-      final avgDuration = widget.results?.turnDurationsSeconds.isNotEmpty == true
-          ? widget.results!.turnDurationsSeconds.reduce((a, b) => a + b) / widget.results!.turnDurationsSeconds.length
+      final avgParallelCompletion =
+          widget.results?.parallelEnd.isNotEmpty == true
+          ? widget.results!.parallelEnd.reduce((a, b) => a + b) /
+                widget.results!.parallelEnd.length
           : 0.0;
-      
-      aiCoach.setUserPrompt(
-        'Run Analysis:\n'
-        'Overall Score: ${widget.results?.overallScore?.toStringAsFixed(1) ?? "N/A"}\n'
-        'Edge Angle: ${avgEdgeAngle.toStringAsFixed(1)}° (Score: ${categoryScores["Edge Angle"]?.toStringAsFixed(1)})\n'
-        'Parallel: ${avgParallel.toStringAsFixed(1)}° (Score: ${categoryScores["Parallel"]?.toStringAsFixed(1)})\n'
-        'Turn Shape: ${avgTurnShape.toStringAsFixed(2)} (Score: ${categoryScores["Turn Shape"]?.toStringAsFixed(1)})\n'
-        'Duration: ${avgDuration.toStringAsFixed(2)}s (Score: ${categoryScores["Duration"]?.toStringAsFixed(1)})\n\n'
-        'What should I focus on to improve my skiing?'
-      );
-      
+      final avgParallelWhole = widget.results?.parallelAvg.isNotEmpty == true
+          ? widget.results!.parallelAvg.reduce((a, b) => a + b) /
+                widget.results!.parallelAvg.length
+          : 0.0;
+      final avgShapeInit = widget.results?.turnShapeBeginning.isNotEmpty == true
+          ? widget.results!.turnShapeBeginning.reduce((a, b) => a + b) /
+                widget.results!.turnShapeBeginning.length
+          : 0.0;
+      final avgShapeControl = widget.results?.turnShapeMiddle.isNotEmpty == true
+          ? widget.results!.turnShapeMiddle.reduce((a, b) => a + b) /
+                widget.results!.turnShapeMiddle.length
+          : 0.0;
+      final avgShapeCompletion = widget.results?.turnShapeEnd.isNotEmpty == true
+          ? widget.results!.turnShapeEnd.reduce((a, b) => a + b) /
+                widget.results!.turnShapeEnd.length
+          : 0.0;
+      final avgShapeWhole = widget.results?.turnShapeAvg.isNotEmpty == true
+          ? widget.results!.turnShapeAvg.reduce((a, b) => a + b) /
+                widget.results!.turnShapeAvg.length
+          : 0.0;
+      final symmetryRatio = widget.results?.turnSymmetryRatio ?? 0.0;
+
+      // Get session history
+      final categoriesCoached = aiCoach.getCategoriesCoached();
+      final drillsCoached = aiCoach.getDrillsCoached();
+
+      // Format arrays for JSON - use "none" if empty
+      final categoriesJson = categoriesCoached.isEmpty
+          ? '[none]'
+          : '["${categoriesCoached.join('", "')}"]';
+      final drillsJson = drillsCoached.isEmpty
+          ? '[none]'
+          : '["${drillsCoached.join('", "')}"]';
+
+      // Set user prompt in exact JSON format
+      aiCoach.setUserPrompt('''
+{
+  "category_scores": {
+    "turn_duration_score": ${durationScore.toStringAsFixed(3)},
+    "edge_angle_score": ${edgeAngleScore.toStringAsFixed(3)},
+    "parallelness_score": ${parallelScore.toStringAsFixed(3)},
+    "turn_shape_score": ${turnShapeScore.toStringAsFixed(3)},
+    "turn_symmetry_score": ${symmetryScore.toStringAsFixed(3)}
+  },
+
+  "overall_score": ${widget.results?.overallScore?.toStringAsFixed(3) ?? "0.000"},
+
+  "previous_categories": $categoriesJson,
+
+  "phase_scores": {
+    "parallelness": {
+      "initiation_score": ${parallelInitScore.toStringAsFixed(3)},
+      "control_score": ${parallelControlScore.toStringAsFixed(3)},
+      "completion_score": ${parallelCompletionScore.toStringAsFixed(3)},
+      "whole_turn_score": ${parallelScore.toStringAsFixed(3)}
+    },
+    "turn_shape": {
+      "initiation_score": ${shapeInitScore.toStringAsFixed(3)},
+      "control_score": ${shapeControlScore.toStringAsFixed(3)},
+      "completion_score": ${shapeCompletionScore.toStringAsFixed(3)},
+      "whole_turn_score": ${turnShapeScore.toStringAsFixed(3)}
+    }
+  },
+
+  "measured_values": {
+    "turn_duration_value_s": ${avgDuration.toStringAsFixed(3)},
+    "edge_angle_value_deg": ${avgEdgeAngle.toStringAsFixed(3)},
+    "parallelness_values_deg": {
+      "initiation": ${avgParallelInit.toStringAsFixed(3)},
+      "control": ${avgParallelControl.toStringAsFixed(3)},
+      "completion": ${avgParallelCompletion.toStringAsFixed(3)},
+      "whole_turn": ${avgParallelWhole.toStringAsFixed(3)}
+    },
+    "turn_shape_values": {
+      "initiation": ${avgShapeInit.toStringAsFixed(3)},
+      "control": ${avgShapeControl.toStringAsFixed(3)},
+      "completion": ${avgShapeCompletion.toStringAsFixed(3)},
+      "whole_turn": ${avgShapeWhole.toStringAsFixed(3)}
+    },
+    "turn_symmetry_ratio": ${symmetryRatio.toStringAsFixed(3)}
+  },
+
+  "previous_drills": $drillsJson
+}''');
+
+      final categoryScores = {
+        'Duration': durationScore,
+        'Edge Angle': edgeAngleScore,
+        'Parallel': parallelScore,
+        'Turn Shape': turnShapeScore,
+      };
+
       final advice = await aiCoach.generateCoachingAdvice(
         edgeAngleScore: categoryScores['Edge Angle'] ?? 0.0,
         parallelScore: categoryScores['Parallel'] ?? 0.0,
@@ -586,12 +897,28 @@ class _ResultsViewState extends State<ResultsView> {
         runScore: widget.results?.overallScore ?? 0.0,
         categoryScores: categoryScores,
       );
-      
+
+      // Parse the AI response to extract category, drill, and feedback
+      final feedbackParagraph = aiCoach.parseAndStoreResponse(advice);
+
       if (mounted) {
         setState(() {
-          _coachingAdvice = advice;
+          _coachingAdvice = feedbackParagraph;
           _loadingCoachingAdvice = false;
+          _aiProcessing = false;
         });
+
+        // Show notification banner when AI feedback is ready
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('AI feedback is ready'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('🤖 Error generating coaching advice: $e');
@@ -599,6 +926,7 @@ class _ResultsViewState extends State<ResultsView> {
         setState(() {
           _coachingError = 'Failed to generate advice: $e';
           _loadingCoachingAdvice = false;
+          _aiProcessing = false;
         });
       }
     }
@@ -617,11 +945,19 @@ class _ResultsViewState extends State<ResultsView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 80, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 80,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: 24),
                     const Text(
                       'ERROR',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.red),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -644,21 +980,30 @@ class _ResultsViewState extends State<ResultsView> {
                     icon: const Icon(Icons.bluetooth_searching),
                     label: const Text('Reconnect Sensors'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 16,
+                      ),
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
                     ),
                   ),
-                if (widget.onReconnect != null && widget.showReconnectButton) const SizedBox(height: 8),
+                if (widget.onReconnect != null && widget.showReconnectButton)
+                  const SizedBox(height: 8),
                 if (widget.showTryAgainButton)
                   ElevatedButton.icon(
-                    onPressed: widget.onNewRun,
+                    onPressed: _aiProcessing ? null : widget.onNewRun,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Start Another Run'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 16,
+                      ),
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey,
+                      disabledForegroundColor: Colors.white70,
                     ),
                   ),
               ],
@@ -667,14 +1012,13 @@ class _ResultsViewState extends State<ResultsView> {
         ],
       );
     }
-    
+
     return Column(
       children: [
         _buildNavigationBar(),
         Expanded(child: _buildContent()),
-        // AI Coaching Advice Widget
-        if (_coachingAdvice.isNotEmpty || _loadingCoachingAdvice || _coachingError != null)
-          _buildCoachingAdviceWidget(),
+        // AI Coaching Advice Widget - always show when AI is enabled
+        if (widget.results != null) _buildCoachingAdviceWidget(),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
@@ -682,31 +1026,21 @@ class _ResultsViewState extends State<ResultsView> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: widget.onNewRun,
+                  onPressed: _aiProcessing ? null : widget.onNewRun,
                   icon: const Icon(Icons.add, size: 24),
                   label: const Text('Start New Run'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 16,
+                    ),
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                    disabledForegroundColor: Colors.white70,
                   ),
                 ),
               ),
-              if (widget.onCalibrateAcceleration != null) const SizedBox(width: 8),
-              if (widget.onCalibrateAcceleration != null)
-                Expanded(
-                  flex: 1,
-                  child: ElevatedButton.icon(
-                    onPressed: widget.onCalibrateAcceleration,
-                    icon: const Icon(Icons.settings_input_component, size: 20),
-                    label: const Text('Accel Cal'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -731,28 +1065,52 @@ class _ResultsViewState extends State<ResultsView> {
                 const SizedBox(width: 12),
                 const Text(
                   'AI Coach Advice',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             if (_loadingCoachingAdvice)
-              const Center(
-                child: SizedBox(
-                  height: 40,
-                  width: 40,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+              const Row(
+                children: [
+                  SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Waiting for AI...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               )
             else if (_coachingError != null)
               Text(
                 _coachingError!,
                 style: const TextStyle(color: Colors.red, fontSize: 13),
               )
-            else
+            else if (_coachingAdvice.isNotEmpty)
               SelectableText(
                 _coachingAdvice,
                 style: const TextStyle(fontSize: 13, height: 1.6),
+              )
+            else
+              const Text(
+                'AI feedback will appear here after analysis.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey,
+                ),
               ),
           ],
         ),
@@ -761,9 +1119,15 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildNavigationBar() {
-    final showThirdDropdown = (_selectedCategory == 'Parallel' || _selectedCategory == 'Turn Shape') && _selectedTurn == 'All Turns';
-    final showThirdDropdownCategoryTurn = (_selectedCategory == 'Parallel' || _selectedCategory == 'Turn Shape') && _selectedTurn != 'All Turns';
-    
+    final showThirdDropdown =
+        (_selectedCategory == 'Parallel' ||
+            _selectedCategory == 'Turn Shape') &&
+        _selectedTurn == 'All Turns';
+    final showThirdDropdownCategoryTurn =
+        (_selectedCategory == 'Parallel' ||
+            _selectedCategory == 'Turn Shape') &&
+        _selectedTurn != 'All Turns';
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
@@ -771,111 +1135,189 @@ class _ResultsViewState extends State<ResultsView> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-              initialValue: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-              ),
-              style: const TextStyle(fontSize: 12, color: Colors.black),
-              dropdownColor: Colors.white,
-              isExpanded: true,
-              items: _categories
-                  .map((cat) => DropdownMenuItem(
+                initialValue: _selectedCategory,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 6,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 12, color: Colors.black),
+                dropdownColor: Colors.white,
+                isExpanded: true,
+                items: _categories
+                    .map(
+                      (cat) => DropdownMenuItem(
                         value: cat,
-                        child: Text(cat, style: const TextStyle(fontSize: 12, color: Colors.black)),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) _selectCategory(value);
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: _selectedTurn,
-              decoration: const InputDecoration(
-                labelText: 'Turn',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                        child: Text(
+                          cat,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) _selectCategory(value);
+                },
               ),
-              style: const TextStyle(fontSize: 12, color: Colors.black),
-              dropdownColor: Colors.white,
-              isExpanded: true,
-              items: _turns
-                  .map((turn) => DropdownMenuItem(
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _selectedTurn,
+                decoration: const InputDecoration(
+                  labelText: 'Turn',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 6,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 12, color: Colors.black),
+                dropdownColor: Colors.white,
+                isExpanded: true,
+                items: _turns
+                    .map(
+                      (turn) => DropdownMenuItem(
                         value: turn,
-                        child: Text(turn, style: const TextStyle(fontSize: 12, color: Colors.black)),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) _selectTurn(value);
-              },
-            ),
-          ),
-          if (showThirdDropdownCategoryTurn)
-            const SizedBox(width: 8),
-          if (showThirdDropdownCategoryTurn)
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedCategory == 'Parallel' ? _parallelPhase : _turnShapePhase,
-                decoration: const InputDecoration(
-                  labelText: 'Third',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                ),
-                style: const TextStyle(fontSize: 12, color: Colors.black),
-                dropdownColor: Colors.white,
-                isExpanded: true,
-                items: const [
-                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Initiation', child: Text('Initiation', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Control', child: Text('Control', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Completion', child: Text('Completion', style: TextStyle(fontSize: 12, color: Colors.black))),
-                ],
+                        child: Text(
+                          turn,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      if (_selectedCategory == 'Parallel') {
-                        _parallelPhase = value;
-                      } else {
-                        _turnShapePhase = value;
-                      }
-                    });
-                  }
+                  if (value != null) _selectTurn(value);
                 },
               ),
             ),
-          if (showThirdDropdown)
-            const SizedBox(width: 8),
-          if (showThirdDropdown)
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: _categoryPageThird,
-                decoration: const InputDecoration(
-                  labelText: 'Third',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            if (showThirdDropdownCategoryTurn) const SizedBox(width: 8),
+            if (showThirdDropdownCategoryTurn)
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedCategory == 'Parallel'
+                      ? _parallelPhase
+                      : _turnShapePhase,
+                  decoration: const InputDecoration(
+                    labelText: 'Third',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 6,
+                    ),
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black),
+                  dropdownColor: Colors.white,
+                  isExpanded: true,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Whole Turn',
+                      child: Text(
+                        'Whole Turn',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Initiation',
+                      child: Text(
+                        'Initiation',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Control',
+                      child: Text(
+                        'Control',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Completion',
+                      child: Text(
+                        'Completion',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        if (_selectedCategory == 'Parallel') {
+                          _parallelPhase = value;
+                        } else {
+                          _turnShapePhase = value;
+                        }
+                      });
+                    }
+                  },
                 ),
-                style: const TextStyle(fontSize: 12, color: Colors.black),
-                dropdownColor: Colors.white,
-                isExpanded: true,
-                items: const [
-                  DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Initiation', child: Text('Initiation', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Control', child: Text('Control', style: TextStyle(fontSize: 12, color: Colors.black))),
-                  DropdownMenuItem(value: 'Completion', child: Text('Completion', style: TextStyle(fontSize: 12, color: Colors.black))),
-                ],
-                onChanged: (value) {
-                  if (value != null) setState(() => _categoryPageThird = value);
-                },
               ),
-            ),
+            if (showThirdDropdown) const SizedBox(width: 8),
+            if (showThirdDropdown)
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _categoryPageThird,
+                  decoration: const InputDecoration(
+                    labelText: 'Third',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 6,
+                    ),
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black),
+                  dropdownColor: Colors.white,
+                  isExpanded: true,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Whole Turn',
+                      child: Text(
+                        'Whole Turn',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Initiation',
+                      child: Text(
+                        'Initiation',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Control',
+                      child: Text(
+                        'Control',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Completion',
+                      child: Text(
+                        'Completion',
+                        style: TextStyle(fontSize: 12, color: Colors.black),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _categoryPageThird = value);
+                    }
+                  },
+                ),
+              ),
           ],
         ),
       ),
@@ -883,14 +1325,12 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCompactSummary({bool includeSimilarity = false}) {
-        final duration = widget.results?.runDurationSeconds ?? 0;
-        final durationStr = duration > 0 
-          ? '${duration}s'
-          : '—';
-        final startTimeStr = widget.results?.runStartTime != null
-          ? '${widget.results!.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.results!.runStartTime!.minute.toString().padLeft(2, '0')}'
-          : '—';
-    
+    final duration = widget.results?.runDurationSeconds ?? 0;
+    final durationStr = duration > 0 ? '${duration}s' : '—';
+    final startTimeStr = widget.results?.runStartTime != null
+        ? '${widget.results!.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.results!.runStartTime!.minute.toString().padLeft(2, '0')}'
+        : '—';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
       child: Card(
@@ -899,14 +1339,25 @@ class _ResultsViewState extends State<ResultsView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _summaryItem('Turns', '${(widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : (_turns.length - 1)}'),
-                _summaryItem('Duration', durationStr),
-                _summaryItem('Start', startTimeStr),
-              _summaryItem('Score', widget.results?.overallScore != null ? widget.results!.overallScore!.toStringAsFixed(1) : '—', prominent: true),
+              _summaryItem(
+                'Turns',
+                '${(widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : (_turns.length - 1)}',
+              ),
+              _summaryItem('Duration', durationStr),
+              _summaryItem('Start', startTimeStr),
+              _summaryItem(
+                'Score',
+                widget.results?.overallScore != null
+                    ? widget.results!.overallScore!.toStringAsFixed(1)
+                    : '—',
+                prominent: true,
+              ),
               if (includeSimilarity)
                 _summaryItem(
                   'Symmetry',
-                  widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—',
+                  widget.results?.turnSymmetryRatio != null
+                      ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3)
+                      : '—',
                 ),
             ],
           ),
@@ -919,8 +1370,22 @@ class _ResultsViewState extends State<ResultsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: prominent ? Colors.blue : Colors.grey, fontWeight: prominent ? FontWeight.bold : FontWeight.normal)),
-        Text(value, style: TextStyle(fontSize: prominent ? 18 : 14, fontWeight: FontWeight.bold, color: prominent ? Colors.blue : Colors.black)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: prominent ? Colors.blue : Colors.grey,
+            fontWeight: prominent ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: prominent ? 18 : 14,
+            fontWeight: FontWeight.bold,
+            color: prominent ? Colors.blue : Colors.black,
+          ),
+        ),
       ],
     );
   }
@@ -928,13 +1393,13 @@ class _ResultsViewState extends State<ResultsView> {
   Widget _buildLeftPane({bool includeSimilarity = false}) {
     final items = _categories.skip(1).toList();
     if (includeSimilarity) items.add('Turn Symmetry');
-    
+
     // Precompute Duration average value and score
     String turnDurationVal = '—';
     String turnDurationScore = '—';
-      final durations = widget.results?.turnDurationsSeconds ?? const [];
-      if (durations.isNotEmpty) {
-      final avg = durations.reduce((a,b) => a + b) / durations.length;
+    final durations = widget.results?.turnDurationsSeconds ?? const [];
+    if (durations.isNotEmpty) {
+      final avg = durations.reduce((a, b) => a + b) / durations.length;
       turnDurationVal = '${avg.toStringAsFixed(3)}s';
       double scoreSum = 0.0;
       for (final x in durations) {
@@ -943,13 +1408,13 @@ class _ResultsViewState extends State<ResultsView> {
       final avgScore = scoreSum / durations.length;
       turnDurationScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
     }
-    
+
     // Precompute Edge Angle average value and score
     String edgeAngleVal = '—';
     String edgeAngleScore = '—';
-      final angles = widget.results?.edgeAngles ?? const [];
-      if (angles.isNotEmpty) {
-      final avg = angles.reduce((a,b) => a + b) / angles.length;
+    final angles = widget.results?.edgeAngles ?? const [];
+    if (angles.isNotEmpty) {
+      final avg = angles.reduce((a, b) => a + b) / angles.length;
       edgeAngleVal = '${avg.toStringAsFixed(1)}°';
       double scoreSum = 0.0;
       for (final x in angles) {
@@ -958,13 +1423,13 @@ class _ResultsViewState extends State<ResultsView> {
       final avgScore = scoreSum / angles.length;
       edgeAngleScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
     }
-    
+
     // Precompute Parallelness average value and score
     String parallelVal = '—';
     String parallelScore = '—';
-      final parallels = widget.results?.parallelAvg ?? const [];
-      if (parallels.isNotEmpty) {
-      final avg = parallels.reduce((a,b) => a + b) / parallels.length;
+    final parallels = widget.results?.parallelAvg ?? const [];
+    if (parallels.isNotEmpty) {
+      final avg = parallels.reduce((a, b) => a + b) / parallels.length;
       parallelVal = '${avg.toStringAsFixed(1)}°';
       double scoreSum = 0.0;
       for (final x in parallels) {
@@ -973,13 +1438,13 @@ class _ResultsViewState extends State<ResultsView> {
       final avgScore = scoreSum / parallels.length;
       parallelScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
     }
-    
+
     // Precompute Turn Shape average value and score
     String smoothVal = '—';
     String smoothScore = '—';
-      final smooths = widget.results?.turnShapeAvg ?? const [];
-      if (smooths.isNotEmpty) {
-      final avg = smooths.reduce((a,b) => a + b) / smooths.length;
+    final smooths = widget.results?.turnShapeAvg ?? const [];
+    if (smooths.isNotEmpty) {
+      final avg = smooths.reduce((a, b) => a + b) / smooths.length;
       smoothVal = '${avg.toStringAsFixed(1)}°/s';
       double scoreSum = 0.0;
       for (final x in smooths) {
@@ -988,36 +1453,40 @@ class _ResultsViewState extends State<ResultsView> {
       final avgScore = scoreSum / smooths.length;
       smoothScore = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
     }
-    
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
       children: [
-        ...items.map((cat) => ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-              title: Text(cat, style: const TextStyle(fontSize: 14)),
-              subtitle: Text(
-                cat == 'Duration'
-                    ? 'Val: $turnDurationVal | Score: $turnDurationScore'
-                    : cat == 'Edge Angle'
-                        ? 'Val: $edgeAngleVal | Score: $edgeAngleScore'
-                        : cat == 'Parallel'
-                            ? 'Val: $parallelVal | Score: $parallelScore'
-                            : cat == 'Turn Shape'
-                                ? 'Val: $smoothVal | Score: $smoothScore'
-                                : cat == 'Turn Symmetry'
-                                    ? 'Val: ${widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—'} | Score: ${widget.results?.turnSymmetryScore != null ? widget.results!.turnSymmetryScore!.toStringAsFixed(1) : '—'}'
-                                    : 'Val: — | Score: —',
-                style: const TextStyle(fontSize: 11),
-              ),
-              onTap: cat == 'Turn Symmetry' ? null : () => _selectCategory(cat),
-            )),
+        ...items.map(
+          (cat) => ListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+            title: Text(cat, style: const TextStyle(fontSize: 14)),
+            subtitle: Text(
+              cat == 'Duration'
+                  ? 'Val: $turnDurationVal | Score: $turnDurationScore'
+                  : cat == 'Edge Angle'
+                  ? 'Val: $edgeAngleVal | Score: $edgeAngleScore'
+                  : cat == 'Parallel'
+                  ? 'Val: $parallelVal | Score: $parallelScore'
+                  : cat == 'Turn Shape'
+                  ? 'Val: $smoothVal | Score: $smoothScore'
+                  : cat == 'Turn Symmetry'
+                  ? 'Val: ${widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—'} | Score: ${widget.results?.turnSymmetryScore != null ? widget.results!.turnSymmetryScore!.toStringAsFixed(1) : '—'}'
+                  : 'Val: — | Score: —',
+              style: const TextStyle(fontSize: 11),
+            ),
+            onTap: cat == 'Turn Symmetry' ? null : () => _selectCategory(cat),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildRightPaneVisualization() {
-    final turnCount = (widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5;
+    final turnCount = (widget.results?.turnCount ?? 0) > 0
+        ? (widget.results?.turnCount ?? 0)
+        : 5;
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 8),
       child: Card(
@@ -1027,7 +1496,7 @@ class _ResultsViewState extends State<ResultsView> {
             itemCount: turnCount,
             itemBuilder: (context, i) {
               final dirs = widget.results?.turnDirections ?? const [];
-              final direction = i < dirs.length 
+              final direction = i < dirs.length
                   ? (dirs[i] == 1 ? '(R)' : '(L)')
                   : '';
               final turnLabel = 'Turn ${i + 1} $direction'.trim();
@@ -1055,8 +1524,8 @@ class _ResultsViewState extends State<ResultsView> {
                         const SizedBox(height: 2),
                         Text(
                           (i < (widget.results?.turnScores.length ?? 0))
-                            ? widget.results!.turnScores[i].toStringAsFixed(1)
-                            : '—',
+                              ? widget.results!.turnScores[i].toStringAsFixed(1)
+                              : '—',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
@@ -1108,7 +1577,9 @@ class _ResultsViewState extends State<ResultsView> {
   // Compact layout based on summary + panes
 
   Widget _buildCategoryAllTurns() {
-    final actualTurnCount = (widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : 5;
+    final actualTurnCount = (widget.results?.turnCount ?? 0) > 0
+        ? (widget.results?.turnCount ?? 0)
+        : 5;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1121,113 +1592,136 @@ class _ResultsViewState extends State<ResultsView> {
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             itemCount: actualTurnCount,
             itemBuilder: (context, i) {
-                  // Create turn label with direction to match _turns list
-                  final dirs = widget.results?.turnDirections ?? const [];
-                  final direction = i < dirs.length 
-                      ? (dirs[i] == 1 ? '(R)' : '(L)')
-                      : '';
-                  final turnLabel = 'Turn ${i + 1} $direction'.trim();
-                    final turnDuration = (i < (widget.results?.turnDurationsSeconds.length ?? 0))
-                      ? '${widget.results!.turnDurationsSeconds[i].toStringAsFixed(3)}s'
-                      : '—';
-                    final turnDurationScore = (i < (widget.results?.turnDurationsSeconds.length ?? 0))
-                      ? _scoreForDuration(widget.results!.turnDurationsSeconds[i]).toStringAsFixed(1)
-                      : '—';
-                    final edgeAngle = (i < (widget.results?.edgeAngles.length ?? 0))
-                      ? '${widget.results!.edgeAngles[i].toStringAsFixed(1)}°'
-                      : '—';
-                    final edgeAngleScore = (i < (widget.results?.edgeAngles.length ?? 0))
-                      ? _scoreForEdgeAngle(widget.results!.edgeAngles[i]).toStringAsFixed(1)
-                      : '—';
-                    
-                    // Parallelness (based on selected phase)
-                    String parallelText = '—';
-                    String parallelScoreText = '—';
-                    if (_selectedCategory == 'Parallel') {
-                      double? val;
-                      if (_categoryPageThird == 'Whole Turn' && i < (widget.results?.parallelAvg.length ?? 0)) {
-                        val = widget.results!.parallelAvg[i];
-                      } else if (_categoryPageThird == 'Initiation' && i < (widget.results?.parallelBeginning.length ?? 0)) {
-                        val = widget.results!.parallelBeginning[i];
-                      } else if (_categoryPageThird == 'Control' && i < (widget.results?.parallelMiddle.length ?? 0)) {
-                        val = widget.results!.parallelMiddle[i];
-                      } else if (_categoryPageThird == 'Completion' && i < (widget.results?.parallelEnd.length ?? 0)) {
-                        val = widget.results!.parallelEnd[i];
-                      }
-                      if (val != null) {
-                        parallelText = '${val.toStringAsFixed(1)}°';
-                        parallelScoreText = _scoreForParallelness(val).toStringAsFixed(1);
-                      }
-                    }
-                    
-                    // Turn Shape (based on selected phase)
-                    String smoothText = '—';
-                    String smoothScoreText = '—';
-                    if (_selectedCategory == 'Turn Shape') {
-                      double? val;
-                      if (_categoryPageThird == 'Whole Turn' && i < (widget.results?.turnShapeAvg.length ?? 0)) {
-                        val = widget.results!.turnShapeAvg[i];
-                      } else if (_categoryPageThird == 'Initiation' && i < (widget.results?.turnShapeBeginning.length ?? 0)) {
-                        val = widget.results!.turnShapeBeginning[i];
-                      } else if (_categoryPageThird == 'Control' && i < (widget.results?.turnShapeMiddle.length ?? 0)) {
-                        val = widget.results!.turnShapeMiddle[i];
-                      } else if (_categoryPageThird == 'Completion' && i < (widget.results?.turnShapeEnd.length ?? 0)) {
-                        val = widget.results!.turnShapeEnd[i];
-                      }
-                      if (val != null) {
-                        smoothText = '${val.toStringAsFixed(1)}°/s';
-                        smoothScoreText = _scoreForTurnShapeSD(val).toStringAsFixed(1);
-                      }
-                    }
-                  return GestureDetector(
-                    onTap: () => _selectCategoryAndTurn(_selectedCategory, turnLabel),
-                    child: Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: Container(
-                        height: 50,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Turn ${i + 1}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                              ),
-                              if (_selectedCategory == 'Duration') ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  '$turnDuration | Score: $turnDurationScore',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                              ],
-                              if (_selectedCategory == 'Edge Angle') ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  '$edgeAngle | Score: $edgeAngleScore',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                              ],
-                              if (_selectedCategory == 'Parallel') ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  '$parallelText | Score: $parallelScoreText',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                              ],
-                              if (_selectedCategory == 'Turn Shape') ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  '$smoothText | Score: $smoothScoreText',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                              ],
-                            ],
+              // Create turn label with direction to match _turns list
+              final dirs = widget.results?.turnDirections ?? const [];
+              final direction = i < dirs.length
+                  ? (dirs[i] == 1 ? '(R)' : '(L)')
+                  : '';
+              final turnLabel = 'Turn ${i + 1} $direction'.trim();
+              final turnDuration =
+                  (i < (widget.results?.turnDurationsSeconds.length ?? 0))
+                  ? '${widget.results!.turnDurationsSeconds[i].toStringAsFixed(3)}s'
+                  : '—';
+              final turnDurationScore =
+                  (i < (widget.results?.turnDurationsSeconds.length ?? 0))
+                  ? _scoreForDuration(
+                      widget.results!.turnDurationsSeconds[i],
+                    ).toStringAsFixed(1)
+                  : '—';
+              final edgeAngle = (i < (widget.results?.edgeAngles.length ?? 0))
+                  ? '${widget.results!.edgeAngles[i].toStringAsFixed(1)}°'
+                  : '—';
+              final edgeAngleScore =
+                  (i < (widget.results?.edgeAngles.length ?? 0))
+                  ? _scoreForEdgeAngle(
+                      widget.results!.edgeAngles[i],
+                    ).toStringAsFixed(1)
+                  : '—';
+
+              // Parallelness (based on selected phase)
+              String parallelText = '—';
+              String parallelScoreText = '—';
+              if (_selectedCategory == 'Parallel') {
+                double? val;
+                if (_categoryPageThird == 'Whole Turn' &&
+                    i < (widget.results?.parallelAvg.length ?? 0)) {
+                  val = widget.results!.parallelAvg[i];
+                } else if (_categoryPageThird == 'Initiation' &&
+                    i < (widget.results?.parallelBeginning.length ?? 0)) {
+                  val = widget.results!.parallelBeginning[i];
+                } else if (_categoryPageThird == 'Control' &&
+                    i < (widget.results?.parallelMiddle.length ?? 0)) {
+                  val = widget.results!.parallelMiddle[i];
+                } else if (_categoryPageThird == 'Completion' &&
+                    i < (widget.results?.parallelEnd.length ?? 0)) {
+                  val = widget.results!.parallelEnd[i];
+                }
+                if (val != null) {
+                  parallelText = '${val.toStringAsFixed(1)}°';
+                  parallelScoreText = _scoreForParallelness(
+                    val,
+                  ).toStringAsFixed(1);
+                }
+              }
+
+              // Turn Shape (based on selected phase)
+              String smoothText = '—';
+              String smoothScoreText = '—';
+              if (_selectedCategory == 'Turn Shape') {
+                double? val;
+                if (_categoryPageThird == 'Whole Turn' &&
+                    i < (widget.results?.turnShapeAvg.length ?? 0)) {
+                  val = widget.results!.turnShapeAvg[i];
+                } else if (_categoryPageThird == 'Initiation' &&
+                    i < (widget.results?.turnShapeBeginning.length ?? 0)) {
+                  val = widget.results!.turnShapeBeginning[i];
+                } else if (_categoryPageThird == 'Control' &&
+                    i < (widget.results?.turnShapeMiddle.length ?? 0)) {
+                  val = widget.results!.turnShapeMiddle[i];
+                } else if (_categoryPageThird == 'Completion' &&
+                    i < (widget.results?.turnShapeEnd.length ?? 0)) {
+                  val = widget.results!.turnShapeEnd[i];
+                }
+                if (val != null) {
+                  smoothText = '${val.toStringAsFixed(1)}°/s';
+                  smoothScoreText = _scoreForTurnShapeSD(
+                    val,
+                  ).toStringAsFixed(1);
+                }
+              }
+              return GestureDetector(
+                onTap: () =>
+                    _selectCategoryAndTurn(_selectedCategory, turnLabel),
+                child: Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: Container(
+                    height: 50,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Turn ${i + 1}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
+                          if (_selectedCategory == 'Duration') ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '$turnDuration | Score: $turnDurationScore',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ],
+                          if (_selectedCategory == 'Edge Angle') ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '$edgeAngle | Score: $edgeAngleScore',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ],
+                          if (_selectedCategory == 'Parallel') ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '$parallelText | Score: $parallelScoreText',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ],
+                          if (_selectedCategory == 'Turn Shape') ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '$smoothText | Score: $smoothScoreText',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  );
+                  ),
+                ),
+              );
             },
           ),
         ),
@@ -1249,12 +1743,14 @@ class _ResultsViewState extends State<ResultsView> {
       final durations = widget.results?.turnDurationsSeconds ?? const [];
       if (_selectedTurn == 'All Turns') {
         if (durations.isNotEmpty) {
-          final avg = durations.reduce((a,b) => a + b) / durations.length;
+          final avg = durations.reduce((a, b) => a + b) / durations.length;
           valueText = '${avg.toStringAsFixed(3)}s';
           // score: average of per-turn scores
           double scoreSum = 0.0;
           for (final x in durations) {
-            final s = 100.0 * (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
+            final s =
+                100.0 *
+                (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
             scoreSum += s;
           }
           final avgScore = scoreSum / durations.length;
@@ -1268,7 +1764,9 @@ class _ResultsViewState extends State<ResultsView> {
           if (idx >= 0 && idx < durations.length) {
             final x = durations[idx];
             valueText = '${x.toStringAsFixed(3)}s';
-            final score = 100.0 * (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
+            final score =
+                100.0 *
+                (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
             scoreText = score.isFinite ? score.toStringAsFixed(1) : '—';
           }
         }
@@ -1288,7 +1786,7 @@ class _ResultsViewState extends State<ResultsView> {
           vals = widget.results?.parallelEnd ?? const [];
         }
         if (vals.isNotEmpty) {
-          final avg = vals.reduce((a,b) => a + b) / vals.length;
+          final avg = vals.reduce((a, b) => a + b) / vals.length;
           valueText = '${avg.toStringAsFixed(1)}°';
           double scoreSum = 0.0;
           for (final x in vals) {
@@ -1302,13 +1800,17 @@ class _ResultsViewState extends State<ResultsView> {
         if (match != null) {
           final idx = int.parse(match.group(1)!) - 1;
           double? val;
-          if (phase == 'Whole Turn' && idx < (widget.results?.parallelAvg.length ?? 0)) {
+          if (phase == 'Whole Turn' &&
+              idx < (widget.results?.parallelAvg.length ?? 0)) {
             val = widget.results!.parallelAvg[idx];
-          } else if (phase == 'Initiation' && idx < (widget.results?.parallelBeginning.length ?? 0)) {
+          } else if (phase == 'Initiation' &&
+              idx < (widget.results?.parallelBeginning.length ?? 0)) {
             val = widget.results!.parallelBeginning[idx];
-          } else if (phase == 'Control' && idx < (widget.results?.parallelMiddle.length ?? 0)) {
+          } else if (phase == 'Control' &&
+              idx < (widget.results?.parallelMiddle.length ?? 0)) {
             val = widget.results!.parallelMiddle[idx];
-          } else if (phase == 'Completion' && idx < (widget.results?.parallelEnd.length ?? 0)) {
+          } else if (phase == 'Completion' &&
+              idx < (widget.results?.parallelEnd.length ?? 0)) {
             val = widget.results!.parallelEnd[idx];
           }
           if (val != null) {
@@ -1332,7 +1834,7 @@ class _ResultsViewState extends State<ResultsView> {
           vals = widget.results?.turnShapeEnd ?? const [];
         }
         if (vals.isNotEmpty) {
-          final avg = vals.reduce((a,b) => a + b) / vals.length;
+          final avg = vals.reduce((a, b) => a + b) / vals.length;
           valueText = '${avg.toStringAsFixed(1)}°/s';
           double scoreSum = 0.0;
           for (final x in vals) {
@@ -1346,13 +1848,17 @@ class _ResultsViewState extends State<ResultsView> {
         if (match != null) {
           final idx = int.parse(match.group(1)!) - 1;
           double? val;
-          if (phase == 'Whole Turn' && idx < (widget.results?.turnShapeAvg.length ?? 0)) {
+          if (phase == 'Whole Turn' &&
+              idx < (widget.results?.turnShapeAvg.length ?? 0)) {
             val = widget.results!.turnShapeAvg[idx];
-          } else if (phase == 'Initiation' && idx < (widget.results?.turnShapeBeginning.length ?? 0)) {
+          } else if (phase == 'Initiation' &&
+              idx < (widget.results?.turnShapeBeginning.length ?? 0)) {
             val = widget.results!.turnShapeBeginning[idx];
-          } else if (phase == 'Control' && idx < (widget.results?.turnShapeMiddle.length ?? 0)) {
+          } else if (phase == 'Control' &&
+              idx < (widget.results?.turnShapeMiddle.length ?? 0)) {
             val = widget.results!.turnShapeMiddle[idx];
-          } else if (phase == 'Completion' && idx < (widget.results?.turnShapeEnd.length ?? 0)) {
+          } else if (phase == 'Completion' &&
+              idx < (widget.results?.turnShapeEnd.length ?? 0)) {
             val = widget.results!.turnShapeEnd[idx];
           }
           if (val != null) {
@@ -1366,7 +1872,7 @@ class _ResultsViewState extends State<ResultsView> {
       final angles = widget.results?.edgeAngles ?? const [];
       if (_selectedTurn == 'All Turns') {
         if (angles.isNotEmpty) {
-          final avg = angles.reduce((a,b) => a + b) / angles.length;
+          final avg = angles.reduce((a, b) => a + b) / angles.length;
           valueText = '${avg.toStringAsFixed(1)}°';
           // score: average of per-turn scores
           double scoreSum = 0.0;
@@ -1410,7 +1916,7 @@ class _ResultsViewState extends State<ResultsView> {
   Widget _buildCategoryDotPlot() {
     final values = _getValuesForCategory(_selectedCategory, _categoryPageThird);
     if (values.isEmpty) return const SizedBox();
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1419,7 +1925,9 @@ class _ResultsViewState extends State<ResultsView> {
           children: [
             Text(
               'Values Across Turns',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             DotPlot(
@@ -1444,13 +1952,14 @@ class _ResultsViewState extends State<ResultsView> {
         selectedTurnIndex = int.parse(match.group(1)!) - 1;
       }
     }
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnScores.length ?? 0)) ...[
+          if (selectedTurnIndex != null &&
+              selectedTurnIndex < (widget.results?.turnScores.length ?? 0)) ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -1459,11 +1968,19 @@ class _ResultsViewState extends State<ResultsView> {
                   children: [
                     Text(
                       'Turn Score: ',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
-                      widget.results!.turnScores[selectedTurnIndex].toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                      widget.results!.turnScores[selectedTurnIndex]
+                          .toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
                     ),
                   ],
                 ),
@@ -1485,7 +2002,7 @@ class _ResultsViewState extends State<ResultsView> {
 
   Widget _buildMetricModule(String metric, int turnIndex) {
     final showDropdown = (metric == 'Parallel' || metric == 'Turn Shape');
-    
+
     // Extract turn index from _selectedTurn (e.g., "Turn 3" -> 2)
     int? selectedTurnIndex;
     if (_selectedTurn != 'All Turns') {
@@ -1494,27 +2011,36 @@ class _ResultsViewState extends State<ResultsView> {
         selectedTurnIndex = int.parse(match.group(1)!) - 1;
       }
     }
-    
+
     String valueText = '—';
     String scoreText = '—';
-    if (metric == 'Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
+    if (metric == 'Duration' &&
+        selectedTurnIndex != null &&
+        selectedTurnIndex <
+            (widget.results?.turnDurationsSeconds.length ?? 0)) {
       final x = widget.results!.turnDurationsSeconds[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(3)}s';
       scoreText = _scoreForDuration(x).toStringAsFixed(1);
-    } else if (metric == 'Edge Angle' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.edgeAngles.length ?? 0)) {
+    } else if (metric == 'Edge Angle' &&
+        selectedTurnIndex != null &&
+        selectedTurnIndex < (widget.results?.edgeAngles.length ?? 0)) {
       final x = widget.results!.edgeAngles[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(1)}°';
       scoreText = _scoreForEdgeAngle(x).toStringAsFixed(1);
     } else if (metric == 'Parallel' && selectedTurnIndex != null) {
       final phase = _parallelPhase;
       double? parallelVal;
-      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
+      if (phase == 'Whole Turn' &&
+          selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
         parallelVal = widget.results!.parallelAvg[selectedTurnIndex];
-      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' &&
+          selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
         parallelVal = widget.results!.parallelBeginning[selectedTurnIndex];
-      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
+      } else if (phase == 'Control' &&
+          selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
         parallelVal = widget.results!.parallelMiddle[selectedTurnIndex];
-      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
+      } else if (phase == 'Completion' &&
+          selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
         parallelVal = widget.results!.parallelEnd[selectedTurnIndex];
       }
       if (parallelVal != null) {
@@ -1524,13 +2050,18 @@ class _ResultsViewState extends State<ResultsView> {
     } else if (metric == 'Turn Shape' && selectedTurnIndex != null) {
       final phase = _turnShapePhase;
       double? smoothVal;
-      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.turnShapeAvg.length ?? 0)) {
+      if (phase == 'Whole Turn' &&
+          selectedTurnIndex < (widget.results?.turnShapeAvg.length ?? 0)) {
         smoothVal = widget.results!.turnShapeAvg[selectedTurnIndex];
-      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.turnShapeBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' &&
+          selectedTurnIndex <
+              (widget.results?.turnShapeBeginning.length ?? 0)) {
         smoothVal = widget.results!.turnShapeBeginning[selectedTurnIndex];
-      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
+      } else if (phase == 'Control' &&
+          selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
         smoothVal = widget.results!.turnShapeMiddle[selectedTurnIndex];
-      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
+      } else if (phase == 'Completion' &&
+          selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
         smoothVal = widget.results!.turnShapeEnd[selectedTurnIndex];
       }
       if (smoothVal != null) {
@@ -1538,7 +2069,7 @@ class _ResultsViewState extends State<ResultsView> {
         scoreText = _scoreForTurnShapeSD(smoothVal).toStringAsFixed(1);
       }
     }
-    
+
     return GestureDetector(
       onTap: () => _selectCategoryAndTurn(metric, _selectedTurn),
       child: Card(
@@ -1552,24 +2083,45 @@ class _ResultsViewState extends State<ResultsView> {
               Flexible(
                 child: Text(
                   metric,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(height: 4),
-              Text('Val: $valueText', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-              Text('Score: $scoreText', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text(
+                'Val: $valueText',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Score: $scoreText',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
               if (showDropdown) ...[
                 const SizedBox(height: 2),
                 SizedBox(
                   height: 28,
                   child: DropdownButtonFormField<String>(
-                    initialValue: metric == 'Parallel' ? _parallelPhase : _turnShapePhase,
+                    initialValue: metric == 'Parallel'
+                        ? _parallelPhase
+                        : _turnShapePhase,
                     isDense: true,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 0,
+                      ),
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -1577,10 +2129,34 @@ class _ResultsViewState extends State<ResultsView> {
                     dropdownColor: Colors.white,
                     menuMaxHeight: 200,
                     items: const [
-                      DropdownMenuItem(value: 'Whole Turn', child: Text('Whole Turn', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Initiation', child: Text('Initiation', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Control', child: Text('Control', style: TextStyle(fontSize: 9, color: Colors.black))),
-                      DropdownMenuItem(value: 'Completion', child: Text('Completion', style: TextStyle(fontSize: 9, color: Colors.black))),
+                      DropdownMenuItem(
+                        value: 'Whole Turn',
+                        child: Text(
+                          'Whole Turn',
+                          style: TextStyle(fontSize: 9, color: Colors.black),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Initiation',
+                        child: Text(
+                          'Initiation',
+                          style: TextStyle(fontSize: 9, color: Colors.black),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Control',
+                        child: Text(
+                          'Control',
+                          style: TextStyle(fontSize: 9, color: Colors.black),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Completion',
+                        child: Text(
+                          'Completion',
+                          style: TextStyle(fontSize: 9, color: Colors.black),
+                        ),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -1601,7 +2177,10 @@ class _ResultsViewState extends State<ResultsView> {
               if (selectedTurnIndex != null && metric == 'Edge Angle') ...[
                 SizedBox(
                   height: 120,
-                  child: _buildTimeSeriesGraphForMetric(metric, selectedTurnIndex),
+                  child: _buildTimeSeriesGraphForMetric(
+                    metric,
+                    selectedTurnIndex,
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -1613,7 +2192,9 @@ class _ResultsViewState extends State<ResultsView> {
                       metric,
                       metric == 'Parallel'
                           ? _parallelPhase
-                          : (metric == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
+                          : (metric == 'Turn Shape'
+                                ? _turnShapePhase
+                                : 'Whole Turn'),
                     ),
                     highlightIndex: selectedTurnIndex,
                     optimalValue: _getOptimalForCategory(metric),
@@ -1638,27 +2219,36 @@ class _ResultsViewState extends State<ResultsView> {
         selectedTurnIndex = int.parse(match.group(1)!) - 1;
       }
     }
-    
+
     String valueText = '—';
     String scoreText = '—';
-    if (_selectedCategory == 'Duration' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.turnDurationsSeconds.length ?? 0)) {
+    if (_selectedCategory == 'Duration' &&
+        selectedTurnIndex != null &&
+        selectedTurnIndex <
+            (widget.results?.turnDurationsSeconds.length ?? 0)) {
       final x = widget.results!.turnDurationsSeconds[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(3)}s';
       scoreText = _scoreForDuration(x).toStringAsFixed(1);
-    } else if (_selectedCategory == 'Edge Angle' && selectedTurnIndex != null && selectedTurnIndex < (widget.results?.edgeAngles.length ?? 0)) {
+    } else if (_selectedCategory == 'Edge Angle' &&
+        selectedTurnIndex != null &&
+        selectedTurnIndex < (widget.results?.edgeAngles.length ?? 0)) {
       final x = widget.results!.edgeAngles[selectedTurnIndex];
       valueText = '${x.toStringAsFixed(1)}°';
       scoreText = _scoreForEdgeAngle(x).toStringAsFixed(1);
     } else if (_selectedCategory == 'Parallel' && selectedTurnIndex != null) {
       final phase = _parallelPhase;
       double? val;
-      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
+      if (phase == 'Whole Turn' &&
+          selectedTurnIndex < (widget.results?.parallelAvg.length ?? 0)) {
         val = widget.results!.parallelAvg[selectedTurnIndex];
-      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' &&
+          selectedTurnIndex < (widget.results?.parallelBeginning.length ?? 0)) {
         val = widget.results!.parallelBeginning[selectedTurnIndex];
-      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
+      } else if (phase == 'Control' &&
+          selectedTurnIndex < (widget.results?.parallelMiddle.length ?? 0)) {
         val = widget.results!.parallelMiddle[selectedTurnIndex];
-      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
+      } else if (phase == 'Completion' &&
+          selectedTurnIndex < (widget.results?.parallelEnd.length ?? 0)) {
         val = widget.results!.parallelEnd[selectedTurnIndex];
       }
       if (val != null) {
@@ -1668,13 +2258,18 @@ class _ResultsViewState extends State<ResultsView> {
     } else if (_selectedCategory == 'Turn Shape' && selectedTurnIndex != null) {
       final phase = _turnShapePhase;
       double? val;
-      if (phase == 'Whole Turn' && selectedTurnIndex < (widget.results?.turnShapeAvg.length ?? 0)) {
+      if (phase == 'Whole Turn' &&
+          selectedTurnIndex < (widget.results?.turnShapeAvg.length ?? 0)) {
         val = widget.results!.turnShapeAvg[selectedTurnIndex];
-      } else if (phase == 'Initiation' && selectedTurnIndex < (widget.results?.turnShapeBeginning.length ?? 0)) {
+      } else if (phase == 'Initiation' &&
+          selectedTurnIndex <
+              (widget.results?.turnShapeBeginning.length ?? 0)) {
         val = widget.results!.turnShapeBeginning[selectedTurnIndex];
-      } else if (phase == 'Control' && selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
+      } else if (phase == 'Control' &&
+          selectedTurnIndex < (widget.results?.turnShapeMiddle.length ?? 0)) {
         val = widget.results!.turnShapeMiddle[selectedTurnIndex];
-      } else if (phase == 'Completion' && selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
+      } else if (phase == 'Completion' &&
+          selectedTurnIndex < (widget.results?.turnShapeEnd.length ?? 0)) {
         val = widget.results!.turnShapeEnd[selectedTurnIndex];
       }
       if (val != null) {
@@ -1682,7 +2277,7 @@ class _ResultsViewState extends State<ResultsView> {
         scoreText = _scoreForTurnShapeSD(val).toStringAsFixed(1);
       }
     }
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -1699,25 +2294,41 @@ class _ResultsViewState extends State<ResultsView> {
                     children: [
                       Text(
                         '$_selectedCategory: ',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         valueText,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
                       ),
                       const Text(
                         ' | Score: ',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         scoreText,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   // Add time series graph for Edge Angle or Parallel (Turn Shape has no time series graph)
-                  if (selectedTurnIndex != null && (_selectedCategory == 'Edge Angle' || _selectedCategory == 'Parallel')) ...[
+                  if (selectedTurnIndex != null &&
+                      (_selectedCategory == 'Edge Angle' ||
+                          _selectedCategory == 'Parallel')) ...[
                     SizedBox(
                       height: 180,
                       child: _buildTimeSeriesGraph(selectedTurnIndex),
@@ -1728,15 +2339,23 @@ class _ResultsViewState extends State<ResultsView> {
                     DotPlot(
                       values: _getValuesForCategory(
                         _selectedCategory,
-                        _selectedCategory == 'Parallel' ? _parallelPhase : (_selectedCategory == 'Turn Shape' ? _turnShapePhase : 'Whole Turn'),
+                        _selectedCategory == 'Parallel'
+                            ? _parallelPhase
+                            : (_selectedCategory == 'Turn Shape'
+                                  ? _turnShapePhase
+                                  : 'Whole Turn'),
                       ),
                       highlightIndex: selectedTurnIndex,
                       optimalValue: _getOptimalForCategory(_selectedCategory),
                       units: _getUnitsForCategory(_selectedCategory),
-                      height: 180,  // This is now a minimum, DotPlot will calculate actual height
+                      height:
+                          180, // This is now a minimum, DotPlot will calculate actual height
                     ),
                   ] else ...[
-                    const Text('[No turn selected]', style: TextStyle(fontStyle: FontStyle.italic)),
+                    const Text(
+                      '[No turn selected]',
+                      style: TextStyle(fontStyle: FontStyle.italic),
+                    ),
                   ],
                 ],
               ),
@@ -1766,11 +2385,16 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildEdgeAngleGraph(int turnIndex) {
-    final processedLeft = widget.results?.processedLeftSamples as List<ImuSample>?;
-    final processedRight = widget.results?.processedRightSamples as List<ImuSample>?;
+    final processedLeft =
+        widget.results?.processedLeftSamples as List<ImuSample>?;
+    final processedRight =
+        widget.results?.processedRightSamples as List<ImuSample>?;
     final segments = widget.results?.segments as List<TurnSegment>?;
 
-    if (processedLeft == null || processedRight == null || segments == null || turnIndex >= segments.length) {
+    if (processedLeft == null ||
+        processedRight == null ||
+        segments == null ||
+        turnIndex >= segments.length) {
       return const SizedBox();
     }
 
@@ -1778,14 +2402,25 @@ class _ResultsViewState extends State<ResultsView> {
     final dataPoints = <GraphPoint>[];
 
     // Get samples for this turn and plot max(left.pitch, right.pitch) over time
-    for (int i = segment.startIndexLeft; i <= segment.endIndexLeft && i < processedLeft.length; i++) {
+    for (
+      int i = segment.startIndexLeft;
+      i <= segment.endIndexLeft && i < processedLeft.length;
+      i++
+    ) {
       final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
-      
-      if (rightIndex >= segment.startIndexRight && rightIndex <= segment.endIndexRight && rightIndex < processedRight.length) {
+
+      if (rightIndex >= segment.startIndexRight &&
+          rightIndex <= segment.endIndexRight &&
+          rightIndex < processedRight.length) {
         final leftSample = processedLeft[i];
         final rightSample = processedRight[rightIndex];
-        final timeSec = leftSample.timestamp.difference(segment.startTime).inMicroseconds / 1000000.0;
-        final maxPitch = math.max(leftSample.pitch.abs(), rightSample.pitch.abs());
+        final timeSec =
+            leftSample.timestamp.difference(segment.startTime).inMicroseconds /
+            1000000.0;
+        final maxPitch = math.max(
+          leftSample.pitch.abs(),
+          rightSample.pitch.abs(),
+        );
         dataPoints.add(GraphPoint(timeSec, maxPitch));
       }
     }
@@ -1800,17 +2435,22 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildParallelnessGraph(int turnIndex) {
-    final processedLeft = widget.results?.processedLeftSamples as List<ImuSample>?;
-    final processedRight = widget.results?.processedRightSamples as List<ImuSample>?;
+    final processedLeft =
+        widget.results?.processedLeftSamples as List<ImuSample>?;
+    final processedRight =
+        widget.results?.processedRightSamples as List<ImuSample>?;
     final segments = widget.results?.segments as List<TurnSegment>?;
 
-    if (processedLeft == null || processedRight == null || segments == null || turnIndex >= segments.length) {
+    if (processedLeft == null ||
+        processedRight == null ||
+        segments == null ||
+        turnIndex >= segments.length) {
       return const SizedBox();
     }
 
     final segment = segments[turnIndex];
     final phase = _parallelPhase;
-    
+
     // Determine time range based on selected phase
     int startIdx, endIdx;
     double sectionDuration;
@@ -1826,7 +2466,7 @@ class _ResultsViewState extends State<ResultsView> {
       optimalLineValue = segment.avgParallelness;
     } else {
       double thirdDuration = segment.durationSeconds / 3.0;
-      
+
       if (phase == 'Initiation') {
         startIdx = segment.startIndexLeft;
         endIdx = segment.startIndexLeft + samplesPerThird - 1;
@@ -1837,7 +2477,8 @@ class _ResultsViewState extends State<ResultsView> {
         endIdx = segment.startIndexLeft + 2 * samplesPerThird - 1;
         sectionDuration = thirdDuration;
         optimalLineValue = segment.middleParallelness;
-      } else { // Completion
+      } else {
+        // Completion
         startIdx = segment.startIndexLeft + 2 * samplesPerThird;
         endIdx = segment.endIndexLeft;
         sectionDuration = thirdDuration;
@@ -1851,11 +2492,15 @@ class _ResultsViewState extends State<ResultsView> {
     // Get samples for this section and plot |left.yaw - right.yaw|
     for (int i = startIdx; i <= endIdx && i < processedLeft.length; i++) {
       final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
-      
-      if (rightIndex >= segment.startIndexRight && rightIndex <= segment.endIndexRight && rightIndex < processedRight.length) {
+
+      if (rightIndex >= segment.startIndexRight &&
+          rightIndex <= segment.endIndexRight &&
+          rightIndex < processedRight.length) {
         final leftSample = processedLeft[i];
         final rightSample = processedRight[rightIndex];
-        final timeSec = leftSample.timestamp.difference(sectionStartTime).inMicroseconds / 1000000.0;
+        final timeSec =
+            leftSample.timestamp.difference(sectionStartTime).inMicroseconds /
+            1000000.0;
         final parallelness = (leftSample.yaw - rightSample.yaw).abs();
         dataPoints.add(GraphPoint(timeSec, parallelness));
       }
