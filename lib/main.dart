@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pages/app_controller.dart';
 import 'services/ai_coach.dart';
-import 'prompts/system_prompts.dart';
+import 'config/ai_prompts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

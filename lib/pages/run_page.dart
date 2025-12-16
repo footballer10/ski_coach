@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ski_coach/services/scoring.dart';
-import 'package:ski_coach/models/analysis_results.dart';
-import '../models/imu_sample.dart';
+import 'package:ski_coach/models.dart';
 import '../services/ble_manager.dart';
 import '../services/segmentation.dart';
 import '../services/imu_preprocessor.dart';
 import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
-import '../services/ai_mode.dart';
+import '../config/ai_config.dart';
 
 /// Single page that handles the full run lifecycle:
 /// recording → processing → results

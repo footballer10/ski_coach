@@ -1,30 +1,61 @@
 # Ski Coach Code Organization
 
 ## Overview
-The codebase has been reorganized to follow the **single responsibility principle**, separating data processing, segmentation, and metric calculations into focused modules.
+The codebase follows **single responsibility principle** with clean separation between data models, configuration, services, UI pages, and reusable widgets.
 
 ## Directory Structure
 
 ```
 lib/
-├── models/
-│   └── imu_sample.dart                    # IMU data model
-├── services/
-│   ├── segmentation.dart                  # Pure turn segmentation (peak/valley detection)
-│   ├── imu_preprocessor.dart              # Data preprocessing pipeline
-│   └── metrics/
-│       ├── edge_angle_calculator.dart     # Max edge angle calculation
-│       ├── parallelness_calculator.dart   # Ski parallelness metrics
-│       ├── smoothness_calculator.dart     # Turn smoothness (angular velocity SD)
-│       ├── duration_calculator.dart       # Turn duration calculation
-│       └── symmetry_calculator.dart       # Left/right turn symmetry
-├── pages/
-│   └── run_page.dart                      # Main recording/analysis page
-└── widgets/
-    └── results_view.dart                  # Results visualization
+├── main.dart                              # App entry point
+├── models.dart                            # Data models (ImuSample, AnalysisResults)
+├── config/                                # Configuration files
+│   ├── ai_config.dart                    # AI mode selection & API key
+│   └── ai_prompts.dart                   # System prompts (local + API)
+├── services/                              # Core business logic
+│   ├── ai_coach.dart                     # AI inference engine
+│   ├── ble_manager.dart                  # Bluetooth sensor management
+│   ├── segmentation.dart                 # Turn detection & segmentation
+│   ├── imu_preprocessor.dart             # Data preprocessing pipeline
+│   ├── scoring.dart                      # Metric scoring functions
+│   └── metrics/                          # Individual metric calculators
+│       ├── edge_angle_calculator.dart
+│       ├── parallelness_calculator.dart
+│       ├── turn_shape_calculator.dart
+│       ├── duration_calculator.dart
+│       └── symmetry_calculator.dart
+├── pages/                                 # UI screens
+│   ├── app_controller.dart               # Root navigation
+│   ├── connection_page.dart              # BLE connection UI
+│   └── run_page.dart                     # Recording & results
+└── widgets/                               # Reusable UI components
+    ├── results_view.dart                 # Turn analysis display
+    └── time_series_graph.dart            # Time-series plotting
 ```
 
 ## Module Responsibilities
+
+### 📦 `models.dart`
+**Purpose:** Consolidated data models
+
+**Classes:**
+- `ImuSample` - Single IMU sensor reading with accelerometer, gyroscope, orientation
+- `AnalysisResults` - Complete ski run analysis results container
+
+**Why consolidated:** Simple data classes with no business logic, easier imports
+
+---
+
+### ⚙️ `config/`
+**Purpose:** Application configuration and settings
+
+**Files:**
+- `ai_config.dart` - AI mode enum, API key, mode switching
+- `ai_prompts.dart` - System prompts for local and API AI (~9000 tokens each)
+
+**Why separate folder:** Configuration isolated from business logic, clear separation of concerns
+
+---
 
 ### 📊 `segmentation.dart`
 **Purpose:** Pure turn segmentation - identifies turn boundaries only
@@ -33,7 +64,7 @@ lib/
 - Orchestrates the preprocessing pipeline
 - Detects yaw peaks and valleys (turn boundaries) 
 - Creates `TurnSegment` objects with metric results
-- Does NOT calculate metrics (delegates to metric calculators)
+- Delegates metric calculations to specialized calculators
 
 **Key Function:**
 ```dart

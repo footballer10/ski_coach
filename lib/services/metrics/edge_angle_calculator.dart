@@ -1,7 +1,7 @@
 /// Calculate maximum edge angle (pitch) from both sensors during a turn.
 library;
 
-import '../../models/imu_sample.dart';
+import '../../models.dart';
 import 'package:flutter/foundation.dart';
 
 class EdgeAngleCalculator {

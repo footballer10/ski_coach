@@ -58,17 +58,18 @@ flutter run
 ```
 lib/
 ├── main.dart                    # App entry point
-├── models/                      # Data models
+├── models.dart                  # Data models (ImuSample, AnalysisResults)
+├── config/                      # Configuration
+│   ├── ai_config.dart          # AI mode & API key
+│   └── ai_prompts.dart         # System prompts
 ├── pages/                       # UI pages (connection, run, results)
 ├── services/                    # Core business logic
 │   ├── ai_coach.dart           # AI inference (local + API)
-│   ├── ai_mode.dart            # AI mode configuration
 │   ├── ble_manager.dart        # Bluetooth sensor management
 │   ├── segmentation.dart       # Turn detection
 │   ├── imu_preprocessor.dart   # Sensor data preprocessing
 │   ├── scoring.dart            # Metric scoring system
 │   └── metrics/                # Individual metric calculators
-├── prompts/                     # AI system prompts
 └── widgets/                     # Reusable UI components
 ```
 

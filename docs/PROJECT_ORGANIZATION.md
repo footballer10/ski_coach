@@ -22,23 +22,19 @@
 ```
 lib/
 ├── main.dart                           # App entry point
-├── README.md                           # Quick reference
+├── models.dart                         # Data models (consolidated)
 │
-├── models/                             # Data models (2 files)
-│   ├── analysis_results.dart
-│   └── imu_sample.dart
+├── config/                             # Configuration (2 files)
+│   ├── ai_config.dart                 # AI mode & API key
+│   └── ai_prompts.dart                # System prompts
 │
 ├── pages/                              # UI screens (3 files)
 │   ├── app_controller.dart            # Root navigation
 │   ├── connection_page.dart           # BLE connection UI
 │   └── run_page.dart                  # Recording & results
 │
-├── prompts/                            # AI system prompts (1 file)
-│   └── system_prompts.dart            # Local & API prompts
-│
-├── services/                           # Business logic (7 files + metrics/)
+├── services/                           # Business logic (6 files + metrics/)
 │   ├── ai_coach.dart                  # AI inference engine
-│   ├── ai_mode.dart                   # AI mode config
 │   ├── ble_manager.dart               # Bluetooth management
 │   ├── imu_preprocessor.dart          # Data preprocessing
 │   ├── scoring.dart                   # Metric scoring
@@ -55,7 +51,7 @@ lib/
     └── time_series_graph.dart         # Time-series plotting
 ```
 
-**Total Dart Files**: 20
+**Total Dart Files**: 19 (down from 20)
 **Total Lines of Code**: ~6,500
 
 ## Design Principles Applied ✅
@@ -64,13 +60,14 @@ lib/
    - Each file has one clear purpose
    - Metrics separated into individual calculators
    - UI separated from business logic
+   - Configuration isolated in config/ folder
 
 2. **Clear Module Boundaries**
-   - Models: Pure data structures
+   - Models: Pure data structures (consolidated)
+   - Config: Settings and configuration
    - Services: Business logic only
    - Pages: Full-screen UI with state
    - Widgets: Reusable UI components
-   - Prompts: AI configuration (isolated due to size)
 
 3. **Documentation Organization**
    - All docs in `docs/` folder
@@ -83,8 +80,15 @@ lib/
    - Services don't depend on UI
    - Metrics are independent modules
    - Models have zero dependencies
-
 ## Changes Made ✅
+
+### Code Reorganization
+- ✅ Consolidated `models/` folder into single `models.dart` file
+- ✅ Created `config/` folder for configuration files
+- ✅ Moved `ai_mode.dart` → `config/ai_config.dart`
+- ✅ Moved `prompts/system_prompts.dart` → `config/ai_prompts.dart`
+- ✅ Removed empty `models/` and `prompts/` folders
+- ✅ Updated all imports throughout codebase
 
 ### Documentation Cleanup
 - ❌ Removed 10 redundant/outdated MD files
@@ -92,11 +96,7 @@ lib/
 - ✅ Consolidated AI guides into single comprehensive doc
 - ✅ Created BLE connection flow documentation
 - ✅ Updated main README with project overview
-- ✅ Added quick reference guides in lib/ and assets/
-
-### Code Organization
-- ✅ No code reorganization needed (already well-structured)
-- ✅ Verified clean separation of concerns
+- ✅ Added quick reference guides in lib/ and assets/oncerns
 - ✅ Confirmed single responsibility principle
 - ✅ All files serve clear purposes
 

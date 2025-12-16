@@ -1,3 +1,44 @@
+/// Data models for ski run analysis
+library;
+
+/// IMU sensor sample with accelerometer, gyroscope, and orientation data
+class ImuSample {
+  final DateTime timestamp;
+  final double ax, ay, az;
+  final double gx, gy, gz;
+  final double roll, pitch, yaw;
+  final double? parallelness;
+
+  ImuSample({
+    required this.timestamp,
+    required this.ax,
+    required this.ay,
+    required this.az,
+    required this.gx,
+    required this.gy,
+    required this.gz,
+    required this.roll,
+    required this.pitch,
+    required this.yaw,
+    this.parallelness,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'ax': ax,
+    'ay': ay,
+    'az': az,
+    'gx': gx,
+    'gy': gy,
+    'gz': gz,
+    'roll': roll,
+    'pitch': pitch,
+    'yaw': yaw,
+    if (parallelness != null) 'parallelness': parallelness,
+  };
+}
+
+/// Complete analysis results for a ski run
 class AnalysisResults {
   final int leftSampleCount;
   final int rightSampleCount;
@@ -6,11 +47,10 @@ class AnalysisResults {
   final int runDurationSeconds;
   final DateTime? runStartTime;
 
-  // Per-turn arrays
   final int turnCount;
   final List<double> turnDurationsSeconds;
   final List<double> edgeAngles;
-  final List<int> turnDirections; // 1 right, -1 left
+  final List<int> turnDirections;
   final List<double> parallelBeginning;
   final List<double> parallelMiddle;
   final List<double> parallelEnd;
@@ -19,14 +59,12 @@ class AnalysisResults {
   final List<double> turnShapeMiddle;
   final List<double> turnShapeEnd;
   final List<double> turnShapeAvg;
-  final List<double> turnScores; // Per-turn score (avg of 4 categories)
+  final List<double> turnScores;
 
-  // Aggregates
   final double? turnSymmetryRatio;
   final double? turnSymmetryScore;
   final double? overallScore;
   
-  // Processed sensor data and segments for graphs
   final List? processedLeftSamples;
   final List? processedRightSamples;
   final List? segments;

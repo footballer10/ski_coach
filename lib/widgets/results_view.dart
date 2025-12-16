@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:ski_coach/services/scoring.dart';
-import 'package:ski_coach/models/analysis_results.dart';
+import 'package:ski_coach/models.dart';
 import 'package:ski_coach/widgets/time_series_graph.dart';
-import 'package:ski_coach/models/imu_sample.dart';
 import 'package:ski_coach/services/segmentation.dart';
 import 'package:ski_coach/services/ai_coach.dart';
 

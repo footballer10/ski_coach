@@ -1,7 +1,7 @@
 /// Turn segmentation - peak/valley detection for turn boundaries.
 library;
 
-import '../models/imu_sample.dart';
+import '../models.dart';
 import 'imu_preprocessor.dart';
 import 'metrics/edge_angle_calculator.dart';
 import 'metrics/parallelness_calculator.dart';

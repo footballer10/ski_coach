@@ -66,7 +66,7 @@ If device can't handle 15k context:
    - Generate new API key (starts with `sk-proj-...`)
 
 2. **Configure the key**:
-   - Open: `lib/services/ai_mode.dart`
+   - Open: `lib/config/ai_config.dart`
    - Find: `static const String _apiKey = 'YOUR_KEY_HERE';`
    - Replace with your actual API key
 
@@ -102,7 +102,7 @@ User prompts (run data) are identical for both modes.
 
 ## Configuration Files
 
-### `lib/services/ai_mode.dart`
+### `lib/config/ai_config.dart`
 ```dart
 enum AIMode { local, api }
 
@@ -121,7 +121,7 @@ class AIPreferences {
 - Routes requests based on `AIPreferences.currentMode`
 - Handles model loading, prompt formatting, response parsing
 
-### `lib/prompts/system_prompts.dart`
+### `lib/config/ai_prompts.dart`
 - `localSystemPrompt` - ~9000 tokens
 - `apiSystemPrompt` - ~9000 tokens
 - Both contain detailed skiing expertise and formatting instructions
@@ -144,7 +144,7 @@ class AIPreferences {
 ### API Mode Issues
 
 **API key error**:
-- Verify key is set in `lib/services/ai_mode.dart`
+- Verify key is set in `lib/config/ai_config.dart`
 - Ensure key starts with `sk-proj-`
 - Check key is valid at platform.openai.com
 

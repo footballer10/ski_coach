@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
-import '../models/imu_sample.dart';
+import '../models.dart';
 
 class BleManager {
   // -------------------------------------------------------------

@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:http/http.dart' as http;
-import 'ai_mode.dart';
+import '../config/ai_config.dart';
 
 AICoach? _aiCoachInstance;
 
