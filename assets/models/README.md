@@ -1,30 +1,45 @@
-# AI Model File
+# AI Model File Location
 
-**Required File**: `Llama-3.2-3B-Instruct-Q4_K_M.gguf`
+## Required for Local AI Mode
+
+**File**: `llama-3.1-8b-instruct-q4_k_m.gguf` (~4.9GB)
 
 ## Download Instructions
 
-1. Go to: https://huggingface.co/hugging-quants/Llama-3.2-3B-Instruct-GGUF
-2. Download: `Llama-3.2-3B-Instruct-Q4_K_M.gguf` (2.3 GB)
-3. Place it in this directory: `assets/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf`
+1. Visit: https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
+2. Download: `Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf` (4.9GB)
+3. Rename to: `llama-3.1-8b-instruct-q4_k_m.gguf`
+4. Place in this directory
 
-**Note**: This file is NOT included in git due to its size (2.3 GB). You must download it separately.
+## Expected Structure
 
-## File Should Be Located At:
 ```
 ski_coach/
   assets/
     models/
-      Llama-3.2-3B-Instruct-Q4_K_M.gguf  <-- Download this file here
-      README.md  <-- This file
+      llama-3.1-8b-instruct-q4_k_m.gguf  ← Place here
+      README.md                           ← This file
 ```
 
-## Verify Download
-After downloading, verify the file is in the correct location:
-- Windows: `dir assets\models\*.gguf`
-- Mac/Linux: `ls -lh assets/models/*.gguf`
+## Verification
 
-You should see a file around 2.3 GB in size.
+Windows:
+```powershell
+dir assets\models\*.gguf
+```
 
-## Without This File
-The app will still work, but AI coaching will use simple rule-based fallback advice instead of the intelligent LLM-powered coaching.
+Mac/Linux:
+```bash
+ls -lh assets/models/*.gguf
+```
+
+Expected: ~4.9GB file
+
+## Important Notes
+
+- **Not in Git**: File excluded due to size (gitignored)
+- **Only for Local Mode**: API mode doesn't need this file
+- **First Launch**: App copies from assets to documents directory
+- **Storage**: Requires ~5GB free space on device
+
+See [docs/AI_SETUP.md](../../docs/AI_SETUP.md) for detailed setup instructions.
