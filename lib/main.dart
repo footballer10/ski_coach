@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
 import 'pages/app_controller.dart';
 import 'services/ai_coach.dart';
+import 'prompts/system_prompts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize AI coach singleton on app startup
   final aiCoach = getAICoach();
   await aiCoach.initialize();
   
-  // Set system prompt - PASTE YOUR SYSTEM PROMPT HERE
-  aiCoach.setSystemPrompt(
-    "You are an expert ski coach AI. Analyze the skier's performance data and provide "
-    "clear, actionable coaching advice. Focus on the weakest category and suggest specific "
-    "drills to improve technique. Keep responses concise and skiing-focused."
-  );
+  aiCoach.setSystemPromptLocal(localSystemPrompt);
+  aiCoach.setSystemPromptAPI(apiSystemPrompt);
   
   runApp(const MyApp());
 }

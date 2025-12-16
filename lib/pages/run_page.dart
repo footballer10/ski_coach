@@ -8,6 +8,7 @@ import '../services/segmentation.dart';
 import '../services/imu_preprocessor.dart';
 import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
+import '../services/ai_mode.dart';
 
 /// Single page that handles the full run lifecycle:
 /// recording → processing → results
@@ -396,47 +397,13 @@ enum RunState { recording, processing, results }
       'turnSymmetryScore': turnSymmetryScore,
     };
 
-    _printDebugTurnAnalysis(segments);
-
-    debugPrint('📊 Results ready: ${results['turnCount']} turns');
-
     if (!mounted) return;
 
     setState(() {
       _analysisResults = results;
       _state = RunState.results;
     });
-    // Notify parent that results are shown
     widget.onResultsShown?.call();
-  }
-
-  void _printDebugTurnAnalysis(List<dynamic> segments) {
-    if (segments.isEmpty) {
-      debugPrint('No turns detected.');
-      return;
-    }
-    debugPrint('═══════════════════════════════════════════════════════════════════════');
-    debugPrint('DEBUG: Calculated values for every category and section of every turn');
-    for (int i = 0; i < segments.length; i++) {
-      final seg = segments[i];
-      final turnNum = i + 1;
-      final dir = seg.direction == 1 ? 'R' : 'L';
-      debugPrint('Turn $turnNum ($dir):');
-      debugPrint('  Duration: ${seg.durationSeconds.toStringAsFixed(2)}s');
-      debugPrint('  Edge Angle: ${seg.maxEdgeAngle.toStringAsFixed(2)}° (score: ${Scoring.edgeAngle(seg.maxEdgeAngle).toStringAsFixed(1)})');
-      debugPrint('  Parallelness:');
-      debugPrint('    Whole: ${seg.avgParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.avgParallelness).toStringAsFixed(1)})');
-      debugPrint('    Initiation: ${seg.beginningParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.beginningParallelness).toStringAsFixed(1)})');
-      debugPrint('    Control: ${seg.middleParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.middleParallelness).toStringAsFixed(1)})');
-      debugPrint('    Completion: ${seg.endParallelness.toStringAsFixed(2)}° (score: ${Scoring.parallel(seg.endParallelness).toStringAsFixed(1)})');
-      debugPrint('  Turn Shape:');
-      debugPrint('    Whole: ${seg.avgTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.avgTurnShapeSD).toStringAsFixed(1)})');
-      debugPrint('    Initiation: ${seg.beginningTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.beginningTurnShapeSD).toStringAsFixed(1)})');
-      debugPrint('    Control: ${seg.middleTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.middleTurnShapeSD).toStringAsFixed(1)})');
-      debugPrint('    Completion: ${seg.endTurnShapeSD.toStringAsFixed(2)}°/s (score: ${Scoring.turnShape(seg.endTurnShapeSD).toStringAsFixed(1)})');
-      debugPrint('');
-    }
-    debugPrint('═══════════════════════════════════════════════════════════════════════');
   }
 
   Widget _buildRecordingView() {
@@ -445,10 +412,15 @@ enum RunState { recording, processing, results }
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Recording Session',
-            style: Theme.of(context).textTheme.headlineSmall,
-            textAlign: TextAlign.center,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recording Session',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              _buildAIModeToggle(),
+            ],
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -486,6 +458,46 @@ enum RunState { recording, processing, results }
                 foregroundColor: Colors.white,
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAIModeToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            AIPreferences.currentMode == AIMode.local
+                ? Icons.phone_android
+                : Icons.cloud,
+            size: 18,
+            color: AIPreferences.currentMode == AIMode.local
+                ? Colors.green
+                : Colors.blue,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            AIPreferences.currentMode == AIMode.local ? 'Local' : 'API',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 4),
+          Switch(
+            value: AIPreferences.currentMode == AIMode.api,
+            onChanged: (value) {
+              setState(() {
+                AIPreferences.setMode(value ? AIMode.api : AIMode.local);
+              });
+            },
+            activeThumbColor: Colors.blue,
+            inactiveThumbColor: Colors.green,
+          ),
         ],
       ),
     );
