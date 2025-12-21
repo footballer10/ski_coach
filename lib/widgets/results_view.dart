@@ -1016,8 +1016,9 @@ class _ResultsViewState extends State<ResultsView> {
       children: [
         _buildNavigationBar(),
         Expanded(child: _buildContent()),
-        // AI Coaching Advice Widget - always show when AI is enabled
-        if (widget.results != null) _buildCoachingAdviceWidget(),
+        // AI Coaching Advice Widget - show only on the main summary view
+        if (widget.results != null && _viewMode == ViewMode.overview)
+          _buildCoachingAdviceWidget(),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(

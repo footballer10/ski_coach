@@ -463,41 +463,52 @@ enum RunState { recording, processing, results }
   }
 
   Widget _buildAIModeToggle() {
+    final isApi = AIPreferences.currentMode == AIMode.api;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            AIPreferences.currentMode == AIMode.local
-                ? Icons.phone_android
-                : Icons.cloud,
-            size: 18,
-            color: AIPreferences.currentMode == AIMode.local
-                ? Colors.green
-                : Colors.blue,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            setState(() {
+              AIPreferences.setMode(isApi ? AIMode.local : AIMode.api);
+            });
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isApi ? Icons.cloud : Icons.phone_android,
+                size: 18,
+                color: isApi ? Colors.blue : Colors.green,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isApi ? 'API' : 'Local',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Switch(
+                value: isApi,
+                onChanged: (value) {
+                  setState(() {
+                    AIPreferences.setMode(value ? AIMode.api : AIMode.local);
+                  });
+                },
+                activeThumbColor: Colors.blue,
+                inactiveThumbColor: Colors.green,
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          Text(
-            AIPreferences.currentMode == AIMode.local ? 'Local' : 'API',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 4),
-          Switch(
-            value: AIPreferences.currentMode == AIMode.api,
-            onChanged: (value) {
-              setState(() {
-                AIPreferences.setMode(value ? AIMode.api : AIMode.local);
-              });
-            },
-            activeThumbColor: Colors.blue,
-            inactiveThumbColor: Colors.green,
-          ),
-        ],
+        ),
       ),
     );
   }

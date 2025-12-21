@@ -200,42 +200,44 @@ class AICoach {
   Future<String> _sendPromptsToAPI(String systemPrompt, String userPrompt) async {
     final apiKey = AIPreferences.apiKey;
     if (apiKey.isEmpty || apiKey == 'YOUR_API_KEY_HERE') {
-      throw Exception('OpenAI API key not set in lib/services/ai_mode.dart');
+      throw Exception('OpenAI API key not set in lib/config/ai_config.dart');
     }
 
-    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
+    final responsesUrl = Uri.parse('https://api.openai.com/v1/responses');
+    final chatCompletionsUrl = Uri.parse('https://api.openai.com/v1/chat/completions');
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $apiKey',
     };
 
-    Map<String, dynamic> makeBody({required bool useMaxTokens}) {
-      final base = <String, dynamic>{
+    Future<http.Response> postJson(Uri url, Map<String, dynamic> body) {
+      return http
+          .post(url, headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 90));
+    }
+
+    // Preferred: Responses API (matches OpenAI Playground "Responses" behavior).
+    http.Response response = await postJson(responsesUrl, <String, dynamic>{
+      'model': 'gpt-5.2',
+      'input': [
+        {'role': 'system', 'content': systemPrompt},
+        {'role': 'user', 'content': userPrompt},
+      ],
+      'temperature': 0.0,
+      'max_output_tokens': _apiMaxResponseTokens,
+    });
+
+    // Fallback: Chat Completions API (older schema).
+    if (response.statusCode != 200) {
+      response = await postJson(chatCompletionsUrl, <String, dynamic>{
         'model': 'gpt-5.2',
         'messages': [
           {'role': 'system', 'content': systemPrompt},
           {'role': 'user', 'content': userPrompt},
         ],
         'temperature': 0.0,
-      };
-      if (useMaxTokens) {
-        base['max_tokens'] = _apiMaxResponseTokens;
-      } else {
-        base['max_output_tokens'] = _apiMaxResponseTokens;
-      }
-      return base;
-    }
-
-    Future<http.Response> post(Map<String, dynamic> body) {
-      return http
-          .post(url, headers: headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 90));
-    }
-
-    http.Response response = await post(makeBody(useMaxTokens: true));
-
-    if (response.statusCode != 200) {
-      response = await post(makeBody(useMaxTokens: false));
+        'max_tokens': _apiMaxResponseTokens,
+      });
     }
 
     if (response.statusCode != 200) {
