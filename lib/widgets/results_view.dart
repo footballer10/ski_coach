@@ -1295,9 +1295,14 @@ class _ResultsViewState extends State<ResultsView> {
                 style: const TextStyle(color: Colors.red, fontSize: 13),
               )
             else if (_coachingAdvice.isNotEmpty)
-              SelectableText(
-                _coachingAdvice,
-                style: const TextStyle(fontSize: 13, height: 1.6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    _coachingAdvice,
+                    style: const TextStyle(fontSize: 13, height: 1.6),
+                  ),
+                ),
               )
             else
               const Text(
