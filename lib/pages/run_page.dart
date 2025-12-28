@@ -594,15 +594,18 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 4),
-          Switch(
-            value: isApi,
-            onChanged: (value) async {
-              setState(() {});
-              await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
-              setState(() {});
-            },
-            activeThumbColor: Colors.blue,
-            inactiveThumbColor: Colors.green,
+          SizedBox(
+            height: 40,
+            child: Switch(
+              value: isApi,
+              onChanged: (value) async {
+                await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
+                setState(() {});
+              },
+              activeThumbColor: Colors.blue,
+              inactiveThumbColor: Colors.green,
+              materialTapTargetSize: MaterialTapTargetSize.padded,
+            ),
           ),
         ],
       ),
