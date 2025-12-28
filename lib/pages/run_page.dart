@@ -480,85 +480,94 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildRecordingView() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Recording Session',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              _buildAIModeToggle(),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
-                  const SizedBox(height: 12),
-                  _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (!_recording)
-            ElevatedButton.icon(
-              onPressed: _startRecording,
-              icon: const Icon(Icons.fiber_manual_record, size: 28),
-              label: const Text(
-                'Start Recording',
-                style: TextStyle(fontSize: 20),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20,
-                  horizontal: 24,
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: 24.0,
+          left: 16.0,
+          right: 16.0,
+          bottom: 16.0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Recording Session',
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
+                _buildAIModeToggle(),
+              ],
             ),
-          if (!_recording) const SizedBox(height: 8),
-          if (!_recording)
-            ElevatedButton.icon(
-              onPressed: _importRun,
-              icon: const Icon(Icons.file_upload, size: 28),
-              label: const Text('Import Run', style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20,
-                  horizontal: 24,
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
+                    const SizedBox(height: 12),
+                    _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
+                  ],
                 ),
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
               ),
             ),
-          if (_recording)
-            ElevatedButton.icon(
-              onPressed: _stopRecording,
-              icon: const Icon(Icons.stop, size: 28),
-              label: const Text(
-                'Stop Recording',
-                style: TextStyle(fontSize: 20),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20,
-                  horizontal: 24,
+            const SizedBox(height: 16),
+            if (!_recording)
+              ElevatedButton.icon(
+                onPressed: _startRecording,
+                icon: const Icon(Icons.fiber_manual_record, size: 28),
+                label: const Text(
+                  'Start Recording',
+                  style: TextStyle(fontSize: 20),
                 ),
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 24,
+                  ),
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
               ),
-            ),
-        ],
+            if (!_recording) const SizedBox(height: 8),
+            if (!_recording)
+              ElevatedButton.icon(
+                onPressed: _importRun,
+                icon: const Icon(Icons.file_upload, size: 28),
+                label: const Text('Import Run', style: TextStyle(fontSize: 20)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 24,
+                  ),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            if (_recording)
+              ElevatedButton.icon(
+                onPressed: _stopRecording,
+                icon: const Icon(Icons.stop, size: 28),
+                label: const Text(
+                  'Stop Recording',
+                  style: TextStyle(fontSize: 20),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 24,
+                  ),
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
