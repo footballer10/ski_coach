@@ -1,7 +1,6 @@
 library;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -63,10 +62,12 @@ class AICoach {
 
     final file = File(_modelPath!);
     if (!file.existsSync()) {
-      final data = await rootBundle.load(
-        'assets/models/llama-3.1-8b-instruct-q4_k_m.gguf',
+      throw Exception(
+        'Local AI model not found. Please download "llama-3.1-8b-instruct-q4_k_m.gguf" '
+        'from https://huggingface.co/lmstudio-community/Llama-3.1-8B-Instruct-GGUF '
+        'and place it in: ${docDir.path}\n\n'
+        'Or switch to API mode in the app settings.',
       );
-      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
     }
 
     try {

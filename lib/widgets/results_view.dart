@@ -1058,10 +1058,15 @@ class _ResultsViewState extends State<ResultsView> {
       final file = File('${tempDir.path}/$sanitizedName.json');
       await file.writeAsString(jsonString);
 
-      // Share the file
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], subject: 'Ski Coach Run: $runName');
+      // Share the file with proper positioning for iPad
+      final box = context.findRenderObject() as RenderBox?;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Ski Coach Run: $runName',
+        sharePositionOrigin: box != null
+            ? box.localToGlobal(Offset.zero) & box.size
+            : null,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
