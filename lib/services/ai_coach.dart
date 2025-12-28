@@ -61,13 +61,48 @@ class AICoach {
     _modelPath = '${docDir.path}/llama-3.1-8b-instruct-q4_k_m.gguf';
 
     final file = File(_modelPath!);
+
+    // Download model if it doesn't exist
     if (!file.existsSync()) {
-      throw Exception(
-        'Local AI model not found. Please download "llama-3.1-8b-instruct-q4_k_m.gguf" '
-        'from https://huggingface.co/lmstudio-community/Llama-3.1-8B-Instruct-GGUF '
-        'and place it in: ${docDir.path}\n\n'
-        'Or switch to API mode in the app settings.',
-      );
+      debugPrint('🤖 Model not found, downloading...');
+
+      const modelUrl =
+          'https://huggingface.co/lmstudio-community/Llama-3.1-8B-Instruct-GGUF/resolve/main/Llama-3.1-8B-Instruct-Q4_K_M.gguf';
+
+      try {
+        final request = await http.Client().send(
+          http.Request('GET', Uri.parse(modelUrl)),
+        );
+        final totalBytes = request.contentLength ?? 0;
+        var receivedBytes = 0;
+
+        final sink = file.openWrite();
+
+        await for (final chunk in request.stream) {
+          sink.add(chunk);
+          receivedBytes += chunk.length;
+
+          if (totalBytes > 0) {
+            final progress = (receivedBytes / totalBytes * 100).toStringAsFixed(
+              1,
+            );
+            debugPrint(
+              '🤖 Downloading model: $progress% ($receivedBytes / $totalBytes bytes)',
+            );
+          }
+        }
+
+        await sink.close();
+        debugPrint('🤖 Model download complete!');
+      } catch (e) {
+        debugPrint('🤖 Model download failed: $e');
+        throw Exception(
+          'Failed to download AI model. Please check your internet connection and try again.\n\n'
+          'Error: $e',
+        );
+      }
+    } else {
+      debugPrint('🤖 Model found at: $_modelPath');
     }
 
     try {
