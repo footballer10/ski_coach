@@ -596,10 +596,10 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
           const SizedBox(width: 4),
           Switch(
             value: isApi,
-            onChanged: (value) {
-              setState(() {
-                AIPreferences.setMode(value ? AIMode.api : AIMode.local);
-              });
+            onChanged: (value) async {
+              setState(() {});
+              await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
+              setState(() {});
             },
             activeThumbColor: Colors.blue,
             inactiveThumbColor: Colors.green,

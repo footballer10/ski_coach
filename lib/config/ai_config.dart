@@ -1,3 +1,5 @@
+import '../services/ai_coach.dart';
+
 enum AIMode { local, api }
 
 class AIPreferences {
@@ -8,7 +10,21 @@ class AIPreferences {
   static AIMode get currentMode => _currentMode;
   static String get apiKey => _apiKey;
 
-  static void setMode(AIMode mode) {
+  static Future<void> setMode(AIMode mode) async {
+    if (_currentMode == mode) return;
+
+    final aiCoach = getAICoach();
+
+    // When switching TO Local mode, load model into memory
+    if (mode == AIMode.local) {
+      await aiCoach.loadModelIntoMemory();
+    }
+
+    // When switching FROM Local mode TO API mode, unload model
+    if (_currentMode == AIMode.local && mode == AIMode.api) {
+      aiCoach.unloadModelFromMemory();
+    }
+
     _currentMode = mode;
   }
 }

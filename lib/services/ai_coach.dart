@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -46,12 +47,29 @@ class AICoach {
 
   Future<void> initialize({bool forceLoad = false}) async {
     if (_isInitialized && !forceLoad) return;
-
-    if (forceLoad || AIPreferences.currentMode == AIMode.local) {
-      await _loadLocalModel();
-    }
-
     _isInitialized = true;
+  }
+
+  /// Load model into memory when switching to Local mode
+  Future<void> loadModelIntoMemory() async {
+    if (_llama != null) {
+      debugPrint('🤖 Model already loaded in memory');
+      return;
+    }
+    debugPrint('🤖 Loading model into memory...');
+    await _loadLocalModel();
+    debugPrint('🤖 Model loaded and ready!');
+  }
+
+  /// Unload model from memory when switching to API mode
+  void unloadModelFromMemory() {
+    if (_llama == null) {
+      debugPrint('🤖 Model not loaded, nothing to unload');
+      return;
+    }
+    debugPrint('🤖 Unloading model from memory...');
+    _llama = null;
+    debugPrint('🤖 Model unloaded, memory freed');
   }
 
   Future<void> _loadLocalModel() async {
@@ -62,42 +80,20 @@ class AICoach {
 
     final file = File(_modelPath!);
 
-    // Download model if it doesn't exist
+    // Copy model from assets if not already in documents directory
     if (!file.existsSync()) {
-      debugPrint('🤖 Model not found, downloading...');
-
-      const modelUrl =
-          'https://huggingface.co/lmstudio-community/Llama-3.1-8B-Instruct-GGUF/resolve/main/Llama-3.1-8B-Instruct-Q4_K_M.gguf';
-
+      debugPrint('🤖 Copying model from assets...');
       try {
-        final request = await http.Client().send(
-          http.Request('GET', Uri.parse(modelUrl)),
+        final assetData = await rootBundle.load(
+          'assets/models/llama-3.1-8b-instruct-q4_k_m.gguf',
         );
-        final totalBytes = request.contentLength ?? 0;
-        var receivedBytes = 0;
-
-        final sink = file.openWrite();
-
-        await for (final chunk in request.stream) {
-          sink.add(chunk);
-          receivedBytes += chunk.length;
-
-          if (totalBytes > 0) {
-            final progress = (receivedBytes / totalBytes * 100).toStringAsFixed(
-              1,
-            );
-            debugPrint(
-              '🤖 Downloading model: $progress% ($receivedBytes / $totalBytes bytes)',
-            );
-          }
-        }
-
-        await sink.close();
-        debugPrint('🤖 Model download complete!');
+        final bytes = assetData.buffer.asUint8List();
+        await file.writeAsBytes(bytes);
+        debugPrint('🤖 Model copied to: $_modelPath');
       } catch (e) {
-        debugPrint('🤖 Model download failed: $e');
+        debugPrint('🤖 Failed to load model from assets: $e');
         throw Exception(
-          'Failed to download AI model. Please check your internet connection and try again.\n\n'
+          'Failed to load AI model from assets. Please ensure the model file is included in the app.\n\n'
           'Error: $e',
         );
       }
@@ -171,7 +167,9 @@ class AICoach {
         throw Exception('Local system prompt not set');
       }
       if (_llama == null) {
-        await _loadLocalModel();
+        throw Exception(
+          'Local model not loaded. Please toggle to Local mode first to load the model into memory.',
+        );
       }
       return _sendPromptsToLocalLLM(_systemPromptLocal!, _userPrompt!);
     } else {
