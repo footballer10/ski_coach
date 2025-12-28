@@ -571,45 +571,31 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            setState(() {
-              AIPreferences.setMode(isApi ? AIMode.local : AIMode.api);
-            });
-          },
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isApi ? Icons.cloud : Icons.phone_android,
-                size: 18,
-                color: isApi ? Colors.blue : Colors.green,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                isApi ? 'API' : 'Local',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Switch(
-                value: isApi,
-                onChanged: (value) {
-                  setState(() {
-                    AIPreferences.setMode(value ? AIMode.api : AIMode.local);
-                  });
-                },
-                activeThumbColor: Colors.blue,
-                inactiveThumbColor: Colors.green,
-              ),
-            ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isApi ? Icons.cloud : Icons.phone_android,
+            size: 18,
+            color: isApi ? Colors.blue : Colors.green,
           ),
-        ),
+          const SizedBox(width: 4),
+          Text(
+            isApi ? 'API' : 'Local',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 4),
+          Switch(
+            value: isApi,
+            onChanged: (value) {
+              setState(() {
+                AIPreferences.setMode(value ? AIMode.api : AIMode.local);
+              });
+            },
+            activeThumbColor: Colors.blue,
+            inactiveThumbColor: Colors.green,
+          ),
+        ],
       ),
     );
   }

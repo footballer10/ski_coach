@@ -1177,21 +1177,21 @@ class _ResultsViewState extends State<ResultsView> {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              // Export button (left 1/4)
-              Expanded(
-                flex: 1,
-                child: ElevatedButton.icon(
+              // Export button (left 1/4) - Square share button
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: ElevatedButton(
                   onPressed: _exportRun,
-                  icon: const Icon(Icons.share, size: 20),
-                  label: const Text('Export'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                      horizontal: 8,
-                    ),
+                    padding: EdgeInsets.zero,
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
+                  child: const Icon(Icons.ios_share, size: 28),
                 ),
               ),
               const SizedBox(width: 8),

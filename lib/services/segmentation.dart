@@ -49,6 +49,26 @@ class TurnSegment {
     required this.avgTurnShapeSD,
     required this.durationSeconds,
   });
+
+  Map<String, dynamic> toJson() => {
+    'startTime': startTime.toIso8601String(),
+    'endTime': endTime.toIso8601String(),
+    'startIndexLeft': startIndexLeft,
+    'startIndexRight': startIndexRight,
+    'endIndexLeft': endIndexLeft,
+    'endIndexRight': endIndexRight,
+    'direction': direction,
+    'maxEdgeAngle': maxEdgeAngle,
+    'avgParallelness': avgParallelness,
+    'beginningParallelness': beginningParallelness,
+    'middleParallelness': middleParallelness,
+    'endParallelness': endParallelness,
+    'beginningTurnShapeSD': beginningTurnShapeSD,
+    'middleTurnShapeSD': middleTurnShapeSD,
+    'endTurnShapeSD': endTurnShapeSD,
+    'avgTurnShapeSD': avgTurnShapeSD,
+    'durationSeconds': durationSeconds,
+  };
 }
 
 /// Segmentation parameters

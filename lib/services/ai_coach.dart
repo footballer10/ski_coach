@@ -264,19 +264,39 @@ class AICoach {
 
     String? aiResponse;
     if (jsonResponse is Map<String, dynamic>) {
-      final choices = jsonResponse['choices'];
-      if (choices is List && choices.isNotEmpty) {
-        final first = choices.first;
-        if (first is Map<String, dynamic>) {
-          final msg = first['message'];
-          if (msg is Map<String, dynamic> && msg['content'] is String) {
-            aiResponse = msg['content'] as String;
-          } else if (first['text'] is String) {
-            aiResponse = first['text'] as String;
+      // Try new Responses API format (output array)
+      final output = jsonResponse['output'];
+      if (output is List && output.isNotEmpty) {
+        final firstOutput = output.first;
+        if (firstOutput is Map<String, dynamic>) {
+          final content = firstOutput['content'];
+          if (content is List && content.isNotEmpty) {
+            final firstContent = content.first;
+            if (firstContent is Map<String, dynamic> &&
+                firstContent['text'] is String) {
+              aiResponse = firstContent['text'] as String;
+            }
           }
         }
       }
 
+      // Try Chat Completions API format (choices array)
+      if (aiResponse == null) {
+        final choices = jsonResponse['choices'];
+        if (choices is List && choices.isNotEmpty) {
+          final first = choices.first;
+          if (first is Map<String, dynamic>) {
+            final msg = first['message'];
+            if (msg is Map<String, dynamic> && msg['content'] is String) {
+              aiResponse = msg['content'] as String;
+            } else if (first['text'] is String) {
+              aiResponse = first['text'] as String;
+            }
+          }
+        }
+      }
+
+      // Try legacy format
       if (aiResponse == null && jsonResponse['output_text'] is String) {
         aiResponse = jsonResponse['output_text'] as String;
       }

@@ -144,7 +144,17 @@ class AnalysisResults {
     'processedRightSamples': processedRightSamples
         ?.map((s) => s is ImuSample ? s.toJson() : s)
         .toList(),
-    'segments': segments,
+    'segments': segments
+        ?.map((s) {
+          if (s == null) return null;
+          try {
+            return (s as dynamic).toJson();
+          } catch (e) {
+            return null;
+          }
+        })
+        .where((s) => s != null)
+        .toList(),
   };
 
   factory AnalysisResults.fromJson(Map<String, dynamic> json) =>
