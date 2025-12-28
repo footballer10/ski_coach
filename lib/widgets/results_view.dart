@@ -688,7 +688,8 @@ class _ResultsViewState extends State<ResultsView> {
       if (widget.aiFeedback == '__NO_AI_FEEDBACK__') {
         setState(() {
           _coachingAdvice = '';
-          _coachingError = 'No AI feedback available (exported before AI completed)';
+          _coachingError =
+              'No AI feedback available (exported before AI completed)';
           _loadingCoachingAdvice = false;
           _aiProcessing = false;
         });
@@ -927,8 +928,12 @@ class _ResultsViewState extends State<ResultsView> {
         categoryScores: categoryScores,
       );
 
+      debugPrint('🤖 Raw AI advice received (${advice.length} chars): $advice');
+
       // Parse the AI response to extract category, drill, and feedback
       final feedbackParagraph = aiCoach.parseAndStoreResponse(advice);
+
+      debugPrint('🤖 Parsed feedback: $feedbackParagraph');
 
       if (mounted) {
         setState(() {

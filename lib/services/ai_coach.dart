@@ -1,5 +1,6 @@
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
@@ -256,6 +257,9 @@ class AICoach {
       );
     }
 
+    debugPrint('🤖 API Response Status: ${response.statusCode}');
+    debugPrint('🤖 API Response Body: ${response.body}');
+
     final jsonResponse = jsonDecode(response.body);
 
     String? aiResponse;
@@ -279,8 +283,18 @@ class AICoach {
     }
 
     if (aiResponse == null) {
+      debugPrint(
+        '🤖 ❌ Failed to parse response. JSON structure: ${jsonResponse.keys}',
+      );
       throw Exception('API response parsing failed');
     }
+
+    debugPrint(
+      '🤖 ✓ Successfully parsed AI response (${aiResponse.length} characters)',
+    );
+    debugPrint(
+      '🤖 Response preview: ${aiResponse.substring(0, aiResponse.length > 200 ? 200 : aiResponse.length)}...',
+    );
 
     return aiResponse;
   }

@@ -109,30 +109,20 @@ class TurnSegmentation {
     final unwrappedLeft = ImuPreprocessor.unwrapAngles(leftSamples, 'LEFT');
     final unwrappedRight = ImuPreprocessor.unwrapAngles(rightSamples, 'RIGHT');
 
-    // STEP 2: Correct angle jumps for both sensors
-    final correctedLeft = ImuPreprocessor.correctAngleJumps(
-      unwrappedLeft,
-      'LEFT',
-    );
-    final correctedRight = ImuPreprocessor.correctAngleJumps(
-      unwrappedRight,
-      'RIGHT',
-    );
-
-    // STEP 3: Apply calibration offset to RIGHT sensor yaw only
+    // STEP 2: Apply calibration offset to RIGHT sensor yaw only
     final correctedRightYaw = ImuPreprocessor.applyYawOffset(
-      correctedRight,
+      unwrappedRight,
       yawOffset,
       'RIGHT',
     );
 
-    // STEP 4: Average yaw signals
+    // STEP 3: Average yaw signals
     final avgYaw = ImuPreprocessor.averageYawSignals(
-      correctedLeft,
+      unwrappedLeft,
       correctedRightYaw,
     );
 
-    // STEP 5: Detect peaks and valleys (turn boundaries)
+    // STEP 4: Detect peaks and valleys (turn boundaries)
     final peaks = _detectYawPeaks(avgYaw, params);
 
     if (kDebugMode) {
@@ -140,7 +130,7 @@ class TurnSegmentation {
       debugPrint(
         '🎯 ════════════════════════════════════════════════════════════════════════',
       );
-      debugPrint('🎯 STEP 5: PEAK DETECTION RESULTS');
+      debugPrint('🎯 STEP 4: PEAK DETECTION RESULTS');
       debugPrint(
         '🎯 ════════════════════════════════════════════════════════════════════════',
       );
@@ -176,8 +166,8 @@ class TurnSegmentation {
       }
 
       // Find nearest sample indices for this turn
-      final startIdxLeft = ImuPreprocessor.nearestIndex(correctedLeft, a.time);
-      final endIdxLeft = ImuPreprocessor.nearestIndex(correctedLeft, b.time);
+      final startIdxLeft = ImuPreprocessor.nearestIndex(unwrappedLeft, a.time);
+      final endIdxLeft = ImuPreprocessor.nearestIndex(unwrappedLeft, b.time);
       final startIdxRight = ImuPreprocessor.nearestIndex(
         correctedRightYaw,
         a.time,
@@ -189,7 +179,7 @@ class TurnSegmentation {
 
       // METRIC 1: Calculate max edge angle
       final maxEdgeAngle = EdgeAngleCalculator.calculateMaxEdgeAngle(
-        leftSamples: correctedLeft,
+        leftSamples: unwrappedLeft,
         rightSamples: correctedRightYaw,
         startIdxLeft: startIdxLeft,
         endIdxLeft: endIdxLeft,
@@ -200,7 +190,7 @@ class TurnSegmentation {
 
       // METRIC 2: Calculate parallelness
       final parallelnessResult = ParallelnessCalculator.calculate(
-        leftSamples: correctedLeft,
+        leftSamples: unwrappedLeft,
         rightSamples: correctedRightYaw,
         startIdxLeft: startIdxLeft,
         endIdxLeft: endIdxLeft,
