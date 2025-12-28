@@ -17,19 +17,21 @@ class BleManager {
   StreamSubscription<DiscoveredDevice>? _activeScanSubscription;
 
   // UUIDs for WT9011DCL BLE - CORRECTED from LightBlue inspection
-  static final Uuid _service =
-      Uuid.parse("0000FFE5-0000-1000-8000-00805F9A34FB");
-  static final Uuid _char =
-      Uuid.parse("0000FFE4-0000-1000-8000-00805F9A34FB");
-  static final Uuid _charWrite =
-      Uuid.parse("0000FFE9-0000-1000-8000-00805F9A34FB");
+  static final Uuid _service = Uuid.parse(
+    "0000FFE5-0000-1000-8000-00805F9A34FB",
+  );
+  static final Uuid _char = Uuid.parse("0000FFE4-0000-1000-8000-00805F9A34FB");
+  static final Uuid _charWrite = Uuid.parse(
+    "0000FFE9-0000-1000-8000-00805F9A34FB",
+  );
 
   // For storing Bluetooth connections
   final Map<String, StreamSubscription> _connSubs = {};
   final Map<String, StreamSubscription> _charSubs = {};
 
   // For outputting IMU samples as maps: {ax,ay,az,gx,gy,gz,roll,pitch,yaw}
-  final Map<String, StreamController<Map<String, double>>> _sampleControllers = {};
+  final Map<String, StreamController<Map<String, double>>> _sampleControllers =
+      {};
 
   // Recording storage: device ID -> list of timestamped samples
   final Map<String, List<ImuSample>> _recordedSamples = {};
@@ -38,25 +40,26 @@ class BleManager {
 
   // Yaw calibration: offset between left and right sensors at connection
   double? _yawOffsetRightMinusLeft;
-  
+
   // Device ID to sensor side mapping (deviceId -> 'left' or 'right')
   final Map<String, String> _deviceSideMapping = {};
-  
+
   // Axis remapping for mirrored sensor mounting
   // When sensors are mounted on opposite feet, their axes are mirrored
   // Set this to true if right sensor shows gravity in different axis than left
   static const bool _mirrorRightSensorAxes = true;
-  
+
   // Calibration state: collect samples when both sensors connect
   bool _isCalibrating = false;
   final Map<String, List<double>> _calibrationSamples = {};
-  static const int _calibrationSampleCount = 100;  // Increased from 50 to allow more settling time
-  static const int _calibrationStartSample = 80;   // Skip first 80 samples
-  static const int _calibrationEndSample = 100;    // Use samples 80-100
+  static const int _calibrationSampleCount =
+      100; // Increased from 50 to allow more settling time
+  static const int _calibrationStartSample = 80; // Skip first 80 samples
+  static const int _calibrationEndSample = 100; // Use samples 80-100
 
   /// Get the calibrated yaw offset (right - left) established at connection
   double? get yawOffset => _yawOffsetRightMinusLeft;
-  
+
   /// Register which device ID corresponds to which sensor side ('left' or 'right')
   void registerDeviceSide(String deviceId, String side) {
     _deviceSideMapping[deviceId] = side;
@@ -64,7 +67,7 @@ class BleManager {
       debugPrint('🎯 Registered device $deviceId as $side sensor');
     }
   }
-  
+
   /// Send acceleration calibration command to a device
   Future<void> calibrateAcceleration(String deviceId) async {
     try {
@@ -73,18 +76,27 @@ class BleManager {
         characteristicId: _charWrite,
         deviceId: deviceId,
       );
-      
+
       // Step 1: Unlock (must complete within 10 seconds)
-      await _ble.writeCharacteristicWithoutResponse(char, value: [0xFF, 0xAA, 0x69, 0x88, 0xB5]);
+      await _ble.writeCharacteristicWithoutResponse(
+        char,
+        value: [0xFF, 0xAA, 0x69, 0x88, 0xB5],
+      );
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       // Step 2: Acceleration calibration command
-      await _ble.writeCharacteristicWithoutResponse(char, value: [0xFF, 0xAA, 0x01, 0x01, 0x00]);
+      await _ble.writeCharacteristicWithoutResponse(
+        char,
+        value: [0xFF, 0xAA, 0x01, 0x01, 0x00],
+      );
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       // Step 3: Save command
-      await _ble.writeCharacteristicWithoutResponse(char, value: [0xFF, 0xAA, 0x00, 0x00, 0x00]);
-      
+      await _ble.writeCharacteristicWithoutResponse(
+        char,
+        value: [0xFF, 0xAA, 0x00, 0x00, 0x00],
+      );
+
       if (kDebugMode) {
         debugPrint('✅ Acceleration calibration command sent to $deviceId');
       }
@@ -113,10 +125,10 @@ class BleManager {
     // Cancel any existing scan first
     _activeScanSubscription?.cancel();
     _activeScanSubscription = null;
-    
+
     return _ble.scanForDevices(withServices: []);
   }
-  
+
   /// Stop any active scan
   Future<void> stopScan() async {
     await _activeScanSubscription?.cancel();
@@ -126,46 +138,59 @@ class BleManager {
   }
 
   /// Connect to device and wait until connected (or timeout). Returns true on success.
-  Future<bool> connectAndWait(String deviceId, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<bool> connectAndWait(
+    String deviceId, {
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
     if (_connSubs.containsKey(deviceId)) {
       return true;
     }
 
     final completer = Completer<bool>();
 
-    final sub = _ble.connectToDevice(id: deviceId).listen((update) {
-      if (update.connectionState == DeviceConnectionState.connected) {
-        // Ensure a sample controller exists only upon successful connection
-        _sampleControllers[deviceId] ??= StreamController<Map<String, double>>.broadcast();
-        _subscribeCharacteristic(deviceId);
-        
-        // Calibration will start automatically when both sensors start streaming data
-        
-        if (!completer.isCompleted) completer.complete(true);
-      } else if (update.connectionState == DeviceConnectionState.disconnected) {
-        if (!completer.isCompleted) completer.complete(false);
-      }
-    }, onError: (err) {
-      if (!completer.isCompleted) completer.complete(false);
-    });
+    final sub = _ble
+        .connectToDevice(id: deviceId)
+        .listen(
+          (update) {
+            if (update.connectionState == DeviceConnectionState.connected) {
+              // Ensure a sample controller exists only upon successful connection
+              _sampleControllers[deviceId] ??=
+                  StreamController<Map<String, double>>.broadcast();
+              _subscribeCharacteristic(deviceId);
+
+              // Calibration will start automatically when both sensors start streaming data
+
+              if (!completer.isCompleted) completer.complete(true);
+            } else if (update.connectionState ==
+                DeviceConnectionState.disconnected) {
+              if (!completer.isCompleted) completer.complete(false);
+            }
+          },
+          onError: (err) {
+            if (!completer.isCompleted) completer.complete(false);
+          },
+        );
 
     _connSubs[deviceId] = sub;
 
     try {
-      final ok = await completer.future.timeout(timeout, onTimeout: () {
-        // timeout -> cleanup
-        try {
-          sub.cancel();
-        } catch (_) {}
-        _connSubs.remove(deviceId);
-        // Ensure we also clean up controllers/state on timeout
-        try {
-          _sampleControllers[deviceId]?.close();
-        } catch (_) {}
-        _sampleControllers.remove(deviceId);
-        _latest.remove(deviceId);
-        return false;
-      });
+      final ok = await completer.future.timeout(
+        timeout,
+        onTimeout: () {
+          // timeout -> cleanup
+          try {
+            sub.cancel();
+          } catch (_) {}
+          _connSubs.remove(deviceId);
+          // Ensure we also clean up controllers/state on timeout
+          try {
+            _sampleControllers[deviceId]?.close();
+          } catch (_) {}
+          _sampleControllers.remove(deviceId);
+          _latest.remove(deviceId);
+          return false;
+        },
+      );
       if (!ok) {
         // Defensive cleanup on failed connect
         try {
@@ -197,7 +222,7 @@ class BleManager {
     } catch (_) {}
     _sampleControllers.remove(deviceId);
     _latest.remove(deviceId);
-    
+
     // Reset calibration if either sensor disconnects
     _isCalibrating = false;
     _calibrationSamples.clear();
@@ -211,21 +236,28 @@ class BleManager {
   bool isConnected(String deviceId) {
     return _connSubs.containsKey(deviceId);
   }
-  
+
   /// Check if both sensors are streaming data and start calibration
   void _checkAndStartCalibration() {
     // Only start calibration if we've received data from both sensors
-    final hasLeftData = _latest.keys.any((id) => _deviceSideMapping[id] == 'left');
-    final hasRightData = _latest.keys.any((id) => _deviceSideMapping[id] == 'right');
-    
-    if (hasLeftData && hasRightData && !_isCalibrating && _yawOffsetRightMinusLeft == null) {
+    final hasLeftData = _latest.keys.any(
+      (id) => _deviceSideMapping[id] == 'left',
+    );
+    final hasRightData = _latest.keys.any(
+      (id) => _deviceSideMapping[id] == 'right',
+    );
+
+    if (hasLeftData &&
+        hasRightData &&
+        !_isCalibrating &&
+        _yawOffsetRightMinusLeft == null) {
       _startCalibration();
       if (kDebugMode) {
         debugPrint('🎯 Both sensors streaming - starting calibration');
       }
     }
   }
-  
+
   /// Start calibration process - collect samples from both sensors
   void _startCalibration() {
     // Wait 5 seconds before starting calibration to allow sensors to settle and start outputting real data
@@ -236,65 +268,90 @@ class BleManager {
         _calibrationSamples['left'] = [];
         _calibrationSamples['right'] = [];
         if (kDebugMode) {
-          debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+          debugPrint(
+            '🎯 ════════════════════════════════════════════════════════════════',
+          );
           debugPrint('🎯 STARTING YAW CALIBRATION (after 5s settling time)');
-          debugPrint('🎯 Collecting $_calibrationSampleCount samples from each sensor...');
-          debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+          debugPrint(
+            '🎯 Collecting $_calibrationSampleCount samples from each sensor...',
+          );
+          debugPrint(
+            '🎯 ════════════════════════════════════════════════════════════════',
+          );
         }
       }
     });
   }
-  
+
   /// Try to calibrate with current samples
   void _tryCalibrate(String deviceId, double yaw) {
     if (!_isCalibrating) return;
-    
+
     // Determine which sensor this is using the mapping
     final sensorKey = _deviceSideMapping[deviceId];
     if (sensorKey == null) {
       if (kDebugMode) {
-        debugPrint('⚠️  Warning: Device $deviceId not registered for calibration');
+        debugPrint(
+          '⚠️  Warning: Device $deviceId not registered for calibration',
+        );
       }
       return;
     }
-    
+
     // Add sample to calibration buffer
-    if (_calibrationSamples[sensorKey] != null && 
+    if (_calibrationSamples[sensorKey] != null &&
         _calibrationSamples[sensorKey]!.length < _calibrationSampleCount) {
       _calibrationSamples[sensorKey]!.add(yaw);
     }
-    
+
     // Check if we have enough samples from both sensors
     final leftCount = _calibrationSamples['left']?.length ?? 0;
     final rightCount = _calibrationSamples['right']?.length ?? 0;
-    
-    if (leftCount >= _calibrationSampleCount && rightCount >= _calibrationSampleCount) {
+
+    if (leftCount >= _calibrationSampleCount &&
+        rightCount >= _calibrationSampleCount) {
       // Calculate offset using samples 40-50
       final leftSamples = _calibrationSamples['left']!;
       final rightSamples = _calibrationSamples['right']!;
-      
-      final leftAvg = leftSamples.skip(_calibrationStartSample)
-          .take(_calibrationEndSample - _calibrationStartSample)
-          .reduce((a, b) => a + b) / (_calibrationEndSample - _calibrationStartSample);
-      final rightAvg = rightSamples.skip(_calibrationStartSample)
-          .take(_calibrationEndSample - _calibrationStartSample)
-          .reduce((a, b) => a + b) / (_calibrationEndSample - _calibrationStartSample);
-      
+
+      final leftAvg =
+          leftSamples
+              .skip(_calibrationStartSample)
+              .take(_calibrationEndSample - _calibrationStartSample)
+              .reduce((a, b) => a + b) /
+          (_calibrationEndSample - _calibrationStartSample);
+      final rightAvg =
+          rightSamples
+              .skip(_calibrationStartSample)
+              .take(_calibrationEndSample - _calibrationStartSample)
+              .reduce((a, b) => a + b) /
+          (_calibrationEndSample - _calibrationStartSample);
+
       _yawOffsetRightMinusLeft = rightAvg - leftAvg;
       _isCalibrating = false;
       _calibrationSamples.clear();
-      
+
       if (kDebugMode) {
-        debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+        debugPrint(
+          '🎯 ════════════════════════════════════════════════════════════════',
+        );
         debugPrint('🎯 YAW OFFSET CALIBRATION COMPLETE');
-        debugPrint('🎯 Used samples $_calibrationStartSample-$_calibrationEndSample after connection');
+        debugPrint(
+          '🎯 Used samples $_calibrationStartSample-$_calibrationEndSample after connection',
+        );
         debugPrint('🎯 Left sensor average: ${leftAvg.toStringAsFixed(2)}°');
         debugPrint('🎯 Right sensor average: ${rightAvg.toStringAsFixed(2)}°');
-        debugPrint('🎯 Offset (right - left): ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
-        debugPrint('🎯 ════════════════════════════════════════════════════════════════');
+        debugPrint(
+          '🎯 Offset (right - left): ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°',
+        );
+        debugPrint(
+          '🎯 ════════════════════════════════════════════════════════════════',
+        );
       }
     } else if (kDebugMode && (leftCount % 10 == 0 || rightCount % 10 == 0)) {
-      debugPrint('🎯 Calibration progress: Left=$leftCount/$_calibrationSampleCount, Right=$rightCount/$_calibrationSampleCount');
+      debugPrint(
+        '🎯 Calibration progress: Left=$leftCount/$_calibrationSampleCount, Right=$rightCount/$_calibrationSampleCount',
+      );
     }
   }
 
@@ -316,7 +373,7 @@ class BleManager {
   // -------------------------------------------------------------
   // Recording control
   // -------------------------------------------------------------
-  
+
   /// Start recording IMU data from all connected sensors
   void startRecording() {
     if (_isRecording) return;
@@ -327,7 +384,9 @@ class BleManager {
     if (kDebugMode) {
       debugPrint('🔴 Recording started');
       if (_yawOffsetRightMinusLeft != null) {
-        debugPrint('🔴 Using calibrated yaw offset: ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°');
+        debugPrint(
+          '🔴 Using calibrated yaw offset: ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°',
+        );
       } else {
         debugPrint('⚠️  WARNING: Recording started without calibration!');
       }
@@ -342,8 +401,14 @@ class BleManager {
     if (kDebugMode) {
       final leftCount = _recordedSamples['WTLeft']?.length ?? 0;
       final rightCount = _recordedSamples['WTRight']?.length ?? 0;
-      final avgHz = duration.inSeconds > 0 ? ((leftCount + rightCount) / 2 / duration.inSeconds).toStringAsFixed(1) : '0';
-      debugPrint('⏹️ Recording stopped: ${duration.inSeconds}s, ${leftCount}L/${rightCount}R samples (~$avgHz Hz)');
+      final avgHz = duration.inSeconds > 0
+          ? ((leftCount + rightCount) / 2 / duration.inSeconds).toStringAsFixed(
+              1,
+            )
+          : '0';
+      debugPrint(
+        '⏹️ Recording stopped: ${duration.inSeconds}s, ${leftCount}L/${rightCount}R samples (~$avgHz Hz)',
+      );
     }
     return Map.from(_recordedSamples);
   }
@@ -352,7 +417,8 @@ class BleManager {
   bool get isRecording => _isRecording;
 
   /// Get recorded sample count for a device
-  int getRecordedCount(String deviceId) => _recordedSamples[deviceId]?.length ?? 0;
+  int getRecordedCount(String deviceId) =>
+      _recordedSamples[deviceId]?.length ?? 0;
 
   // -------------------------------------------------------------
   // Connect to device
@@ -367,7 +433,8 @@ class BleManager {
     _connSubs[deviceId] = sub;
 
     // Create output stream controller for this device
-    _sampleControllers[deviceId] = StreamController<Map<String, double>>.broadcast();
+    _sampleControllers[deviceId] =
+        StreamController<Map<String, double>>.broadcast();
   }
 
   // -------------------------------------------------------------
@@ -381,35 +448,41 @@ class BleManager {
       } catch (e) {
         if (kDebugMode) debugPrint('[$deviceId] MTU request failed: $e');
       }
-      
+
       // Wait a moment
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Try discovering services
       try {
         await _ble.discoverAllServices(deviceId);
       } catch (e) {
         if (kDebugMode) debugPrint('[$deviceId] Service discovery error: $e');
       }
-      
+
       // Wait for iOS to populate services
       await Future.delayed(const Duration(milliseconds: 5000));
-      
+
       final char = QualifiedCharacteristic(
         serviceId: _service,
         characteristicId: _char,
         deviceId: deviceId,
       );
-      
+
       // Subscribe
-      _charSubs[deviceId] = _ble.subscribeToCharacteristic(char).listen((data) {
-        _handleRawPacket(deviceId, data);
-      }, onError: (e) {
-        if (kDebugMode) debugPrint('[$deviceId] ❌ Subscription error: $e');
-      }, onDone: () {
-        if (kDebugMode) debugPrint('[$deviceId] Subscription closed');
-      });
-      
+      _charSubs[deviceId] = _ble
+          .subscribeToCharacteristic(char)
+          .listen(
+            (data) {
+              _handleRawPacket(deviceId, data);
+            },
+            onError: (e) {
+              if (kDebugMode)
+                debugPrint('[$deviceId] ❌ Subscription error: $e');
+            },
+            onDone: () {
+              if (kDebugMode) debugPrint('[$deviceId] Subscription closed');
+            },
+          );
     } catch (e) {
       if (kDebugMode) debugPrint('[$deviceId] ❌ Subscribe error: $e');
     }
@@ -450,7 +523,7 @@ class BleManager {
         double ax = _toScaledAccel(bytes[i + 2], bytes[i + 3]);
         double ay = _toScaledAccel(bytes[i + 4], bytes[i + 5]);
         double az = _toScaledAccel(bytes[i + 6], bytes[i + 7]);
-        
+
         // Apply axis remapping for right sensor (mirrored mounting)
         final sensorSide = _deviceSideMapping[deviceId];
         if (_mirrorRightSensorAxes && sensorSide == 'right') {
@@ -459,17 +532,17 @@ class BleManager {
           ay = az;
           az = temp;
         }
-        
+
         // Angular velocity / Gyro (bytes 8-13)
         final gx = _toScaledGyro(bytes[i + 8], bytes[i + 9]);
         final gy = _toScaledGyro(bytes[i + 10], bytes[i + 11]);
         final gz = _toScaledGyro(bytes[i + 12], bytes[i + 13]);
-        
+
         // Angles (bytes 14-19)
         final roll = _toScaledAngle(bytes[i + 14], bytes[i + 15]);
         final pitch = _toScaledAngle(bytes[i + 16], bytes[i + 17]);
         final yaw = _toScaledAngle(bytes[i + 18], bytes[i + 19]);
-        
+
         _latest[deviceId]!["ax"] = ax;
         _latest[deviceId]!["ay"] = ay;
         _latest[deviceId]!["az"] = az;
@@ -479,7 +552,7 @@ class BleManager {
         _latest[deviceId]!["roll"] = roll;
         _latest[deviceId]!["pitch"] = pitch;
         _latest[deviceId]!["yaw"] = yaw;
-        
+
         i += 20;
         continue;
       }
@@ -536,17 +609,17 @@ class BleManager {
     final map = _latest[deviceId]!;
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
-      
+
       // Check if we should start calibration (both sensors now have data)
       if (!_isCalibrating && _yawOffsetRightMinusLeft == null) {
         _checkAndStartCalibration();
       }
-      
+
       // Feed calibration system if active
       if (_isCalibrating) {
         _tryCalibrate(deviceId, map['yaw']!);
       }
-      
+
       // Compute parallelness if we have a calibrated offset and paired sample
       double? parallelness;
       if (_yawOffsetRightMinusLeft != null && _isRecording) {
@@ -555,13 +628,14 @@ class BleManager {
         if (otherSamples != null && otherSamples.isNotEmpty) {
           // Find the most recent sample from the other device
           final otherYaw = otherSamples.last.yaw;
-          final actualDiff = deviceId == 'left' 
-              ? otherYaw - map['yaw']!  // right - left
+          final actualDiff = deviceId == 'left'
+              ? otherYaw -
+                    map['yaw']! // right - left
               : map['yaw']! - otherYaw; // right - left
           parallelness = actualDiff.abs(); // Yaw difference for parallelness
         }
       }
-      
+
       // Create ImuSample for storage with parallelness
       final imuSample = ImuSample(
         timestamp: timestamp,
@@ -576,13 +650,13 @@ class BleManager {
         yaw: map['yaw']!,
         parallelness: parallelness,
       );
-      
+
       // Store sample if recording
       if (_isRecording) {
         _recordedSamples.putIfAbsent(deviceId, () => []);
         _recordedSamples[deviceId]!.add(imuSample);
       }
-      
+
       // Also emit as map for backward compatibility with UI streams
       final sample = <String, double>{
         'ax': map['ax']!,
@@ -595,7 +669,7 @@ class BleManager {
         'pitch': map['pitch']!,
         'yaw': map['yaw']!,
       };
-      
+
       if (_sampleControllers.containsKey(deviceId)) {
         _sampleControllers[deviceId]!.add(sample);
       }
@@ -607,11 +681,7 @@ class BleManager {
   // Byte conversion helpers
   // -------------------------------------------------------------
   bool _hasAllFields(Map<String, double> m) {
-    const req = [
-      "ax", "ay", "az",
-      "gx", "gy", "gz",
-      "roll", "pitch", "yaw"
-    ];
+    const req = ["ax", "ay", "az", "gx", "gy", "gz", "roll", "pitch", "yaw"];
     return req.every((key) => m.containsKey(key));
   }
 

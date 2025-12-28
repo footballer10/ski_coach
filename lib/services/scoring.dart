@@ -5,7 +5,9 @@ class Scoring {
   /// Turn Duration: 100 · 0.0005^((ln(x / 2))^2)
   static double duration(double seconds) {
     if (seconds <= 0) return 0.0;
-    final v = 100.0 * (math.pow(0.0005, math.pow(math.log(seconds / 2.0), 2)) as double);
+    final v =
+        100.0 *
+        (math.pow(0.0005, math.pow(math.log(seconds / 2.0), 2)) as double);
     return v.isFinite ? v.toDouble() : 0.0;
   }
 

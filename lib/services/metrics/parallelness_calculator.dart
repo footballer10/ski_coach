@@ -34,11 +34,17 @@ class ParallelnessCalculator {
   }) {
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('📊 METRIC 2: PARALLELNESS (Yaw Difference) - ALL SAMPLES');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('📊 Turn #$turnNumber');
-      debugPrint('📊 NOTE: Calibration offset already applied to right sensor in STEP 1');
+      debugPrint(
+        '📊 NOTE: Calibration offset already applied to right sensor in STEP 1',
+      );
     }
 
     // Calculate turn thirds
@@ -48,7 +54,9 @@ class ParallelnessCalculator {
     final endStart = startTime.add(thirdDuration * 2);
 
     if (kDebugMode) {
-      debugPrint('📊 Turn thirds: 1st=${thirdDuration.inMilliseconds}ms, Mid=${thirdDuration.inMilliseconds}ms, End=${thirdDuration.inMilliseconds}ms');
+      debugPrint(
+        '📊 Turn thirds: 1st=${thirdDuration.inMilliseconds}ms, Mid=${thirdDuration.inMilliseconds}ms, End=${thirdDuration.inMilliseconds}ms',
+      );
     }
 
     double sumTotal = 0.0;
@@ -60,8 +68,15 @@ class ParallelnessCalculator {
     double sumEnd = 0.0;
     int countEnd = 0;
 
-    for (int i = 0; i < math.min(leftSamples.length, rightSamples.length); i++) {
-      if (i >= startIdxLeft && i <= endIdxLeft && i >= startIdxRight && i <= endIdxRight) {
+    for (
+      int i = 0;
+      i < math.min(leftSamples.length, rightSamples.length);
+      i++
+    ) {
+      if (i >= startIdxLeft &&
+          i <= endIdxLeft &&
+          i >= startIdxRight &&
+          i <= endIdxRight) {
         final leftSample = leftSamples[i];
         final rightSample = rightSamples[i];
 
@@ -98,22 +113,34 @@ class ParallelnessCalculator {
         }
 
         if (kDebugMode) {
-          debugPrint('   [$i] ($third) L_yaw=${leftSample.yaw.toStringAsFixed(2)}°, R_yaw=${rightSample.yaw.toStringAsFixed(2)}°, |diff|=${parallelness.toStringAsFixed(2)}°');
+          debugPrint(
+            '   [$i] ($third) L_yaw=${leftSample.yaw.toStringAsFixed(2)}°, R_yaw=${rightSample.yaw.toStringAsFixed(2)}°, |diff|=${parallelness.toStringAsFixed(2)}°',
+          );
         }
       }
     }
 
     final avgTotal = countTotal > 0 ? sumTotal / countTotal : 0.0;
-    final avgBeginning = countBeginning > 0 ? sumBeginning / countBeginning : 0.0;
+    final avgBeginning = countBeginning > 0
+        ? sumBeginning / countBeginning
+        : 0.0;
     final avgMiddle = countMiddle > 0 ? sumMiddle / countMiddle : 0.0;
     final avgEnd = countEnd > 0 ? sumEnd / countEnd : 0.0;
 
     if (kDebugMode) {
       debugPrint('📊 FINAL PARALLELNESS TOTALS:');
-      debugPrint('   - ALL samples: count=$countTotal, sum=${sumTotal.toStringAsFixed(2)}°, avg=${avgTotal.toStringAsFixed(2)}°');
-      debugPrint('   - 1st third: count=$countBeginning, sum=${sumBeginning.toStringAsFixed(2)}°, avg=${avgBeginning.toStringAsFixed(2)}°');
-      debugPrint('   - Mid third: count=$countMiddle, sum=${sumMiddle.toStringAsFixed(2)}°, avg=${avgMiddle.toStringAsFixed(2)}°');
-      debugPrint('   - End third: count=$countEnd, sum=${sumEnd.toStringAsFixed(2)}°, avg=${avgEnd.toStringAsFixed(2)}°');
+      debugPrint(
+        '   - ALL samples: count=$countTotal, sum=${sumTotal.toStringAsFixed(2)}°, avg=${avgTotal.toStringAsFixed(2)}°',
+      );
+      debugPrint(
+        '   - 1st third: count=$countBeginning, sum=${sumBeginning.toStringAsFixed(2)}°, avg=${avgBeginning.toStringAsFixed(2)}°',
+      );
+      debugPrint(
+        '   - Mid third: count=$countMiddle, sum=${sumMiddle.toStringAsFixed(2)}°, avg=${avgMiddle.toStringAsFixed(2)}°',
+      );
+      debugPrint(
+        '   - End third: count=$countEnd, sum=${sumEnd.toStringAsFixed(2)}°, avg=${avgEnd.toStringAsFixed(2)}°',
+      );
     }
 
     return ParallelnessResult(

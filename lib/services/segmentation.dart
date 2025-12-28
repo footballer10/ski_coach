@@ -55,9 +55,7 @@ class TurnSegment {
 class SegmentationParams {
   final double minPeakChangeDeg;
 
-  SegmentationParams({
-    this.minPeakChangeDeg = 15.0,
-  });
+  SegmentationParams({this.minPeakChangeDeg = 15.0});
 }
 
 /// Peak or valley in yaw signal
@@ -89,11 +87,21 @@ class TurnSegmentation {
 
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('🎿 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🎿 ═══════════════ TURN SEGMENTATION PIPELINE START ════════════════');
-      debugPrint('🎿 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🎿 Left samples: ${leftSamples.length}, Right samples: ${rightSamples.length}');
-      debugPrint('🎿 Yaw offset: ${yawOffset.toStringAsFixed(2)}°, Sampling rate: ${samplingRate}Hz');
+      debugPrint(
+        '🎿 ════════════════════════════════════════════════════════════════════════',
+      );
+      debugPrint(
+        '🎿 ═══════════════ TURN SEGMENTATION PIPELINE START ════════════════',
+      );
+      debugPrint(
+        '🎿 ════════════════════════════════════════════════════════════════════════',
+      );
+      debugPrint(
+        '🎿 Left samples: ${leftSamples.length}, Right samples: ${rightSamples.length}',
+      );
+      debugPrint(
+        '🎿 Yaw offset: ${yawOffset.toStringAsFixed(2)}°, Sampling rate: ${samplingRate}Hz',
+      );
       debugPrint('🎿 Min peak change: ${params.minPeakChangeDeg}°');
     }
 
@@ -102,8 +110,14 @@ class TurnSegmentation {
     final unwrappedRight = ImuPreprocessor.unwrapAngles(rightSamples, 'RIGHT');
 
     // STEP 2: Correct angle jumps for both sensors
-    final correctedLeft = ImuPreprocessor.correctAngleJumps(unwrappedLeft, 'LEFT');
-    final correctedRight = ImuPreprocessor.correctAngleJumps(unwrappedRight, 'RIGHT');
+    final correctedLeft = ImuPreprocessor.correctAngleJumps(
+      unwrappedLeft,
+      'LEFT',
+    );
+    final correctedRight = ImuPreprocessor.correctAngleJumps(
+      unwrappedRight,
+      'RIGHT',
+    );
 
     // STEP 3: Apply calibration offset to RIGHT sensor yaw only
     final correctedRightYaw = ImuPreprocessor.applyYawOffset(
@@ -123,13 +137,19 @@ class TurnSegmentation {
 
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('🎯 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🎯 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🎯 STEP 5: PEAK DETECTION RESULTS');
-      debugPrint('🎯 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🎯 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🎯 Found ${peaks.length} peaks/valleys');
       for (int i = 0; i < peaks.length; i++) {
         final p = peaks[i];
-        debugPrint('   [${i + 1}] ${p.isPeak ? "PEAK (right)" : "VALLEY (left)"} at ${p.time}, yaw=${p.yaw.toStringAsFixed(2)}°, idx=${p.index}');
+        debugPrint(
+          '   [${i + 1}] ${p.isPeak ? "PEAK (right)" : "VALLEY (left)"} at ${p.time}, yaw=${p.yaw.toStringAsFixed(2)}°, idx=${p.index}',
+        );
       }
     }
 
@@ -142,9 +162,15 @@ class TurnSegmentation {
 
       if (kDebugMode) {
         debugPrint('');
-        debugPrint('🔄 ════════════════════════════════════════════════════════════════════════');
-        debugPrint('🔄 PROCESSING TURN ${k + 1} (between peaks ${k + 1} and ${k + 2})');
-        debugPrint('🔄 ════════════════════════════════════════════════════════════════════════');
+        debugPrint(
+          '🔄 ════════════════════════════════════════════════════════════════════════',
+        );
+        debugPrint(
+          '🔄 PROCESSING TURN ${k + 1} (between peaks ${k + 1} and ${k + 2})',
+        );
+        debugPrint(
+          '🔄 ════════════════════════════════════════════════════════════════════════',
+        );
         debugPrint('🔄 Start: ${a.time} (${a.isPeak ? "peak" : "valley"})');
         debugPrint('🔄 End: ${b.time} (${b.isPeak ? "peak" : "valley"})');
       }
@@ -152,8 +178,14 @@ class TurnSegmentation {
       // Find nearest sample indices for this turn
       final startIdxLeft = ImuPreprocessor.nearestIndex(correctedLeft, a.time);
       final endIdxLeft = ImuPreprocessor.nearestIndex(correctedLeft, b.time);
-      final startIdxRight = ImuPreprocessor.nearestIndex(correctedRightYaw, a.time);
-      final endIdxRight = ImuPreprocessor.nearestIndex(correctedRightYaw, b.time);
+      final startIdxRight = ImuPreprocessor.nearestIndex(
+        correctedRightYaw,
+        a.time,
+      );
+      final endIdxRight = ImuPreprocessor.nearestIndex(
+        correctedRightYaw,
+        b.time,
+      );
 
       // METRIC 1: Calculate max edge angle
       final maxEdgeAngle = EdgeAngleCalculator.calculateMaxEdgeAngle(
@@ -220,32 +252,56 @@ class TurnSegmentation {
 
       if (kDebugMode) {
         debugPrint('');
-        debugPrint('✅ ════════════════════════════════════════════════════════════════════════');
+        debugPrint(
+          '✅ ════════════════════════════════════════════════════════════════════════',
+        );
         debugPrint('✅ TURN ${k + 1} SEGMENT CREATED');
-        debugPrint('✅ ════════════════════════════════════════════════════════════════════════');
-        debugPrint('   Duration: ${seg.durationSeconds.toStringAsFixed(3)}s (${seg.startTime} → ${seg.endTime})');
-        debugPrint('   Direction: ${seg.direction == 1 ? "RIGHT (peak)" : "LEFT (valley)"}');
+        debugPrint(
+          '✅ ════════════════════════════════════════════════════════════════════════',
+        );
+        debugPrint(
+          '   Duration: ${seg.durationSeconds.toStringAsFixed(3)}s (${seg.startTime} → ${seg.endTime})',
+        );
+        debugPrint(
+          '   Direction: ${seg.direction == 1 ? "RIGHT (peak)" : "LEFT (valley)"}',
+        );
         debugPrint('   Sample indices (L): $startIdxLeft → $endIdxLeft');
         debugPrint('   Sample indices (R): $startIdxRight → $endIdxRight');
         debugPrint('   METRICS:');
-        debugPrint('      • Max Edge Angle: ${seg.maxEdgeAngle.toStringAsFixed(2)}°');
-        debugPrint('      • Avg Parallelness: ${seg.avgParallelness.toStringAsFixed(2)}° (1st=${seg.beginningParallelness.toStringAsFixed(2)}°, mid=${seg.middleParallelness.toStringAsFixed(2)}°, end=${seg.endParallelness.toStringAsFixed(2)}°)');
-        debugPrint('      • Avg Turn Shape SD: ${seg.avgTurnShapeSD.toStringAsFixed(2)}°/s (1st=${seg.beginningTurnShapeSD.toStringAsFixed(2)}°/s, mid=${seg.middleTurnShapeSD.toStringAsFixed(2)}°/s, end=${seg.endTurnShapeSD.toStringAsFixed(2)}°/s)');
+        debugPrint(
+          '      • Max Edge Angle: ${seg.maxEdgeAngle.toStringAsFixed(2)}°',
+        );
+        debugPrint(
+          '      • Avg Parallelness: ${seg.avgParallelness.toStringAsFixed(2)}° (1st=${seg.beginningParallelness.toStringAsFixed(2)}°, mid=${seg.middleParallelness.toStringAsFixed(2)}°, end=${seg.endParallelness.toStringAsFixed(2)}°)',
+        );
+        debugPrint(
+          '      • Avg Turn Shape SD: ${seg.avgTurnShapeSD.toStringAsFixed(2)}°/s (1st=${seg.beginningTurnShapeSD.toStringAsFixed(2)}°/s, mid=${seg.middleTurnShapeSD.toStringAsFixed(2)}°/s, end=${seg.endTurnShapeSD.toStringAsFixed(2)}°/s)',
+        );
       }
     }
 
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('📊 ═══════════════════ SEGMENTATION COMPLETE ══════════════════════');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
+      debugPrint(
+        '📊 ═══════════════════ SEGMENTATION COMPLETE ══════════════════════',
+      );
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('📊 Total turns created: ${segments.length}');
       debugPrint('');
       for (int i = 0; i < segments.length; i++) {
         final s = segments[i];
-        debugPrint('   Turn ${i + 1}: ${s.durationSeconds.toStringAsFixed(3)}s, ${s.direction == 1 ? "RIGHT" : "LEFT"}, edge=${s.maxEdgeAngle.toStringAsFixed(1)}°, parallel=${s.avgParallelness.toStringAsFixed(1)}°');
+        debugPrint(
+          '   Turn ${i + 1}: ${s.durationSeconds.toStringAsFixed(3)}s, ${s.direction == 1 ? "RIGHT" : "LEFT"}, edge=${s.maxEdgeAngle.toStringAsFixed(1)}°, parallel=${s.avgParallelness.toStringAsFixed(1)}°',
+        );
       }
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
     }
 
     return segments;
@@ -277,7 +333,9 @@ class TurnSegmentation {
     int extremeIdx = 0;
 
     if (kDebugMode) {
-      debugPrint('🎯 Hysteresis: ${hysteresis.toStringAsFixed(1)}°, Starting mode: ${seekingMax ? "seeking MAX" : "seeking MIN"}');
+      debugPrint(
+        '🎯 Hysteresis: ${hysteresis.toStringAsFixed(1)}°, Starting mode: ${seekingMax ? "seeking MAX" : "seeking MIN"}',
+      );
     }
 
     for (int i = 1; i < pts.length; i++) {
@@ -288,12 +346,14 @@ class TurnSegmentation {
           currentExtreme = value;
           extremeIdx = i;
         } else if (currentExtreme - value >= hysteresis) {
-          peaks.add(_Peak(
-            time: pts[extremeIdx].time,
-            yaw: pts[extremeIdx].angle,
-            isPeak: true,
-            index: extremeIdx,
-          ));
+          peaks.add(
+            _Peak(
+              time: pts[extremeIdx].time,
+              yaw: pts[extremeIdx].angle,
+              isPeak: true,
+              index: extremeIdx,
+            ),
+          );
           seekingMax = false;
           currentExtreme = value;
           extremeIdx = i;
@@ -303,12 +363,14 @@ class TurnSegmentation {
           currentExtreme = value;
           extremeIdx = i;
         } else if (value - currentExtreme >= hysteresis) {
-          peaks.add(_Peak(
-            time: pts[extremeIdx].time,
-            yaw: pts[extremeIdx].angle,
-            isPeak: false,
-            index: extremeIdx,
-          ));
+          peaks.add(
+            _Peak(
+              time: pts[extremeIdx].time,
+              yaw: pts[extremeIdx].angle,
+              isPeak: false,
+              index: extremeIdx,
+            ),
+          );
           seekingMax = true;
           currentExtreme = value;
           extremeIdx = i;

@@ -108,7 +108,11 @@ class TimeSeriesGraphPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     // Draw axes
-    canvas.drawLine(Offset(0, size.height), Offset(size.width, size.height), axisPaint);
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(size.width, size.height),
+      axisPaint,
+    );
     canvas.drawLine(Offset(0, 0), Offset(0, size.height), axisPaint);
 
     // Draw y-axis grid and labels
@@ -130,7 +134,10 @@ class TimeSeriesGraphPainter extends CustomPainter {
         style: const TextStyle(color: Colors.black, fontSize: 10),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(-textPainter.width - 5, yPos - textPainter.height / 2));
+      textPainter.paint(
+        canvas,
+        Offset(-textPainter.width - 5, yPos - textPainter.height / 2),
+      );
     }
 
     // Draw x-axis labels (time)
@@ -144,13 +151,21 @@ class TimeSeriesGraphPainter extends CustomPainter {
         style: const TextStyle(color: Colors.black, fontSize: 10),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(xPos - textPainter.width / 2, size.height + 5));
+      textPainter.paint(
+        canvas,
+        Offset(xPos - textPainter.width / 2, size.height + 5),
+      );
     }
 
     // Draw optimal value dotted line
     final optimalY = size.height - (optimalValue / yMax) * size.height;
     if (optimalValue <= yMax) {
-      _drawDottedLine(canvas, Offset(0, optimalY), Offset(size.width, optimalY), optimalLinePaint);
+      _drawDottedLine(
+        canvas,
+        Offset(0, optimalY),
+        Offset(size.width, optimalY),
+        optimalLinePaint,
+      );
     }
 
     // Draw data points
@@ -170,7 +185,11 @@ class TimeSeriesGraphPainter extends CustomPainter {
     while (traveled < distance) {
       final startOffset = Offset.lerp(start, end, traveled / distance)!;
       traveled += dashWidth;
-      final endOffset = Offset.lerp(start, end, math.min(traveled, distance) / distance)!;
+      final endOffset = Offset.lerp(
+        start,
+        end,
+        math.min(traveled, distance) / distance,
+      )!;
       canvas.drawLine(startOffset, endOffset, paint);
       traveled += dashSpace;
     }

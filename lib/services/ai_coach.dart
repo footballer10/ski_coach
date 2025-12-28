@@ -62,7 +62,9 @@ class AICoach {
 
     final file = File(_modelPath!);
     if (!file.existsSync()) {
-      final data = await rootBundle.load('assets/models/llama-3.1-8b-instruct-q4_k_m.gguf');
+      final data = await rootBundle.load(
+        'assets/models/llama-3.1-8b-instruct-q4_k_m.gguf',
+      );
       await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
     }
 
@@ -71,8 +73,7 @@ class AICoach {
       final contextParams = ContextParams()
         ..nCtx = _localContextTokens
         ..nPredict = _localMaxResponseTokens;
-      final samplerParams = SamplerParams()
-        ..temp = 0.0;
+      final samplerParams = SamplerParams()..temp = 0.0;
       _llama = Llama(
         _modelPath!,
         modelParams,
@@ -86,8 +87,7 @@ class AICoach {
         final contextParams = ContextParams()
           ..nCtx = 12500
           ..nPredict = 2500;
-        final samplerParams = SamplerParams()
-          ..temp = 0.0;
+        final samplerParams = SamplerParams()..temp = 0.0;
         _llama = Llama(
           _modelPath!,
           modelParams,
@@ -162,7 +162,9 @@ class AICoach {
       final secondToLastPos = separators[separators.length - 2];
       final lastPos = separators[separators.length - 1];
 
-      final category = aiResponse.substring(thirdToLastPos + 2, secondToLastPos).trim();
+      final category = aiResponse
+          .substring(thirdToLastPos + 2, secondToLastPos)
+          .trim();
       final drill = aiResponse.substring(secondToLastPos + 2, lastPos).trim();
       final feedback = aiResponse.substring(lastPos + 2).trim();
 
@@ -175,7 +177,10 @@ class AICoach {
     }
   }
 
-  Future<String> _sendPromptsToLocalLLM(String systemPrompt, String userPrompt) async {
+  Future<String> _sendPromptsToLocalLLM(
+    String systemPrompt,
+    String userPrompt,
+  ) async {
     if (_modelPath == null) {
       throw Exception('Model path not set');
     }
@@ -197,14 +202,19 @@ class AICoach {
     return responseBuffer.toString();
   }
 
-  Future<String> _sendPromptsToAPI(String systemPrompt, String userPrompt) async {
+  Future<String> _sendPromptsToAPI(
+    String systemPrompt,
+    String userPrompt,
+  ) async {
     final apiKey = AIPreferences.apiKey;
     if (apiKey.isEmpty || apiKey == 'YOUR_API_KEY_HERE') {
       throw Exception('OpenAI API key not set in lib/config/ai_config.dart');
     }
 
     final responsesUrl = Uri.parse('https://api.openai.com/v1/responses');
-    final chatCompletionsUrl = Uri.parse('https://api.openai.com/v1/chat/completions');
+    final chatCompletionsUrl = Uri.parse(
+      'https://api.openai.com/v1/chat/completions',
+    );
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $apiKey',
@@ -241,7 +251,9 @@ class AICoach {
     }
 
     if (response.statusCode != 200) {
-      throw Exception('API request failed: ${response.statusCode} - ${response.body}');
+      throw Exception(
+        'API request failed: ${response.statusCode} - ${response.body}',
+      );
     }
 
     final jsonResponse = jsonDecode(response.body);

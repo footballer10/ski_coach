@@ -18,9 +18,13 @@ class EdgeAngleCalculator {
   }) {
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('📊 METRIC 1: MAX EDGE ANGLE (Pitch)');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('📊 Turn #$turnNumber');
       debugPrint('📊 Left indices: $startIdxLeft → $endIdxLeft');
       debugPrint('📊 Right indices: $startIdxRight → $endIdxRight');
@@ -39,7 +43,9 @@ class EdgeAngleCalculator {
         }
       } else if (kDebugMode) {
         if (pitch > 90.0) {
-          debugPrint('   L[$i] pitch=${pitch.toStringAsFixed(2)}° ✗ (out of range)');
+          debugPrint(
+            '   L[$i] pitch=${pitch.toStringAsFixed(2)}° ✗ (out of range)',
+          );
         } else {
           debugPrint('   L[$i] pitch=${pitch.toStringAsFixed(2)}°');
         }
@@ -47,7 +53,11 @@ class EdgeAngleCalculator {
     }
 
     // Check right sensor - filter out unrealistic values
-    for (int i = startIdxRight; i <= endIdxRight && i < rightSamples.length; i++) {
+    for (
+      int i = startIdxRight;
+      i <= endIdxRight && i < rightSamples.length;
+      i++
+    ) {
       final pitch = rightSamples[i].pitch.abs();
       // Only consider pitch values that are reasonable for skiing (0-90 degrees)
       if (pitch <= 90.0 && pitch > maxEdgeAngle) {
@@ -57,7 +67,9 @@ class EdgeAngleCalculator {
         }
       } else if (kDebugMode) {
         if (pitch > 90.0) {
-          debugPrint('   R[$i] pitch=${pitch.toStringAsFixed(2)}° ✗ (out of range)');
+          debugPrint(
+            '   R[$i] pitch=${pitch.toStringAsFixed(2)}° ✗ (out of range)',
+          );
         } else {
           debugPrint('   R[$i] pitch=${pitch.toStringAsFixed(2)}°');
         }
@@ -65,7 +77,9 @@ class EdgeAngleCalculator {
     }
 
     if (kDebugMode) {
-      debugPrint('📊 FINAL MAX EDGE ANGLE: ${maxEdgeAngle.toStringAsFixed(2)}°');
+      debugPrint(
+        '📊 FINAL MAX EDGE ANGLE: ${maxEdgeAngle.toStringAsFixed(2)}°',
+      );
     }
 
     return maxEdgeAngle;

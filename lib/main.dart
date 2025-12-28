@@ -5,13 +5,13 @@ import 'config/ai_prompts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   final aiCoach = getAICoach();
   await aiCoach.initialize();
-  
+
   aiCoach.setSystemPromptLocal(localSystemPrompt);
   aiCoach.setSystemPromptAPI(apiSystemPrompt);
-  
+
   runApp(const MyApp());
 }
 

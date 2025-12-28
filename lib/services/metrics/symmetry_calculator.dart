@@ -4,7 +4,8 @@ library;
 import 'package:flutter/foundation.dart';
 
 class SymmetryResult {
-  final double? ratio;  // bigger / smaller average duration (or null if can't calculate)
+  final double?
+  ratio; // bigger / smaller average duration (or null if can't calculate)
   final int leftCount;
   final int rightCount;
   final double? leftAverage;
@@ -21,7 +22,7 @@ class SymmetryResult {
 
 class SymmetryCalculator {
   /// Calculate turn symmetry ratio from turn durations
-  /// 
+  ///
   /// Returns the ratio of (longer average) / (shorter average) for left vs right turns.
   /// A ratio of 1.0 = perfect symmetry, higher values = more asymmetric.
   static SymmetryResult calculate({
@@ -30,16 +31,24 @@ class SymmetryCalculator {
   }) {
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('⚖️  ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '⚖️  ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('⚖️  METRIC: TURN SYMMETRY');
-      debugPrint('⚖️  ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '⚖️  ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('⚖️  Total turns: ${turnDurations.length}');
     }
 
     final leftDurations = <double>[];
     final rightDurations = <double>[];
 
-    for (int i = 0; i < turnDirections.length && i < turnDurations.length; i++) {
+    for (
+      int i = 0;
+      i < turnDirections.length && i < turnDurations.length;
+      i++
+    ) {
       if (turnDirections[i] == -1) {
         leftDurations.add(turnDurations[i]);
       } else if (turnDirections[i] == 1) {
@@ -54,7 +63,9 @@ class SymmetryCalculator {
       }
       debugPrint('⚖️  Right turns: ${rightDurations.length}');
       for (int i = 0; i < rightDurations.length; i++) {
-        debugPrint('     R[${i + 1}]: ${rightDurations[i].toStringAsFixed(3)}s');
+        debugPrint(
+          '     R[${i + 1}]: ${rightDurations[i].toStringAsFixed(3)}s',
+        );
       }
     }
 
@@ -65,11 +76,11 @@ class SymmetryCalculator {
     if (leftDurations.isNotEmpty && rightDurations.isNotEmpty) {
       leftAvg = leftDurations.reduce((a, b) => a + b) / leftDurations.length;
       rightAvg = rightDurations.reduce((a, b) => a + b) / rightDurations.length;
-      
+
       final bigger = leftAvg > rightAvg ? leftAvg : rightAvg;
       final smaller = leftAvg > rightAvg ? rightAvg : leftAvg;
       ratio = bigger / smaller;
-      
+
       if (!ratio.isFinite || ratio <= 0) {
         ratio = null;
       }
@@ -78,12 +89,16 @@ class SymmetryCalculator {
         debugPrint('⚖️  RESULTS:');
         debugPrint('     Left average: ${leftAvg.toStringAsFixed(3)}s');
         debugPrint('     Right average: ${rightAvg.toStringAsFixed(3)}s');
-        debugPrint('     Symmetry ratio: ${ratio?.toStringAsFixed(3) ?? "N/A"}');
+        debugPrint(
+          '     Symmetry ratio: ${ratio?.toStringAsFixed(3) ?? "N/A"}',
+        );
         debugPrint('     (1.0 = perfect, higher = more asymmetric)');
       }
     } else {
       if (kDebugMode) {
-        debugPrint('⚖️  Cannot calculate symmetry: need both left and right turns');
+        debugPrint(
+          '⚖️  Cannot calculate symmetry: need both left and right turns',
+        );
       }
     }
 

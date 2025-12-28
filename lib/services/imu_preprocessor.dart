@@ -24,9 +24,13 @@ class ImuPreprocessor {
 
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🔧 STEP 1: UNWRAP ANGLES ($label)');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🔧 Purpose: Remove ±180° wraparound discontinuities');
       debugPrint('🔧 Input: ${samples.length} samples');
     }
@@ -66,33 +70,39 @@ class ImuPreprocessor {
         rollOffset += 360;
       }
 
-      unwrapped.add(ImuSample(
-        timestamp: curr.timestamp,
-        ax: curr.ax,
-        ay: curr.ay,
-        az: curr.az,
-        gx: curr.gx,
-        gy: curr.gy,
-        gz: curr.gz,
-        yaw: curr.yaw + yawOffset,
-        pitch: curr.pitch + pitchOffset,
-        roll: curr.roll + rollOffset,
-        parallelness: curr.parallelness,
-      ));
+      unwrapped.add(
+        ImuSample(
+          timestamp: curr.timestamp,
+          ax: curr.ax,
+          ay: curr.ay,
+          az: curr.az,
+          gx: curr.gx,
+          gy: curr.gy,
+          gz: curr.gz,
+          yaw: curr.yaw + yawOffset,
+          pitch: curr.pitch + pitchOffset,
+          roll: curr.roll + rollOffset,
+          parallelness: curr.parallelness,
+        ),
+      );
     }
 
     if (kDebugMode) {
-      debugPrint('🔧 UNWRAP RESULTS (showing only wraparounds and first/last 3 samples):');
+      debugPrint(
+        '🔧 UNWRAP RESULTS (showing only wraparounds and first/last 3 samples):',
+      );
       for (int i = 0; i < samples.length; i++) {
         final orig = samples[i];
         final unwr = unwrapped[i];
         bool showLine = i < 3 || i >= samples.length - 3;
-        
+
         // Check for wraparounds
         if (i > 0) {
           final prevOrig = samples[i - 1];
           if ((orig.yaw - prevOrig.yaw).abs() > 180) {
-            debugPrint('   >>> YAW WRAPAROUND at idx $i: ${prevOrig.yaw.toStringAsFixed(2)}° → ${orig.yaw.toStringAsFixed(2)}° (unwrapped: ${unwr.yaw.toStringAsFixed(2)}°)');
+            debugPrint(
+              '   >>> YAW WRAPAROUND at idx $i: ${prevOrig.yaw.toStringAsFixed(2)}° → ${orig.yaw.toStringAsFixed(2)}° (unwrapped: ${unwr.yaw.toStringAsFixed(2)}°)',
+            );
             showLine = true;
           }
           if ((orig.pitch - prevOrig.pitch).abs() > 180) {
@@ -104,9 +114,11 @@ class ImuPreprocessor {
             showLine = true;
           }
         }
-        
+
         if (showLine) {
-          debugPrint('   [${i.toString().padLeft(3)}] Yaw: ${orig.yaw.toStringAsFixed(2).padLeft(7)}° → ${unwr.yaw.toStringAsFixed(2).padLeft(7)}° | Pitch: ${orig.pitch.toStringAsFixed(2).padLeft(7)}° → ${unwr.pitch.toStringAsFixed(2).padLeft(7)}° | Roll: ${orig.roll.toStringAsFixed(2).padLeft(7)}° → ${unwr.roll.toStringAsFixed(2).padLeft(7)}°');
+          debugPrint(
+            '   [${i.toString().padLeft(3)}] Yaw: ${orig.yaw.toStringAsFixed(2).padLeft(7)}° → ${unwr.yaw.toStringAsFixed(2).padLeft(7)}° | Pitch: ${orig.pitch.toStringAsFixed(2).padLeft(7)}° → ${unwr.pitch.toStringAsFixed(2).padLeft(7)}° | Roll: ${orig.roll.toStringAsFixed(2).padLeft(7)}° → ${unwr.roll.toStringAsFixed(2).padLeft(7)}°',
+          );
         }
       }
       debugPrint('🔧 Unwrapping complete.');
@@ -123,10 +135,16 @@ class ImuPreprocessor {
   ]) {
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🔧 STEP 2: APPLY YAW OFFSET ($label)');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 Offset: ${offset.toStringAsFixed(2)}° (subtracting from right sensor)');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
+      debugPrint(
+        '🔧 Offset: ${offset.toStringAsFixed(2)}° (subtracting from right sensor)',
+      );
       debugPrint('🔧 Processing ${samples.length} samples...');
     }
 
@@ -134,26 +152,30 @@ class ImuPreprocessor {
     for (int i = 0; i < samples.length; i++) {
       final s = samples[i];
       final newYaw = s.yaw - offset;
-      corrected.add(ImuSample(
-        timestamp: s.timestamp,
-        ax: s.ax,
-        ay: s.ay,
-        az: s.az,
-        gx: s.gx,
-        gy: s.gy,
-        gz: s.gz,
-        yaw: newYaw,
-        pitch: s.pitch,
-        roll: s.roll,
-        parallelness: s.parallelness,
-      ));
+      corrected.add(
+        ImuSample(
+          timestamp: s.timestamp,
+          ax: s.ax,
+          ay: s.ay,
+          az: s.az,
+          gx: s.gx,
+          gy: s.gy,
+          gz: s.gz,
+          yaw: newYaw,
+          pitch: s.pitch,
+          roll: s.roll,
+          parallelness: s.parallelness,
+        ),
+      );
     }
 
     if (kDebugMode) {
       debugPrint('🔧 OFFSET APPLICATION RESULTS (first 5 and last 5 samples):');
       for (int i = 0; i < samples.length; i++) {
         if (i < 5 || i >= samples.length - 5) {
-          debugPrint('   [${i.toString().padLeft(3)}] Before: ${samples[i].yaw.toStringAsFixed(2).padLeft(7)}° → After: ${corrected[i].yaw.toStringAsFixed(2).padLeft(7)}° (offset: ${offset.toStringAsFixed(2)}°)');
+          debugPrint(
+            '   [${i.toString().padLeft(3)}] Before: ${samples[i].yaw.toStringAsFixed(2).padLeft(7)}° → After: ${corrected[i].yaw.toStringAsFixed(2).padLeft(7)}° (offset: ${offset.toStringAsFixed(2)}°)',
+          );
         }
       }
       debugPrint('🔧 ✓ Offset applied to all ${samples.length} samples.');
@@ -172,9 +194,13 @@ class ImuPreprocessor {
 
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🔧 STEP 2: CORRECT ANGLE JUMPS ($label)');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🔧 Threshold: ${threshold.toStringAsFixed(2)}°');
       debugPrint('🔧 Input: ${samples.length} samples');
     }
@@ -192,7 +218,8 @@ class ImuPreprocessor {
 
       // Detect yaw jump
       final yawDiff = (curr.yaw - prev.yaw).abs();
-      if (yawDiff > threshold && yawDiff < 180) { // Not a wraparound
+      if (yawDiff > threshold && yawDiff < 180) {
+        // Not a wraparound
         yawAccumOffset += (prev.yaw - curr.yaw);
       }
 
@@ -208,29 +235,37 @@ class ImuPreprocessor {
         rollAccumOffset += (prev.roll - curr.roll);
       }
 
-      corrected.add(ImuSample(
-        timestamp: curr.timestamp,
-        ax: curr.ax,
-        ay: curr.ay,
-        az: curr.az,
-        gx: curr.gx,
-        gy: curr.gy,
-        gz: curr.gz,
-        yaw: curr.yaw + yawAccumOffset,
-        pitch: curr.pitch + pitchAccumOffset,
-        roll: curr.roll + rollAccumOffset,
-        parallelness: curr.parallelness,
-      ));
+      corrected.add(
+        ImuSample(
+          timestamp: curr.timestamp,
+          ax: curr.ax,
+          ay: curr.ay,
+          az: curr.az,
+          gx: curr.gx,
+          gy: curr.gy,
+          gz: curr.gz,
+          yaw: curr.yaw + yawAccumOffset,
+          pitch: curr.pitch + pitchAccumOffset,
+          roll: curr.roll + rollAccumOffset,
+          parallelness: curr.parallelness,
+        ),
+      );
     }
 
     if (kDebugMode) {
       debugPrint('🔧 SIDE-BY-SIDE COMPARISON:');
-      debugPrint('   Idx | Before Roll  | After Roll   | Before Pitch | After Pitch  | Before Yaw   | After Yaw');
-      debugPrint('   ────|──────────────|──────────────|──────────────|──────────────|──────────────|───────────');
+      debugPrint(
+        '   Idx | Before Roll  | After Roll   | Before Pitch | After Pitch  | Before Yaw   | After Yaw',
+      );
+      debugPrint(
+        '   ────|──────────────|──────────────|──────────────|──────────────|──────────────|───────────',
+      );
       for (int i = 0; i < samples.length; i++) {
         final orig = samples[i];
         final corr = corrected[i];
-        debugPrint('   ${i.toString().padLeft(3)} | ${orig.roll.toStringAsFixed(2).padLeft(12)} | ${corr.roll.toStringAsFixed(2).padLeft(12)} | ${orig.pitch.toStringAsFixed(2).padLeft(12)} | ${corr.pitch.toStringAsFixed(2).padLeft(12)} | ${orig.yaw.toStringAsFixed(2).padLeft(12)} | ${corr.yaw.toStringAsFixed(2).padLeft(9)}');
+        debugPrint(
+          '   ${i.toString().padLeft(3)} | ${orig.roll.toStringAsFixed(2).padLeft(12)} | ${corr.roll.toStringAsFixed(2).padLeft(12)} | ${orig.pitch.toStringAsFixed(2).padLeft(12)} | ${corr.pitch.toStringAsFixed(2).padLeft(12)} | ${orig.yaw.toStringAsFixed(2).padLeft(12)} | ${corr.yaw.toStringAsFixed(2).padLeft(9)}',
+        );
       }
       debugPrint('🔧 Jump correction complete.');
     }
@@ -245,11 +280,19 @@ class ImuPreprocessor {
   ) {
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('🔧 STEP 3: AVERAGE YAW SIGNALS');
-      debugPrint('🔧 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('🔧 Left samples: ${left.length}, Right samples: ${right.length}');
-      debugPrint('🔧 NOTE: Original sensor yaws preserved for parallelness calculation');
+      debugPrint(
+        '🔧 ════════════════════════════════════════════════════════════════════════',
+      );
+      debugPrint(
+        '🔧 Left samples: ${left.length}, Right samples: ${right.length}',
+      );
+      debugPrint(
+        '🔧 NOTE: Original sensor yaws preserved for parallelness calculation',
+      );
     }
 
     final result = <AnglePoint>[];
@@ -264,10 +307,14 @@ class ImuPreprocessor {
       debugPrint('🔧 AVERAGING RESULTS (first 5 and last 5 samples):');
       for (int i = 0; i < result.length; i++) {
         if (i < 5 || i >= result.length - 5) {
-          debugPrint('   [${i.toString().padLeft(3)}] Left: ${left[i].yaw.toStringAsFixed(2).padLeft(7)}° + Right: ${right[i].yaw.toStringAsFixed(2).padLeft(7)}° = Avg: ${result[i].angle.toStringAsFixed(2).padLeft(7)}°');
+          debugPrint(
+            '   [${i.toString().padLeft(3)}] Left: ${left[i].yaw.toStringAsFixed(2).padLeft(7)}° + Right: ${right[i].yaw.toStringAsFixed(2).padLeft(7)}° = Avg: ${result[i].angle.toStringAsFixed(2).padLeft(7)}°',
+          );
         }
       }
-      debugPrint('🔧 Averaging complete. Created ${result.length} averaged points.');
+      debugPrint(
+        '🔧 Averaging complete. Created ${result.length} averaged points.',
+      );
     }
 
     return result;

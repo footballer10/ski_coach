@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:io';
 import 'package:ski_coach/services/scoring.dart';
 import 'package:ski_coach/models.dart';
 import 'package:ski_coach/widgets/time_series_graph.dart';
 import 'package:ski_coach/services/segmentation.dart';
 import 'package:ski_coach/services/ai_coach.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Dot plot scaler for creating histogram columns
 class DotPlotScaler {
@@ -465,8 +468,11 @@ class ResultsView extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback onNewRun;
   final VoidCallback? onReconnect;
+  final VoidCallback? onImportRun; // Import another run from results page
   final bool showReconnectButton;
   final bool showTryAgainButton;
+  final String? aiFeedback; // Pre-generated AI feedback (for imports)
+  final String? importedRunName; // Display name badge if imported
 
   const ResultsView({
     super.key,
@@ -474,8 +480,11 @@ class ResultsView extends StatefulWidget {
     this.errorMessage,
     required this.onNewRun,
     this.onReconnect,
+    this.onImportRun,
     this.showReconnectButton = true,
     this.showTryAgainButton = true,
+    this.aiFeedback,
+    this.importedRunName,
   });
 
   @override
@@ -672,7 +681,28 @@ class _ResultsViewState extends State<ResultsView> {
   @override
   void initState() {
     super.initState();
-    // Start AI processing immediately but don't block UI
+
+    // If AI feedback was pre-loaded (imported run), display it immediately
+    if (widget.aiFeedback != null) {
+      // Check if it's the special marker for "no AI feedback available"
+      if (widget.aiFeedback == '__NO_AI_FEEDBACK__') {
+        setState(() {
+          _coachingAdvice = '';
+          _coachingError = 'No AI feedback available (exported before AI completed)';
+          _loadingCoachingAdvice = false;
+          _aiProcessing = false;
+        });
+      } else {
+        setState(() {
+          _coachingAdvice = widget.aiFeedback!;
+          _loadingCoachingAdvice = false;
+          _aiProcessing = false;
+        });
+      }
+      return;
+    }
+
+    // Otherwise, generate AI feedback asynchronously (normal run)
     if (widget.results != null) {
       setState(() {
         _aiProcessing = true;
@@ -931,6 +961,125 @@ class _ResultsViewState extends State<ResultsView> {
     }
   }
 
+  Future<void> _exportRun() async {
+    if (widget.results == null) return;
+
+    // Check if AI feedback is still loading
+    if (_loadingCoachingAdvice && widget.aiFeedback == null) {
+      final shouldContinue = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('AI Feedback Not Ready'),
+          content: const Text(
+            'AI feedback is still being generated. Do you want to export without AI feedback?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldContinue != true) return;
+    }
+
+    // Show dialog to get run name
+    final runName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('Name this run'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'e.g., Morning Run - Blue Square',
+              border: OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.words,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isNotEmpty) {
+                  Navigator.pop(context, name);
+                }
+              },
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (runName == null || runName.isEmpty) return;
+
+    try {
+      // Determine AI feedback status
+      String? feedbackToExport;
+      if (_coachingAdvice.isNotEmpty) {
+        feedbackToExport = _coachingAdvice;
+      } else if (_loadingCoachingAdvice || widget.aiFeedback == null) {
+        // Mark as exported before AI feedback was ready
+        feedbackToExport = '__NO_AI_FEEDBACK__';
+      }
+
+      // Create export object
+      final exportedRun = ExportedRun(
+        schemaVersion: 1,
+        runName: runName,
+        analysisResults: widget.results!,
+        aiFeedback: feedbackToExport,
+      );
+
+      // Serialize to JSON
+      final jsonString = exportedRun.toJsonString();
+
+      // Write to temporary file
+      final tempDir = await getTemporaryDirectory();
+      final sanitizedName = runName.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_');
+      final file = File('${tempDir.path}/$sanitizedName.json');
+      await file.writeAsString(jsonString);
+
+      // Share the file
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: 'Ski Coach Run: $runName');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Run exported successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Show error state if present
@@ -1023,6 +1172,25 @@ class _ResultsViewState extends State<ResultsView> {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
+              // Export button (left 1/4)
+              Expanded(
+                flex: 1,
+                child: ElevatedButton.icon(
+                  onPressed: _exportRun,
+                  icon: const Icon(Icons.share, size: 20),
+                  label: const Text('Export'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 8,
+                    ),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Start New Run button (middle 1/2)
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
@@ -1038,6 +1206,24 @@ class _ResultsViewState extends State<ResultsView> {
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.grey,
                     disabledForegroundColor: Colors.white70,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Import button (right 1/4)
+              Expanded(
+                flex: 1,
+                child: ElevatedButton.icon(
+                  onPressed: widget.onImportRun,
+                  icon: const Icon(Icons.file_upload, size: 20),
+                  label: const Text('Import'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 8,
+                    ),
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ),
@@ -1333,35 +1519,64 @@ class _ResultsViewState extends State<ResultsView> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _summaryItem(
-                'Turns',
-                '${(widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : (_turns.length - 1)}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.importedRunName != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.10),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+                borderRadius: BorderRadius.circular(8),
               ),
-              _summaryItem('Duration', durationStr),
-              _summaryItem('Start', startTimeStr),
-              _summaryItem(
-                'Score',
-                widget.results?.overallScore != null
-                    ? widget.results!.overallScore!.toStringAsFixed(1)
-                    : '—',
-                prominent: true,
-              ),
-              if (includeSimilarity)
-                _summaryItem(
-                  'Symmetry',
-                  widget.results?.turnSymmetryRatio != null
-                      ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3)
-                      : '—',
+              alignment: Alignment.centerLeft,
+              child: Text(
+                widget.importedRunName!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
                 ),
-            ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _summaryItem(
+                    'Turns',
+                    '${(widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : (_turns.length - 1)}',
+                  ),
+                  _summaryItem('Duration', durationStr),
+                  _summaryItem('Start', startTimeStr),
+                  _summaryItem(
+                    'Score',
+                    widget.results?.overallScore != null
+                        ? widget.results!.overallScore!.toStringAsFixed(1)
+                        : '—',
+                    prominent: true,
+                  ),
+                  if (includeSimilarity)
+                    _summaryItem(
+                      'Symmetry',
+                      widget.results?.turnSymmetryRatio != null
+                          ? widget.results!.turnSymmetryRatio!.toStringAsFixed(
+                              3,
+                            )
+                          : '—',
+                    ),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

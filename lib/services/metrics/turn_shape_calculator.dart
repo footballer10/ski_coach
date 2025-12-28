@@ -30,11 +30,19 @@ class TurnShapeCalculator {
   }) {
     if (kDebugMode) {
       debugPrint('');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
-      debugPrint('📊 METRIC 3: TURN SHAPE (Angular Velocity Standard Deviation) - ALL SAMPLES');
-      debugPrint('📊 ════════════════════════════════════════════════════════════════════════');
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
+      debugPrint(
+        '📊 METRIC 3: TURN SHAPE (Angular Velocity Standard Deviation) - ALL SAMPLES',
+      );
+      debugPrint(
+        '📊 ════════════════════════════════════════════════════════════════════════',
+      );
       debugPrint('📊 Turn #$turnNumber');
-      debugPrint('📊 Angular velocity = Δyaw × sampling_rate (${samplingRate}Hz)');
+      debugPrint(
+        '📊 Angular velocity = Δyaw × sampling_rate (${samplingRate}Hz)',
+      );
     }
 
     // Calculate turn thirds
@@ -45,7 +53,8 @@ class TurnShapeCalculator {
 
     // Find indices in averaged yaw
     final startYawIdx = ImuPreprocessor.indexForTime(avgYaw, startTime) ?? 0;
-    final endYawIdx = ImuPreprocessor.indexForTime(avgYaw, endTime) ?? avgYaw.length - 1;
+    final endYawIdx =
+        ImuPreprocessor.indexForTime(avgYaw, endTime) ?? avgYaw.length - 1;
 
     final velocitiesBeginning = <double>[];
     final velocitiesMiddle = <double>[];
@@ -69,7 +78,9 @@ class TurnShapeCalculator {
       }
 
       if (kDebugMode) {
-        debugPrint('   [$i] ($third) yaw[i]=${avgYaw[i].angle.toStringAsFixed(2)}°, yaw[i+1]=${avgYaw[i + 1].angle.toStringAsFixed(2)}°, Δyaw=${yawChange.toStringAsFixed(4)}°, angVel=${angularVelocity.toStringAsFixed(2)}°/s');
+        debugPrint(
+          '   [$i] ($third) yaw[i]=${avgYaw[i].angle.toStringAsFixed(2)}°, yaw[i+1]=${avgYaw[i + 1].angle.toStringAsFixed(2)}°, Δyaw=${yawChange.toStringAsFixed(4)}°, angVel=${angularVelocity.toStringAsFixed(2)}°/s',
+        );
       }
     }
 
@@ -80,9 +91,15 @@ class TurnShapeCalculator {
 
     if (kDebugMode) {
       debugPrint('📊 FINAL TURN SHAPE TOTALS:');
-      debugPrint('   - 1st third: ${velocitiesBeginning.length} velocities, SD=${sdBeginning.toStringAsFixed(2)}°/s');
-      debugPrint('   - Mid third: ${velocitiesMiddle.length} velocities, SD=${sdMiddle.toStringAsFixed(2)}°/s');
-      debugPrint('   - End third: ${velocitiesEnd.length} velocities, SD=${sdEnd.toStringAsFixed(2)}°/s');
+      debugPrint(
+        '   - 1st third: ${velocitiesBeginning.length} velocities, SD=${sdBeginning.toStringAsFixed(2)}°/s',
+      );
+      debugPrint(
+        '   - Mid third: ${velocitiesMiddle.length} velocities, SD=${sdMiddle.toStringAsFixed(2)}°/s',
+      );
+      debugPrint(
+        '   - End third: ${velocitiesEnd.length} velocities, SD=${sdEnd.toStringAsFixed(2)}°/s',
+      );
       debugPrint('   - AVG of 3 SDs: ${sdAverage.toStringAsFixed(2)}°/s');
     }
 
@@ -98,7 +115,9 @@ class TurnShapeCalculator {
   static double _standardDeviation(List<double> values) {
     if (values.isEmpty) return 0.0;
     final mean = values.reduce((a, b) => a + b) / values.length;
-    final variance = values.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) / values.length;
+    final variance =
+        values.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) /
+        values.length;
     return math.sqrt(variance);
   }
 }

@@ -15,7 +15,7 @@ class _AppControllerState extends State<AppController> {
   final List<Widget> _runPages = [];
   final List<GlobalKey<RunPageState>> _runPageKeys = [];
   final List<GlobalKey<RunPageState>> _tempErrorPageKeys = [];
-  
+
   dynamic _bleMgr;
   String? _leftId;
   String? _rightId;
@@ -47,7 +47,7 @@ class _AppControllerState extends State<AppController> {
     _bleMgr = bleMgr;
     _leftId = leftId;
     _rightId = rightId;
-    
+
     // If this is the first connection, add the first run page (don't auto-start)
     if (_runPages.isEmpty) {
       final pageKey = GlobalKey<RunPageState>();
@@ -60,6 +60,7 @@ class _AppControllerState extends State<AppController> {
         onDisconnect: _onSensorsDisconnected,
         onManualReconnect: _onManualReconnectPressed,
         autoStart: false,
+        onImportedRun: _addImportedRunPage,
         onResultsShown: () {
           // Enable arrows after first results shown
           if (!_showArrows) {
@@ -67,13 +68,13 @@ class _AppControllerState extends State<AppController> {
           }
         },
       );
-      
+
       setState(() {
         _runPages.add(newPage);
         _runPageKeys.add(pageKey);
       });
     }
-    
+
     // Hide connection overlay
     setState(() {
       _showConnectionOverlay = false;
@@ -87,11 +88,13 @@ class _AppControllerState extends State<AppController> {
       return;
     }
     debugPrint('⚠️ Sensors disconnected');
-    
+
     // Determine current page state
-    final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
+    final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length)
+        ? _runPageKeys[_currentPage]
+        : null;
     final currentState = currentKey?.currentState;
-    
+
     if (currentState != null && currentState.mounted) {
       if (currentState.isSummaryWithValidResults) {
         // On results screen: add temporary error page to the right
@@ -102,7 +105,7 @@ class _AppControllerState extends State<AppController> {
       }
     }
   }
-  
+
   void _onManualReconnectPressed() {
     if (_reconnectOpen) {
       return;
@@ -111,43 +114,46 @@ class _AppControllerState extends State<AppController> {
     debugPrint('📊 Manual reconnect initiated');
     Navigator.of(context)
         .push(
-      MaterialPageRoute(
-        builder: (context) => ConnectionPage(
-          showCloseButton: true,
-          onConnected: (bleMgr, leftId, rightId) {
-            _bleMgr = bleMgr;
-            _leftId = leftId;
-            _rightId = rightId;
-            Navigator.of(context).pop();
-            // Enable arrows if not already enabled
-            if (!_showArrows && _runPages.isNotEmpty) {
-              setState(() => _showArrows = true);
-            }
-            // After reconnect:
-            // - If temporary error page(s) exist (from results), remove them
-            // - If current page shows disconnect error, replace with 'Start Another Run' error
-            final currentKey = (_currentPage >= 0 && _currentPage < _runPageKeys.length) ? _runPageKeys[_currentPage] : null;
-            final currentState = currentKey?.currentState;
-            if (currentState != null && currentState.mounted) {
-              if (_tempErrorPageKeys.isNotEmpty) {
-                // Remove temporary error page(s) and restore results
-                _removeTemporaryErrorPages();
-              } else if (currentState.hasDisconnectError) {
-                // Replace disconnect error with 'Start Another Run' option
-                currentState.showPostReconnectErrorStartNewRun();
-              }
-            }
-          },
-        ),
-      ),
-    )
+          MaterialPageRoute(
+            builder: (context) => ConnectionPage(
+              showCloseButton: true,
+              onConnected: (bleMgr, leftId, rightId) {
+                _bleMgr = bleMgr;
+                _leftId = leftId;
+                _rightId = rightId;
+                Navigator.of(context).pop();
+                // Enable arrows if not already enabled
+                if (!_showArrows && _runPages.isNotEmpty) {
+                  setState(() => _showArrows = true);
+                }
+                // After reconnect:
+                // - If temporary error page(s) exist (from results), remove them
+                // - If current page shows disconnect error, replace with 'Start Another Run' error
+                final currentKey =
+                    (_currentPage >= 0 && _currentPage < _runPageKeys.length)
+                    ? _runPageKeys[_currentPage]
+                    : null;
+                final currentState = currentKey?.currentState;
+                if (currentState != null && currentState.mounted) {
+                  if (_tempErrorPageKeys.isNotEmpty) {
+                    // Remove temporary error page(s) and restore results
+                    _removeTemporaryErrorPages();
+                  } else if (currentState.hasDisconnectError) {
+                    // Replace disconnect error with 'Start Another Run' option
+                    currentState.showPostReconnectErrorStartNewRun();
+                  }
+                }
+              },
+            ),
+          ),
+        )
         .then((_) {
-      // Modal closed (either via X button or after successful reconnect)
-      _reconnectOpen = false;
-      // If closed via X, the error page remains unchanged (user stays on same error page)
-    });
+          // Modal closed (either via X button or after successful reconnect)
+          _reconnectOpen = false;
+          // If closed via X, the error page remains unchanged (user stays on same error page)
+        });
   }
-  
+
   void _addTemporaryDisconnectErrorPage() {
     final pageKey = GlobalKey<RunPageState>();
     final newPage = RunPage(
@@ -159,6 +165,7 @@ class _AppControllerState extends State<AppController> {
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
       autoStart: false,
+      onImportedRun: _addImportedRunPage,
       onResultsShown: null,
     );
     int targetIndex = 0;
@@ -176,7 +183,7 @@ class _AppControllerState extends State<AppController> {
       _forceNavigateToPage(targetIndex);
     });
   }
-  
+
   void _ensureDisconnectErrorInitialized(
     GlobalKey<RunPageState> key, {
     int attempt = 0,
@@ -265,6 +272,7 @@ class _AppControllerState extends State<AppController> {
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
       autoStart: true,
+      onImportedRun: _addImportedRunPage,
       onResultsShown: () {
         // Enable arrows after first results shown
         if (!_showArrows) {
@@ -272,14 +280,14 @@ class _AppControllerState extends State<AppController> {
         }
       },
     );
-    
+
     final targetPage = _runPages.length;
-    
+
     setState(() {
       _runPages.add(newPage);
       _runPageKeys.add(pageKey);
     });
-    
+
     // Jump to the new page and update current page tracker immediately
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageController.hasClients && mounted) {
@@ -292,6 +300,50 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
+  void _addImportedRunPage(dynamic importedRun) {
+    // importedRun is an ExportedRun object
+    final pageKey = GlobalKey<RunPageState>();
+    final newPage = RunPage(
+      key: pageKey,
+      bleMgr: _bleMgr,
+      leftId: _leftId!,
+      rightId: _rightId!,
+      onRecordAgain: _addNewRunPage,
+      onDisconnect: _onSensorsDisconnected,
+      onManualReconnect: _onManualReconnectPressed,
+      autoStart: false, // Don't auto-start for imported runs
+      onImportedRun: _addImportedRunPage,
+      onResultsShown: () {
+        if (!_showArrows) {
+          setState(() => _showArrows = true);
+        }
+      },
+    );
+
+    final targetPage = _runPages.length;
+
+    setState(() {
+      _runPages.add(newPage);
+      _runPageKeys.add(pageKey);
+    });
+
+    // Jump to the new page and trigger import on it
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients && mounted) {
+        _pageController.jumpToPage(targetPage);
+        setState(() {
+          _currentPage = targetPage;
+        });
+
+        // Trigger the import on the new page
+        final newPageState = pageKey.currentState;
+        if (newPageState != null && newPageState.mounted) {
+          newPageState.loadImportedRun(importedRun);
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -299,24 +351,19 @@ class _AppControllerState extends State<AppController> {
         children: [
           // Run pages in PageView
           if (_runPages.isNotEmpty)
-            PageView(
-              controller: _pageController,
-              children: _runPages,
-            )
+            PageView(controller: _pageController, children: _runPages)
           else
             const SizedBox(),
-          
+
           // Connection overlay (shown on startup and when disconnected)
           if (_showConnectionOverlay)
             Container(
               color: Colors.white,
-              child: ConnectionPage(
-                onConnected: _onSensorsConnected,
-              ),
+              child: ConnectionPage(onConnected: _onSensorsConnected),
             ),
-          
+
           // Navigation arrows removed per user request
-          
+
           // Page indicator dots (only when runs exist and not on connection screen)
           if (_runPages.isNotEmpty && !_showConnectionOverlay)
             Positioned(

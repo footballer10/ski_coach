@@ -5,7 +5,8 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import '../services/ble_manager.dart';
 
 class ConnectionPage extends StatefulWidget {
-  final void Function(dynamic bleMgr, String leftId, String rightId)? onConnected;
+  final void Function(dynamic bleMgr, String leftId, String rightId)?
+  onConnected;
   final bool showCloseButton;
 
   const ConnectionPage({
@@ -65,13 +66,13 @@ class _ConnectionPageState extends State<ConnectionPage> {
     }
     _startingScan = true;
     final bleMgr = _bleMgr as BleManager;
-    
+
     // Cancel local subscriptions
     _scanSub?.cancel();
     _scanSub = null;
     _statusSub?.cancel();
     _statusSub = null;
-    
+
     setState(() {
       _devices.clear();
       _scanning = true;
@@ -81,12 +82,15 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
     // Properly stop any active BLE scan in the manager before starting new one
     bleMgr.stopScan().then((_) {
-      if (!mounted) { _startingScan = false; return; }
-      
+      if (!mounted) {
+        _startingScan = false;
+        return;
+      }
+
       if (kDebugMode) {
         debugPrint('🔍 Starting new scan');
       }
-      
+
       _statusSub = bleMgr.statusStream.listen((status) {
         _lastStatus = status;
         if (status == BleStatus.ready) {
@@ -96,7 +100,10 @@ class _ConnectionPageState extends State<ConnectionPage> {
       });
       // Fallback if never reaches ready
       Future.delayed(const Duration(seconds: 5), () {
-        if (!mounted) { _startingScan = false; return; }
+        if (!mounted) {
+          _startingScan = false;
+          return;
+        }
         if (_scanSub == null) {
           _beginRawScan();
         }
@@ -119,42 +126,49 @@ class _ConnectionPageState extends State<ConnectionPage> {
     try {
       final mgr = (_bleMgr as BleManager);
       final stream = mgr.verboseRawScan();
-      _scanSub = stream.listen((d) {
-        final id = d.id;
-        final name = d.name.isEmpty ? '' : d.name;
-        // Track encountered devices for visibility/debug (optional)
-        if (!_devices.any((e) => e['id'] == id)) {
-          setState(() {
-            _devices.add({'id': id, 'name': name.isEmpty ? '(no name)' : name});
-          });
-        }
+      _scanSub = stream.listen(
+        (d) {
+          final id = d.id;
+          final name = d.name.isEmpty ? '' : d.name;
+          // Track encountered devices for visibility/debug (optional)
+          if (!_devices.any((e) => e['id'] == id)) {
+            setState(() {
+              _devices.add({
+                'id': id,
+                'name': name.isEmpty ? '(no name)' : name,
+              });
+            });
+          }
 
-        bool updated = false;
-        if (name == _targetLeftName && _leftId == null) {
-          _leftId = id;
-          updated = true;
-        }
-        if (name == _targetRightName && _rightId == null) {
-          _rightId = id;
-          updated = true;
-        }
-        if (updated && mounted) {
-          setState(() {});
-        }
-        if (_leftId != null && _rightId != null) {
-          // Stop scanning before connecting to avoid overlapping operations
-          _scanSub?.cancel();
-          setState(() => _scanning = false);
-          // Slight delay to let scanning settle on iOS
-          Future.delayed(const Duration(milliseconds: 250), () {
-            if (mounted) _connectBoth();
-          });
-        }
-      }, onError: (e) {
-        if (mounted) setState(() => _scanning = false);
-      }, onDone: () {
-        if (mounted) setState(() => _scanning = false);
-      });
+          bool updated = false;
+          if (name == _targetLeftName && _leftId == null) {
+            _leftId = id;
+            updated = true;
+          }
+          if (name == _targetRightName && _rightId == null) {
+            _rightId = id;
+            updated = true;
+          }
+          if (updated && mounted) {
+            setState(() {});
+          }
+          if (_leftId != null && _rightId != null) {
+            // Stop scanning before connecting to avoid overlapping operations
+            _scanSub?.cancel();
+            setState(() => _scanning = false);
+            // Slight delay to let scanning settle on iOS
+            Future.delayed(const Duration(milliseconds: 250), () {
+              if (mounted) _connectBoth();
+            });
+          }
+        },
+        onError: (e) {
+          if (mounted) setState(() => _scanning = false);
+        },
+        onDone: () {
+          if (mounted) setState(() => _scanning = false);
+        },
+      );
     } catch (e) {
       setState(() => _scanning = false);
     }
@@ -169,7 +183,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
   Future<void> _connectBoth() async {
     if (_leftId == null || _rightId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please assign both left and right sensors')),
+        const SnackBar(
+          content: Text('Please assign both left and right sensors'),
+        ),
       );
       return;
     }
@@ -181,7 +197,11 @@ class _ConnectionPageState extends State<ConnectionPage> {
         contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
         content: Row(
           children: const [
-            SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
             SizedBox(width: 16),
             Expanded(child: Text('Connecting to sensors...')),
           ],
@@ -209,16 +229,20 @@ class _ConnectionPageState extends State<ConnectionPage> {
       Navigator.of(context).pop(); // close loading dialog
       if (kDebugMode) debugPrint('❌ Connection failed: L=$leftOk R=$rightOk');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to connect to one or both sensors')),
+        const SnackBar(
+          content: Text('Failed to connect to one or both sensors'),
+        ),
       );
       // Disconnect any partial connection so a rescan can rediscover devices
-      try { await (_bleMgr as BleManager).disconnectAll(); } catch (_) {}
+      try {
+        await (_bleMgr as BleManager).disconnectAll();
+      } catch (_) {}
       return;
     }
 
     // Wait for actual data from both sensors before proceeding
     if (kDebugMode) debugPrint('✓ Connected, waiting for data');
-    
+
     // Update dialog message
     if (mounted) {
       Navigator.of(context).pop();
@@ -229,12 +253,20 @@ class _ConnectionPageState extends State<ConnectionPage> {
           contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           content: Row(
             children: const [
-              SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
               SizedBox(width: 16),
-              Expanded(child: Text('Waiting for sensors to start streaming...')),
+              Expanded(
+                child: Text('Waiting for sensors to start streaming...'),
+              ),
             ],
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -304,8 +336,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
             leftDataReceived
                 ? 'No data from right sensor'
                 : rightDataReceived
-                    ? 'No data from left sensor'
-                    : 'No data from either sensor',
+                ? 'No data from left sensor'
+                : 'No data from either sensor',
           ),
         ),
       );
@@ -353,29 +385,42 @@ class _ConnectionPageState extends State<ConnectionPage> {
                 if (_scanning) ...[
                   const CircularProgressIndicator(),
                   const SizedBox(height: 8),
-                  Text('Scanning (status: $_lastStatus)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    'Scanning (status: $_lastStatus)',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ] else ...[
-                  Text('Scan stopped (status: $_lastStatus)', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    'Scan stopped (status: $_lastStatus)',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ],
                 const SizedBox(height: 12),
-                Wrap(spacing: 12, runSpacing: 8, alignment: WrapAlignment.center, children: [
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Rescan'),
-                    onPressed: () => _prepareFreshScan(),
-                  ),
-                  if (bothSelected)
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.link),
-                      label: const Text('Connect'),
-                      onPressed: _connectBoth,
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Rescan'),
+                      onPressed: () => _prepareFreshScan(),
                     ),
-                ]),
+                    if (bothSelected)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.link),
+                        label: const Text('Connect'),
+                        onPressed: _connectBoth,
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 // Keep a minimal log of discovered devices (optional visibility)
                 Expanded(
                   child: _devices.isEmpty
-                      ? const Center(child: Text('Searching for WTLeft/WTRight...'))
+                      ? const Center(
+                          child: Text('Searching for WTLeft/WTRight...'),
+                        )
                       : ListView.builder(
                           itemCount: _devices.length,
                           itemBuilder: (ctx, i) {
@@ -398,7 +443,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
       ),
     );
   }
-  
+
   Widget _buildSensorStatus(String label, bool selected, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
@@ -410,14 +455,20 @@ class _ConnectionPageState extends State<ConnectionPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(selected ? Icons.check_circle : Icons.circle_outlined,
-              color: selected ? color : Colors.grey[400], size: 26),
+          Icon(
+            selected ? Icons.check_circle : Icons.circle_outlined,
+            color: selected ? color : Colors.grey[400],
+            size: 26,
+          ),
           const SizedBox(width: 8),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? color : Colors.grey[600])),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: selected ? color : Colors.grey[600],
+            ),
+          ),
         ],
       ),
     );
