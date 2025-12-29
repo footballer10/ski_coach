@@ -18,8 +18,8 @@ AICoach getAICoach() {
 }
 
 const int _localContextTokens = 15000;
-const int _localMaxResponseTokens = 5000;
-const int _apiMaxResponseTokens = 5000;
+const int _localMaxResponseTokens = 6000;
+const int _apiMaxResponseTokens = 6000;
 
 class AICoach {
   static final AICoach _instance = AICoach._();
