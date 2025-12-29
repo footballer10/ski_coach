@@ -574,8 +574,6 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
   Widget _buildAIModeToggle() {
     final isApi = AIPreferences.currentMode == AIMode.api;
-    // Disable Local mode on iOS - llama_cpp_dart not compatible with iOS
-    final isIOS = Platform.isIOS;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -601,14 +599,10 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
             height: 40,
             child: Switch(
               value: isApi,
-              onChanged: isIOS
-                  ? null
-                  : (value) async {
-                      await AIPreferences.setMode(
-                        value ? AIMode.api : AIMode.local,
-                      );
-                      setState(() {});
-                    },
+              onChanged: (value) async {
+                await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
+                setState(() {});
+              },
               activeThumbColor: Colors.blue,
               inactiveThumbColor: Colors.green,
               materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -804,46 +798,46 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       // Parse and validate
       final exportedRun = ExportedRun.fromJsonString(jsonString);
 
-      // If we have a callback to handle imported runs (from results page),
-      // use it to create a new page
+      // Convert imported data to analysis results format
+      final results = exportedRun.analysisResults;
+      final analysisResults = {
+        'leftSampleCount': results.leftSampleCount,
+        'rightSampleCount': results.rightSampleCount,
+        'leftSegments': results.leftSegments,
+        'rightSegments': results.rightSegments,
+        'duration': results.runDurationSeconds,
+        'startTime': results.runStartTime,
+        'turnCount': results.turnCount,
+        'turnDurations': results.turnDurationsSeconds,
+        'edgeAngles': results.edgeAngles,
+        'turnDirections': results.turnDirections,
+        'parallelBeginning': results.parallelBeginning,
+        'parallelMiddle': results.parallelMiddle,
+        'parallelEnd': results.parallelEnd,
+        'parallelAvg': results.parallelAvg,
+        'turnShapeBeginning': results.turnShapeBeginning,
+        'turnShapeMiddle': results.turnShapeMiddle,
+        'turnShapeEnd': results.turnShapeEnd,
+        'turnShapeAvg': results.turnShapeAvg,
+        'turnSymmetryRatio': results.turnSymmetryRatio,
+        'turnSymmetryScore': results.turnSymmetryScore,
+        'processedLeftSamples': results.processedLeftSamples,
+        'processedRightSamples': results.processedRightSamples,
+        'segments': results.segments,
+      };
+
+      // If we're on results page already, use callback to create new page
       if (widget.onImportedRun != null) {
         widget.onImportedRun!(exportedRun);
-        return;
+      } else {
+        // Otherwise update state to show results (from pre-recording page)
+        setState(() {
+          _state = RunState.results;
+          _analysisResults = analysisResults;
+          _importedRunName = exportedRun.runName;
+          _importedAiFeedback = exportedRun.aiFeedback;
+        });
       }
-
-      // Otherwise, replace current page state (pre-recording page behavior)
-      final results = exportedRun.analysisResults;
-
-      setState(() {
-        _state = RunState.results;
-        _importedRunName = exportedRun.runName;
-        _importedAiFeedback = exportedRun.aiFeedback;
-        _analysisResults = {
-          'leftSampleCount': results.leftSampleCount,
-          'rightSampleCount': results.rightSampleCount,
-          'leftSegments': results.leftSegments,
-          'rightSegments': results.rightSegments,
-          'duration': results.runDurationSeconds,
-          'startTime': results.runStartTime,
-          'turnCount': results.turnCount,
-          'turnDurations': results.turnDurationsSeconds,
-          'edgeAngles': results.edgeAngles,
-          'turnDirections': results.turnDirections,
-          'parallelBeginning': results.parallelBeginning,
-          'parallelMiddle': results.parallelMiddle,
-          'parallelEnd': results.parallelEnd,
-          'parallelAvg': results.parallelAvg,
-          'turnShapeBeginning': results.turnShapeBeginning,
-          'turnShapeMiddle': results.turnShapeMiddle,
-          'turnShapeEnd': results.turnShapeEnd,
-          'turnShapeAvg': results.turnShapeAvg,
-          'turnSymmetryRatio': results.turnSymmetryRatio,
-          'turnSymmetryScore': results.turnSymmetryScore,
-          'processedLeftSamples': results.processedLeftSamples,
-          'processedRightSamples': results.processedRightSamples,
-          'segments': results.segments,
-        };
-      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -940,29 +934,21 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         ),
         // Calibration blocking overlay
         if (BleManager().isCalibrating)
-          Container(
-            color: Colors.black87,
-            child: const Center(
+          const Scaffold(
+            body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
-                  ),
+                  CircularProgressIndicator(),
                   SizedBox(height: 24),
                   Text(
                     'Sensors Calibrating',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 12),
                   Text(
                     'Please keep sensors still...',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 ],
               ),
