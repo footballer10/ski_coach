@@ -60,6 +60,9 @@ class BleManager {
   /// Get the calibrated yaw offset (right - left) established at connection
   double? get yawOffset => _yawOffsetRightMinusLeft;
 
+  /// Check if sensors are currently calibrating
+  bool get isCalibrating => _isCalibrating;
+
   /// Register which device ID corresponds to which sensor side ('left' or 'right')
   void registerDeviceSide(String deviceId, String side) {
     _deviceSideMapping[deviceId] = side;
@@ -476,8 +479,9 @@ class BleManager {
               _handleRawPacket(deviceId, data);
             },
             onError: (e) {
-              if (kDebugMode)
+              if (kDebugMode) {
                 debugPrint('[$deviceId] ❌ Subscription error: $e');
+              }
             },
             onDone: () {
               if (kDebugMode) debugPrint('[$deviceId] Subscription closed');

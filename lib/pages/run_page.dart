@@ -574,6 +574,9 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
   Widget _buildAIModeToggle() {
     final isApi = AIPreferences.currentMode == AIMode.api;
+    // Disable Local mode on iOS - llama_cpp_dart not compatible with iOS
+    final isIOS = Platform.isIOS;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -598,10 +601,14 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
             height: 40,
             child: Switch(
               value: isApi,
-              onChanged: (value) async {
-                await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
-                setState(() {});
-              },
+              onChanged: isIOS
+                  ? null
+                  : (value) async {
+                      await AIPreferences.setMode(
+                        value ? AIMode.api : AIMode.local,
+                      );
+                      setState(() {});
+                    },
               activeThumbColor: Colors.blue,
               inactiveThumbColor: Colors.green,
               materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -922,12 +929,46 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
-    return Scaffold(
-      body: _state == RunState.recording
-          ? _buildRecordingView()
-          : _state == RunState.processing
-          ? _buildProcessingView()
-          : _buildResultsView(),
+    return Stack(
+      children: [
+        Scaffold(
+          body: _state == RunState.recording
+              ? _buildRecordingView()
+              : _state == RunState.processing
+              ? _buildProcessingView()
+              : _buildResultsView(),
+        ),
+        // Calibration blocking overlay
+        if (BleManager().isCalibrating)
+          Container(
+            color: Colors.black87,
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                  SizedBox(height: 24),
+                  Text(
+                    'Sensors Calibrating',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Please keep sensors still...',
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
