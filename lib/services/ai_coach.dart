@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
+import 'coreml_ai_coach.dart';
 
 AICoach? _aiCoachInstance;
 
@@ -29,6 +30,10 @@ class AICoach {
   bool _isInitialized = false;
   String? _modelPath;
   Llama? _llama;
+  CoreMLAICoach? _coreMLCoach;
+
+  // Check if running on iOS - use CoreML instead of llama.cpp
+  bool get _shouldUseCoreML => Platform.isIOS;
 
   String? _systemPromptLocal;
   String? _systemPromptAPI;
@@ -47,11 +52,29 @@ class AICoach {
 
   Future<void> initialize({bool forceLoad = false}) async {
     if (_isInitialized && !forceLoad) return;
+    
+    // Initialize CoreML on iOS
+    if (_shouldUseCoreML) {
+      _coreMLCoach = CoreMLAICoach();
+      await _coreMLCoach!.initialize();
+    }
+    
     _isInitialized = true;
   }
 
   /// Load model into memory when switching to Local mode
   Future<void> loadModelIntoMemory() async {
+    // iOS: Use CoreML
+    if (_shouldUseCoreML) {
+      if (_coreMLCoach == null) {
+        _coreMLCoach = CoreMLAICoach();
+        await _coreMLCoach!.initialize();
+      }
+      await _coreMLCoach!.loadModelIntoMemory();
+      return;
+    }
+    
+    // Android/Desktop: Use llama.cpp
     if (_llama != null) {
       debugPrint('🤖 Model already loaded in memory');
       return;
@@ -63,6 +86,13 @@ class AICoach {
 
   /// Unload model from memory when switching to API mode
   void unloadModelFromMemory() {
+    // iOS: Use CoreML
+    if (_shouldUseCoreML) {
+      _coreMLCoach?.unloadModelFromMemory();
+      return;
+    }
+    
+    // Android/Desktop: Use llama.cpp
     if (_llama == null) {
       debugPrint('🤖 Model not loaded, nothing to unload');
       return;
@@ -166,6 +196,18 @@ class AICoach {
       if (_systemPromptLocal == null) {
         throw Exception('Local system prompt not set');
       }
+      
+      // iOS: Use CoreML
+      if (_shouldUseCoreML) {
+        if (_coreMLCoach == null) {
+          throw Exception(
+            'CoreML not initialized. Please toggle to Local mode first.',
+          );
+        }
+        return _sendPromptsToCoreML(_systemPromptLocal!, _userPrompt!);
+      }
+      
+      // Android/Desktop: Use llama.cpp
       if (_llama == null) {
         throw Exception(
           'Local model not loaded. Please toggle to Local mode first to load the model into memory.',
@@ -209,6 +251,29 @@ class AICoach {
       return feedback;
     } catch (e) {
       return aiResponse;
+    }
+  }
+
+  Future<String> _sendPromptsToCoreML(
+    String systemPrompt,
+    String userPrompt,
+  ) async {
+    if (_coreMLCoach == null) {
+      throw Exception('CoreML not initialized');
+    }
+
+    try {
+      final response = await _coreMLCoach!.generateCoachingAdvice(
+        systemPrompt: systemPrompt,
+        userPrompt: userPrompt,
+        temperature: 0.0,
+        maxTokens: _localMaxResponseTokens,
+      );
+
+      return response;
+    } catch (e) {
+      debugPrint('CoreML generation error: $e');
+      rethrow;
     }
   }
 
