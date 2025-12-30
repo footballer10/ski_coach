@@ -15,16 +15,21 @@ class AIPreferences {
 
     final aiCoach = getAICoach();
 
-    // When switching TO Local mode, load model into memory
-    if (mode == AIMode.local) {
-      await aiCoach.loadModelIntoMemory();
-    }
+    try {
+      // When switching TO Local mode, load model into memory
+      if (mode == AIMode.local) {
+        await aiCoach.loadModelIntoMemory();
+      }
 
-    // When switching FROM Local mode TO API mode, unload model
-    if (_currentMode == AIMode.local && mode == AIMode.api) {
-      aiCoach.unloadModelFromMemory();
-    }
+      // When switching FROM Local mode TO API mode, unload model
+      if (_currentMode == AIMode.local && mode == AIMode.api) {
+        await aiCoach.unloadModelFromMemory();
+      }
 
-    _currentMode = mode;
+      _currentMode = mode;
+    } catch (e) {
+      // If loading fails, keep current mode
+      throw Exception('Failed to switch AI mode: $e');
+    }
   }
 }

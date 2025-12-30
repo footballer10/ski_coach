@@ -600,8 +600,22 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
             child: Switch(
               value: isApi,
               onChanged: (value) async {
-                await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
-                setState(() {});
+                try {
+                  await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
+                  if (mounted) {
+                    setState(() {}); // Force UI update
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to switch AI mode: ${e.toString().replaceAll('Exception: ', '')}'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                  }
+                }
               },
               activeThumbColor: Colors.blue,
               inactiveThumbColor: Colors.green,

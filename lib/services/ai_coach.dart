@@ -62,44 +62,69 @@ class AICoach {
     _isInitialized = true;
   }
 
+  bool _isLoading = false;
+
   /// Load model into memory when switching to Local mode
   Future<void> loadModelIntoMemory() async {
-    // iOS: Use CoreML
-    if (_shouldUseCoreML) {
-      if (_coreMLCoach == null) {
-        _coreMLCoach = CoreMLAICoach();
-        await _coreMLCoach!.initialize();
-      }
-      await _coreMLCoach!.loadModelIntoMemory();
+    if (_isLoading) {
+      debugPrint('⚠️ Model load/unload already in progress, ignoring request');
       return;
     }
     
-    // Android/Desktop: Use llama.cpp
-    if (_llama != null) {
-      debugPrint('🤖 Model already loaded in memory');
-      return;
+    _isLoading = true;
+    try {
+      // iOS: Use CoreML
+      if (_shouldUseCoreML) {
+        if (_coreMLCoach == null) {
+          _coreMLCoach = CoreMLAICoach();
+          await _coreMLCoach!.initialize();
+        }
+        await _coreMLCoach!.loadModelIntoMemory();
+        return;
+      }
+      
+      // Android/Desktop: Use llama.cpp
+      if (_llama != null) {
+        debugPrint('🤖 Model already loaded in memory');
+        return;
+      }
+      debugPrint('🤖 Loading model into memory...');
+      await _loadLocalModel();
+      debugPrint('🤖 Model loaded and ready!');
+    } catch (e) {
+      debugPrint('❌ Model load failed: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
     }
-    debugPrint('🤖 Loading model into memory...');
-    await _loadLocalModel();
-    debugPrint('🤖 Model loaded and ready!');
   }
 
   /// Unload model from memory when switching to API mode
-  void unloadModelFromMemory() {
-    // iOS: Use CoreML
-    if (_shouldUseCoreML) {
-      _coreMLCoach?.unloadModelFromMemory();
+  Future<void> unloadModelFromMemory() async {
+    if (_isLoading) {
+      debugPrint('⚠️ Model load/unload already in progress, ignoring request');
       return;
     }
     
-    // Android/Desktop: Use llama.cpp
-    if (_llama == null) {
-      debugPrint('🤖 Model not loaded, nothing to unload');
-      return;
+    _isLoading = true;
+    try {
+      // iOS: Use CoreML
+      if (_shouldUseCoreML) {
+        await _coreMLCoach?.unloadModelFromMemory();
+        return;
+      }
+      
+      // Android/Desktop: Use llama.cpp
+      if (_llama == null) {
+        debugPrint('🤖 Model not loaded, nothing to unload');
+        return;
+      }
+      debugPrint('🤖 Unloading model from memory...');
+      _llama = null;
+      debugPrint('🤖 Model unloaded, memory freed');
+    } finally {
+      _isLoading = false;
     }
-    debugPrint('🤖 Unloading model from memory...');
-    _llama = null;
-    debugPrint('🤖 Model unloaded, memory freed');
   }
 
   Future<void> _loadLocalModel() async {

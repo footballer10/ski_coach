@@ -25,6 +25,10 @@ class CoreMLAICoach {
 
   /// Load the model into memory
   Future<void> loadModelIntoMemory() async {
+    if (!_isInitialized) {
+      throw Exception('CoreML not initialized. Call initialize() first.');
+    }
+    
     if (_isModelLoaded) {
       debugPrint('🍎 CoreML model already loaded');
       return;
