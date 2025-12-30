@@ -8,7 +8,7 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     let controller = window?.rootViewController as! FlutterViewController
-    CoreMLBridge.register(with: registrar(forPlugin: "CoreMLBridge")!)
+    MLCBridge.register(with: registrar(forPlugin: "MLCBridge")!)
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

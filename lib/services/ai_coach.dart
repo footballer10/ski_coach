@@ -9,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
-import 'coreml_ai_coach.dart';
+import 'mlc_ai_coach.dart';
 
 AICoach? _aiCoachInstance;
 
@@ -30,10 +30,10 @@ class AICoach {
   bool _isInitialized = false;
   String? _modelPath;
   Llama? _llama;
-  CoreMLAICoach? _coreMLCoach;
+  MLCAICoach? _mlcCoach;
 
-  // Check if running on iOS - use CoreML instead of llama.cpp
-  bool get _shouldUseCoreML => Platform.isIOS;
+  // Check if running on iOS - use MLC LLM instead of llama.cpp
+  bool get _shouldUseMLC => Platform.isIOS;
 
   String? _systemPromptLocal;
   String? _systemPromptAPI;
@@ -53,10 +53,10 @@ class AICoach {
   Future<void> initialize({bool forceLoad = false}) async {
     if (_isInitialized && !forceLoad) return;
     
-    // Initialize CoreML on iOS
-    if (_shouldUseCoreML) {
-      _coreMLCoach = CoreMLAICoach();
-      await _coreMLCoach!.initialize();
+    // Initialize MLC on iOS
+    if (_shouldUseMLC) {
+      _mlcCoach = MLCAICoach();
+      await _mlcCoach!.initialize();
     }
     
     _isInitialized = true;
@@ -73,13 +73,13 @@ class AICoach {
     
     _isLoading = true;
     try {
-      // iOS: Use CoreML
-      if (_shouldUseCoreML) {
-        if (_coreMLCoach == null) {
-          _coreMLCoach = CoreMLAICoach();
-          await _coreMLCoach!.initialize();
+      // iOS: Use MLC LLM
+      if (_shouldUseMLC) {
+        if (_mlcCoach == null) {
+          _mlcCoach = MLCAICoach();
+          await _mlcCoach!.initialize();
         }
-        await _coreMLCoach!.loadModelIntoMemory();
+        await _mlcCoach!.loadModelIntoMemory();
         return;
       }
       
@@ -108,9 +108,9 @@ class AICoach {
     
     _isLoading = true;
     try {
-      // iOS: Use CoreML
-      if (_shouldUseCoreML) {
-        await _coreMLCoach?.unloadModelFromMemory();
+      // iOS: Use MLC LLM
+      if (_shouldUseMLC) {
+        await _mlcCoach?.unloadModelFromMemory();
         return;
       }
       
@@ -222,14 +222,14 @@ class AICoach {
         throw Exception('Local system prompt not set');
       }
       
-      // iOS: Use CoreML
-      if (_shouldUseCoreML) {
-        if (_coreMLCoach == null) {
+      // iOS: Use MLC LLM
+      if (_shouldUseMLC) {
+        if (_mlcCoach == null) {
           throw Exception(
-            'CoreML not initialized. Please toggle to Local mode first.',
+            'MLC not initialized. Please toggle to Local mode first.',
           );
         }
-        return _sendPromptsToCoreML(_systemPromptLocal!, _userPrompt!);
+        return _sendPromptsToMLC(_systemPromptLocal!, _userPrompt!);
       }
       
       // Android/Desktop: Use llama.cpp
@@ -279,16 +279,16 @@ class AICoach {
     }
   }
 
-  Future<String> _sendPromptsToCoreML(
+  Future<String> _sendPromptsToMLC(
     String systemPrompt,
     String userPrompt,
   ) async {
-    if (_coreMLCoach == null) {
-      throw Exception('CoreML not initialized');
+    if (_mlcCoach == null) {
+      throw Exception('MLC not initialized');
     }
 
     try {
-      final response = await _coreMLCoach!.generateCoachingAdvice(
+      final response = await _mlcCoach!.generateCoachingAdvice(
         systemPrompt: systemPrompt,
         userPrompt: userPrompt,
         temperature: 0.0,
@@ -297,7 +297,7 @@ class AICoach {
 
       return response;
     } catch (e) {
-      debugPrint('CoreML generation error: $e');
+      debugPrint('MLC generation error: $e');
       rethrow;
     }
   }
