@@ -1,182 +1,116 @@
 #!/usr/bin/env python3
 """
-Convert GGUF model to CoreML format for iOS
+Convert Hugging Face model to CoreML format for iOS
 
 Requirements:
-    pip install coremltools transformers torch
+    pip install coremltools transformers torch sentencepiece huggingface_hub
 
 Usage:
     python convert_to_coreml.py
 """
 
 import coremltools as ct
-from transformers import AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
 
-def convert_gguf_to_coreml():
+# CHANGE THIS to choose which model to convert:
+MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"  # Recommended: faster, more reliable
+# MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"  # Alternative: best quality
+
+def convert_hf_to_coreml():
     """
-    Convert Llama 3.1 8B GGUF model to CoreML format
+    Convert Llama model from Hugging Face to 4-bit quantized CoreML format
     
-    Note: This is a simplified converter. For production use, you may need
-    to use more sophisticated conversion tools or the official CoreML conversion
-    pipeline from the model's creators.
+    This downloads the model from Hugging Face, quantizes to 4-bit INT4,
+    and converts to CoreML format in one step.
     """
     
-    print("🔄 Starting GGUF to CoreML conversion...")
-    print("⚠️  Note: This process requires significant RAM (16GB+) and may take 10-30 minutes")
+    print("🔄 Starting Hugging Face → CoreML conversion...")
+    print(f"📦 Model: {MODEL_NAME}")
+    print("⚠️  Note: This process requires significant RAM (16GB+) and may take 15-30 minutes")
+    print("⚠️  First run will download ~6GB for 3B or ~16GB for 8B model")
     
-    # Paths
-    input_model_path = "../assets/models/llama-3.1-8b-instruct-q4_k_m.gguf"
-    output_model_path = "../ios/Runner/SkiCoachLlama.mlpackage"
+    output_model_path = "SkiCoachLlama.mlpackage"
     
-    if not os.path.exists(input_model_path):
-        print(f"❌ Error: Model file not found at {input_model_path}")
-        print("Please ensure the GGUF model is in the assets/models/ directory")
-        return False
-    
-    print(f"📂 Input: {input_model_path}")
     print(f"📦 Output: {output_model_path}")
     
     try:
-        # Method 1: Using ct-llm (CoreML-LLM conversion tool)
-        # This is the recommended approach for LLMs
-        print("\n📋 Step 1: Using coremltools for conversion...")
-        print("This will take a while. Please be patient...")
+        print("\n📋 Step 1: Downloading model from Hugging Face...")
+        print("(This may take a while on first run)")
         
-        # Note: The actual conversion requires using llama.cpp tools first
-        # to export to a format that CoreML can understand
+        # Load model and tokenizer from Hugging Face
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_NAME,
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=True,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         
-        print("""
-⚠️  IMPORTANT CONVERSION STEPS:
-
-Since direct GGUF → CoreML conversion isn't straightforward, you'll need to:
-
-1. First, export the GGUF to GGML format using llama.cpp tools
-2. Then use ct-llm to convert GGML to CoreML
-
-Here's the command sequence:
-
-# Step 1: Export to GGML format (if not already done)
-# (This step depends on your specific model)
-
-# Step 2: Convert to CoreML using ct-llm
-ct-llm convert \\
-  --model-path {input_model_path} \\
-  --output-dir {os.path.dirname(output_model_path)} \\
-  --output-name SkiCoachLlama \\
-  --quantize-weights int4
-
-Alternatively, you can:
-1. Download a pre-converted CoreML version of Llama 3.1 8B
-2. Or use Apple's conversion tools with the original PyTorch model
-
-For now, I'll create a placeholder structure...
-        """)
+        print("✅ Model downloaded")
         
-        # Create placeholder
-        os.makedirs(output_model_path, exist_ok=True)
+        print("\n📋 Step 2: Converting to CoreML with 4-bit quantization...")
+        print("(This is the slow part - 15-30 minutes)")
         
-        print("""
-✅ Placeholder created. 
+        # Convert to CoreML with 4-bit quantization
+        mlmodel = ct.convert(
+            model,
+            convert_to="mlprogram",
+            minimum_deployment_target=ct.target.iOS17,
+            compute_units=ct.ComputeUnit.ALL,
+            compute_precision=ct.precision.FLOAT16,
+        )
+        
+        # Apply 4-bit quantization
+        print("\n📋 Step 3: Applying INT4 quantization...")
+        mlmodel = ct.models.neural_network.quantization_utils.quantize_weights(
+            mlmodel,
+            nbits=4,
+            quantization_mode="linear_symmetric"
+        )
+        
+        print("\n📋 Step 4: Saving model...")
+        mlmodel.save(output_model_path)
+        
+        # Get file size
+        import subprocess
+        try:
+            size_output = subprocess.check_output(['du', '-sh', output_model_path]).decode()
+            size = size_output.split()[0]
+        except:
+            size = "unknown"
+        
+        print(f"""
+✅ Conversion complete!
 
-📚 For actual conversion, refer to:
-   - https://apple.github.io/coremltools/
-   - https://github.com/apple/ml-stable-diffusion (has LLM examples)
-   - https://huggingface.co/models?library=coreml (pre-converted models)
+📦 Output: {output_model_path}
+💾 Size: {size}
 
-🔍 Look for "Llama-3.1-8B-Instruct" with CoreML support on Hugging Face
-   or convert using the ct-llm tool from Apple.
+📋 Next steps:
+1. Open Xcode: open ../ios/Runner.xcworkspace
+2. Drag {output_model_path} into Runner folder
+3. Check "Copy items if needed" and "Runner" target
+4. Build and run!
         """)
         
         return True
         
     except Exception as e:
         print(f"❌ Conversion failed: {e}")
+        print("\n💡 Troubleshooting:")
+        print("- Ensure you have 16GB+ RAM available")
+        print("- Check internet connection for model download")
+        print("- Try the alternative model (edit MODEL_NAME in this script)")
+        print("- Consider downloading a pre-converted model from Hugging Face")
         return False
-
-def create_readme():
-    """Create a README with conversion instructions"""
-    readme_content = """# CoreML Model Conversion Guide
-
-## Quick Start
-
-The easiest way to get a CoreML version of Llama 3.1 8B:
-
-### Option 1: Download Pre-converted Model (Recommended)
-1. Search Hugging Face for "Llama-3.1-8B-Instruct CoreML"
-2. Download the .mlpackage file
-3. Rename to `SkiCoachLlama.mlpackage`
-4. Place in `ios/Runner/` directory
-
-### Option 2: Convert Using ct-llm (Advanced)
-
-Requirements:
-```bash
-pip install coremltools
-pip install ct-llm
-```
-
-Conversion:
-```bash
-ct-llm convert \\
-  --model-path ../assets/models/llama-3.1-8b-instruct-q4_k_m.gguf \\
-  --output-dir ../ios/Runner \\
-  --output-name SkiCoachLlama \\
-  --quantize-weights int4
-```
-
-### Option 3: Convert from Original PyTorch Model
-
-If you have the original Llama 3.1 8B PyTorch model:
-
-```python
-import coremltools as ct
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-# Load model
-model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.1-8B-Instruct")
-tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B-Instruct")
-
-# Convert to CoreML
-mlmodel = ct.convert(
-    model,
-    convert_to="mlprogram",
-    minimum_deployment_target=ct.target.iOS17,
-    compute_units=ct.ComputeUnit.ALL
-)
-
-# Save
-mlmodel.save("SkiCoachLlama.mlpackage")
-```
-
-## Troubleshooting
-
-- **Out of Memory**: Conversion needs 16GB+ RAM
-- **Takes forever**: Normal for 8B parameter models (15-30 min)
-- **Conversion fails**: Try pre-converted model from Hugging Face
-
-## Resources
-
-- [CoreMLTools Docs](https://apple.github.io/coremltools/)
-- [ct-llm GitHub](https://github.com/apple/ml-stable-diffusion)
-- [Hugging Face CoreML Models](https://huggingface.co/models?library=coreml)
-"""
-    
-    with open("../docs/coreml_conversion.md", "w") as f:
-        f.write(readme_content)
-    
-    print("📝 Created conversion guide at docs/coreml_conversion.md")
 
 if __name__ == "__main__":
     print("🍎 CoreML Model Converter for Ski Coach")
     print("=" * 50)
     
-    success = convert_gguf_to_coreml()
-    create_readme()
+    success = convert_hf_to_coreml()
     
     if success:
-        print("\n✅ Setup complete!")
-        print("📖 See docs/coreml_conversion.md for next steps")
+        print("\n✅ All done! Model ready to use.")
     else:
-        print("\n⚠️  Conversion incomplete. See instructions above.")
+        print("\n⚠️  Conversion failed. See error messages above.")
