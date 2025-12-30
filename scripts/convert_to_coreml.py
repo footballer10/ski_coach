@@ -15,8 +15,9 @@ import torch
 import os
 
 # CHANGE THIS to choose which model to convert:
-MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"  # Recommended: faster, more reliable
-# MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"  # Alternative: best quality
+MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"  # Recommended: 3.8B, ungated, similar to Llama 3B
+# MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"  # Requires Hugging Face login
+# MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"  # Requires Hugging Face login
 
 def convert_hf_to_coreml():
     """
