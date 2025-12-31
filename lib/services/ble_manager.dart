@@ -51,6 +51,8 @@ class BleManager {
 
   // Calibration state: collect samples when both sensors connect
   bool _isCalibrating = false;
+  bool _isCollectingSamples = false; // True when actually collecting samples
+  int _calibrationCountdown = 5; // Countdown in seconds
   final Map<String, List<double>> _calibrationSamples = {};
   static const int _calibrationSampleCount =
       100; // Increased from 50 to allow more settling time
@@ -60,8 +62,14 @@ class BleManager {
   /// Get the calibrated yaw offset (right - left) established at connection
   double? get yawOffset => _yawOffsetRightMinusLeft;
 
-  /// Check if sensors are currently calibrating
+  /// Check if sensors are currently calibrating (countdown or sampling)
   bool get isCalibrating => _isCalibrating;
+  
+  /// Check if actively collecting calibration samples
+  bool get isCollectingSamples => _isCollectingSamples;
+  
+  /// Get remaining countdown seconds
+  int get calibrationCountdown => _calibrationCountdown;
 
   /// Register which device ID corresponds to which sensor side ('left' or 'right')
   void registerDeviceSide(String deviceId, String side) {
@@ -265,6 +273,8 @@ class BleManager {
   void _startCalibration() {
     // Show calibration overlay immediately
     _isCalibrating = true;
+    _isCollectingSamples = false;
+    _calibrationCountdown = 5;
     _calibrationSamples.clear();
     _calibrationSamples['left'] = [];
     _calibrationSamples['right'] = [];
@@ -273,15 +283,28 @@ class BleManager {
       debugPrint(
         '🎯 ════════════════════════════════════════════════════════════════',
       );
-      debugPrint('🎯 CALIBRATION OVERLAY SHOWN - Waiting for sensors to settle...');
+      debugPrint('🎯 CALIBRATION OVERLAY SHOWN - Starting countdown...');
       debugPrint(
         '🎯 ════════════════════════════════════════════════════════════════',
       );
     }
     
-    // Wait 5 seconds before starting to collect calibration samples to allow sensors to settle
+    // Countdown timer - update every second
+    for (int i = 1; i <= 5; i++) {
+      Future.delayed(Duration(seconds: i), () {
+        if (_isCalibrating && _yawOffsetRightMinusLeft == null) {
+          _calibrationCountdown = 5 - i;
+          if (kDebugMode) {
+            debugPrint('🎯 Countdown: ${_calibrationCountdown}s');
+          }
+        }
+      });
+    }
+    
+    // Start collecting samples after 5 seconds
     Future.delayed(const Duration(seconds: 5), () {
       if (_isCalibrating && _yawOffsetRightMinusLeft == null) {
+        _isCollectingSamples = true;
         if (kDebugMode) {
           debugPrint(
             '🎯 STARTING YAW CALIBRATION (after 5s settling time)',
@@ -340,6 +363,7 @@ class BleManager {
 
       _yawOffsetRightMinusLeft = rightAvg - leftAvg;
       _isCalibrating = false;
+      _isCollectingSamples = false;
       _calibrationSamples.clear();
 
       if (kDebugMode) {

@@ -918,27 +918,36 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
               ? _buildProcessingView()
               : _buildResultsView(),
         ),
-        // Calibration blocking overlay
+        // Calibration blocking overlay with live countdown
         if (BleManager().isCalibrating)
-          const Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 24),
-                  Text(
-                    'Sensors Calibrating',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          StreamBuilder<int>(
+            stream: Stream.periodic(const Duration(milliseconds: 100), (i) => i),
+            builder: (context, snapshot) {
+              return Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 24),
+                      Text(
+                        BleManager().isCollectingSamples
+                            ? 'Calibration in Progress'
+                            : 'Preparing Calibration',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        BleManager().isCollectingSamples
+                            ? 'Please keep sensors still...'
+                            : 'Starting in ${BleManager().calibrationCountdown}s...',
+                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Please keep sensors still...',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
       ],
     );
