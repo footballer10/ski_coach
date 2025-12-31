@@ -105,23 +105,14 @@ class AICoach {
 
     final file = File(_modelPath!);
 
-    // Copy model from assets if not in documents directory
     if (!file.existsSync()) {
-      debugPrint('🤖 Copying model from assets...');
-      try {
-        final assetData = await rootBundle.load('assets/models/model.gguf');
-        final bytes = assetData.buffer.asUint8List();
-        await file.writeAsBytes(bytes);
-        debugPrint('🤖 Model copied to: $_modelPath');
-      } catch (e) {
-        debugPrint('🤖 Failed to load model from assets: $e');
-        throw Exception(
-          'Model file not found. Please ensure model.gguf is in assets/models/',
-        );
-      }
-    } else {
-      debugPrint('🤖 Model found at: $_modelPath');
+      debugPrint('🤖 Model not found at: $_modelPath');
+      throw Exception(
+        'Model not found. Please copy model.gguf to app documents directory or use API mode.',
+      );
     }
+
+    debugPrint('🤖 Model found at: $_modelPath');
 
     try {
       final modelParams = ModelParams();
