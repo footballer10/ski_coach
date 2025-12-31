@@ -61,7 +61,7 @@ class _AppControllerState extends State<AppController> {
         onDisconnect: _onSensorsDisconnected,
         onManualReconnect: _onManualReconnectPressed,
         autoStart: false,
-        onImportedRun: _addImportedRunPage,
+        // Don't pass onImportedRun - let pre-recording page handle import locally
         onResultsShown: () {
           // Enable arrows after first results shown
           if (!_showArrows) {
@@ -80,30 +80,6 @@ class _AppControllerState extends State<AppController> {
     setState(() {
       _showConnectionOverlay = false;
     });
-    // Always add a new RunPage and force navigation to it, blocking with calibration overlay
-    final pageKey = GlobalKey<RunPageState>();
-    final newPage = RunPage(
-      key: pageKey,
-      bleMgr: bleMgr,
-      leftId: leftId,
-      rightId: rightId,
-      onRecordAgain: _addNewRunPage,
-      onDisconnect: _onSensorsDisconnected,
-      onManualReconnect: _onManualReconnectPressed,
-      autoStart: false,
-      onImportedRun: _addImportedRunPage,
-      onResultsShown: () {
-        if (!_showArrows) {
-          setState(() => _showArrows = true);
-        }
-      },
-    );
-    setState(() {
-      _runPages.add(newPage);
-      _runPageKeys.add(pageKey);
-      _currentPage = _runPages.length - 1;
-    });
-    // Navigation to new page happens immediately, calibration overlay will block UI until done
   }
 
   bool _reconnectOpen = false;
@@ -190,7 +166,7 @@ class _AppControllerState extends State<AppController> {
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
       autoStart: false,
-      onImportedRun: _addImportedRunPage,
+      // Don't pass onImportedRun - let pre-recording page handle import locally
       onResultsShown: null,
     );
     int targetIndex = 0;
@@ -297,7 +273,7 @@ class _AppControllerState extends State<AppController> {
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
       autoStart: true,
-      onImportedRun: _addImportedRunPage,
+      // Don't pass onImportedRun - let pre-recording page handle import locally
       onResultsShown: () {
         // Enable arrows after first results shown
         if (!_showArrows) {
