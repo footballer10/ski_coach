@@ -1,7 +1,6 @@
 library;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -39,6 +38,7 @@ class AICoach {
   
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
+  bool _isLoading = false;
 
   List<String> getCategoriesCoached() => List.unmodifiable(_categoriesCoached);
   List<String> getDrillsCoached() => List.unmodifiable(_drillsCoached);
@@ -108,20 +108,28 @@ class AICoach {
       debugPrint('🤖 Download error: $e');
     } finally {
       _isDownloading = false;
-    if (!file.existsSync()) {
-      // If model doesn't exist, trigger download
-      debugPrint('🤖 Model not found. Triggering download...');
-      await _downloadModelInBackground();
-      
-      // Check again after download
-      if (!file.existsSync()) {
-        throw Exception(
-          'Model download failed. Please check internet connection or use API mode.',
-        );
-      }
+      _downloadProgress = 0.0;
     }
+  }
 
-    debugPrint('🤖 Model found at: $_modelPath'); debugPrint('❌ Model load failed: $e');
+  /// Load model into memory when switching to Local mode
+  Future<void> loadModelIntoMemory() async {
+    if (_isLoading) {
+      debugPrint('⚠️ Model load/unload already in progress, ignoring request');
+      return;
+    }
+    
+    _isLoading = true;
+    try {
+      if (_llama != null) {
+        debugPrint('🤖 Model already loaded in memory');
+        return;
+      }
+      debugPrint('🤖 Loading model into memory...');
+      await _loadLocalModel();
+      debugPrint('🤖 Model loaded and ready!');
+    } catch (e) {
+      debugPrint('❌ Model load failed: $e');
       rethrow;
     } finally {
       _isLoading = false;
@@ -154,33 +162,22 @@ class AICoach {
 
     final docDir = await getApplicationDocumentsDirectory();
     _modelPath = '${docDir.path}/model.gguf';
-
     final file = File(_modelPath!);
 
-    // Download model on first launch if not present
+    // If model doesn't exist, trigger download
     if (!file.existsSync()) {
       debugPrint('🤖 Model not found. Downloading...');
+      await _downloadModelInBackground();
       
-      // TODO: Replace with your model URL
-      const modelUrl = 'YOUR_MODEL_DOWNLOAD_URL_HERE';
-      
-      try {
-        final response = await http.get(Uri.parse(modelUrl));
-        if (response.statusCode == 200) {
-          await file.writeAsBytes(response.bodyBytes);
-          debugPrint('🤖 Model downloaded to: $_modelPath');
-        } else {
-          throw Exception('Failed to download model: ${response.statusCode}');
-        }
-      } catch (e) {
-        debugPrint('🤖 Download failed: $e');
+      // Check again after download
+      if (!file.existsSync()) {
         throw Exception(
-          'Failed to download model. Please check internet connection or use API mode.',
+          'Model download failed. Please check internet connection or use API mode.',
         );
       }
-    } else {
-      debugPrint('🤖 Model found at: $_modelPath');
     }
+
+    debugPrint('🤖 Model found at: $_modelPath');
 
     try {
       final modelParams = ModelParams();
