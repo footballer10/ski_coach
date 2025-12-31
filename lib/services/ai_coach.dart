@@ -9,7 +9,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
-import 'mlc_ai_coach.dart';
 
 AICoach? _aiCoachInstance;
 
@@ -30,10 +29,6 @@ class AICoach {
   bool _isInitialized = false;
   String? _modelPath;
   Llama? _llama;
-  MLCAICoach? _mlcCoach;
-
-  // Check if running on iOS - use MLC LLM instead of llama.cpp
-  bool get _shouldUseMLC => Platform.isIOS;
 
   String? _systemPromptLocal;
   String? _systemPromptAPI;
@@ -52,13 +47,6 @@ class AICoach {
 
   Future<void> initialize({bool forceLoad = false}) async {
     if (_isInitialized && !forceLoad) return;
-    
-    // Initialize MLC on iOS
-    if (_shouldUseMLC) {
-      _mlcCoach = MLCAICoach();
-      await _mlcCoach!.initialize();
-    }
-    
     _isInitialized = true;
   }
 
@@ -73,17 +61,6 @@ class AICoach {
     
     _isLoading = true;
     try {
-      // iOS: Use MLC LLM
-      if (_shouldUseMLC) {
-        if (_mlcCoach == null) {
-          _mlcCoach = MLCAICoach();
-          await _mlcCoach!.initialize();
-        }
-        await _mlcCoach!.loadModelIntoMemory();
-        return;
-      }
-      
-      // Android/Desktop: Use llama.cpp
       if (_llama != null) {
         debugPrint('🤖 Model already loaded in memory');
         return;
@@ -108,13 +85,6 @@ class AICoach {
     
     _isLoading = true;
     try {
-      // iOS: Use MLC LLM
-      if (_shouldUseMLC) {
-        await _mlcCoach?.unloadModelFromMemory();
-        return;
-      }
-      
-      // Android/Desktop: Use llama.cpp
       if (_llama == null) {
         debugPrint('🤖 Model not loaded, nothing to unload');
         return;
@@ -222,17 +192,6 @@ class AICoach {
         throw Exception('Local system prompt not set');
       }
       
-      // iOS: Use MLC LLM
-      if (_shouldUseMLC) {
-        if (_mlcCoach == null) {
-          throw Exception(
-            'MLC not initialized. Please toggle to Local mode first.',
-          );
-        }
-        return _sendPromptsToMLC(_systemPromptLocal!, _userPrompt!);
-      }
-      
-      // Android/Desktop: Use llama.cpp
       if (_llama == null) {
         throw Exception(
           'Local model not loaded. Please toggle to Local mode first to load the model into memory.',
@@ -276,29 +235,6 @@ class AICoach {
       return feedback;
     } catch (e) {
       return aiResponse;
-    }
-  }
-
-  Future<String> _sendPromptsToMLC(
-    String systemPrompt,
-    String userPrompt,
-  ) async {
-    if (_mlcCoach == null) {
-      throw Exception('MLC not initialized');
-    }
-
-    try {
-      final response = await _mlcCoach!.generateCoachingAdvice(
-        systemPrompt: systemPrompt,
-        userPrompt: userPrompt,
-        temperature: 0.0,
-        maxTokens: _localMaxResponseTokens,
-      );
-
-      return response;
-    } catch (e) {
-      debugPrint('MLC generation error: $e');
-      rethrow;
     }
   }
 

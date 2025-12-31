@@ -7,9 +7,12 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    let controller = window?.rootViewController as! FlutterViewController
-    MLCBridge.register(with: registrar(forPlugin: "MLCBridge")!)
     GeneratedPluginRegistrant.register(with: self)
+    
+    // Register LlamaCppBridge plugin
+    let controller = window?.rootViewController as! FlutterViewController
+    LlamaCppBridge.register(with: self.registrar(forPlugin: "ski_coach/llama")!)
+    
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
