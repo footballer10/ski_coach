@@ -81,31 +81,50 @@ class AICoach {
       final modelPath = '${docDir.path}/model.gguf';
       final file = File(modelPath);
       
+      debugPrint('🤖 Downloading from: $modelUrl');
+      debugPrint('🤖 Saving to: $modelPath');
+      
+      final client = http.Client();
       final request = http.Request('GET', Uri.parse(modelUrl));
-      final response = await request.send();
+      request.followRedirects = true;
+      request.maxRedirects = 5;
+      
+      final response = await client.send(request);
+      
+      debugPrint('🤖 Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final contentLength = response.contentLength ?? 0;
-        var downloaded = 0;
+        debugPrint('🤖 File size: ${(contentLength / 1024 / 1024).toStringAsFixed(2)} MB');
         
+        var downloaded = 0;
         final bytes = <int>[];
+        
         await for (final chunk in response.stream) {
           bytes.addAll(chunk);
           downloaded += chunk.length;
           
           if (contentLength > 0) {
             _downloadProgress = downloaded / contentLength;
-            debugPrint('🤖 Download progress: ${(_downloadProgress * 100).toStringAsFixed(1)}%');
+            if (downloaded % (10 * 1024 * 1024) == 0 || downloaded == contentLength) {
+              debugPrint('🤖 Downloaded: ${(downloaded / 1024 / 1024).toStringAsFixed(2)} MB (${(_downloadProgress * 100).toStringAsFixed(1)}%)');
+            }
           }
         }
         
+        debugPrint('🤖 Writing file to disk...');
         await file.writeAsBytes(bytes);
         debugPrint('🤖 Model downloaded successfully to: $modelPath');
       } else {
-        debugPrint('🤖 Download failed: ${response.statusCode}');
+        debugPrint('🤖 Download failed with status: ${response.statusCode}');
+        debugPrint('🤖 Response headers: ${response.headers}');
+        throw Exception('Download failed: HTTP ${response.statusCode}');
       }
-    } catch (e) {
+      
+      client.close();
+    } catch (e, stackTrace) {
       debugPrint('🤖 Download error: $e');
+      debugPrint('🤖 Stack trace: $stackTrace');
     } finally {
       _isDownloading = false;
       _downloadProgress = 0.0;
