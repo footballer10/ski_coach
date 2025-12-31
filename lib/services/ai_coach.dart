@@ -105,26 +105,14 @@ class AICoach {
 
     final file = File(_modelPath!);
 
-    // Copy model from assets if not already in documents directory
     if (!file.existsSync()) {
-      debugPrint('🤖 Copying model from assets...');
-      try {
-        final assetData = await rootBundle.load(
-          'assets/models/llama-3.1-8b-instruct-q4_k_m.gguf',
-        );
-        final bytes = assetData.buffer.asUint8List();
-        await file.writeAsBytes(bytes);
-        debugPrint('🤖 Model copied to: $_modelPath');
-      } catch (e) {
-        debugPrint('🤖 Failed to load model from assets: $e');
-        throw Exception(
-          'Failed to load AI model from assets. Please ensure the model file is included in the app.\n\n'
-          'Error: $e',
-        );
-      }
-    } else {
-      debugPrint('🤖 Model found at: $_modelPath');
+      throw Exception(
+        'Model file not found at: $_modelPath\n\n'
+        'Please download the model and place it in the app documents directory.',
+      );
     }
+
+    debugPrint('🤖 Model found at: $_modelPath');
 
     try {
       final modelParams = ModelParams();
