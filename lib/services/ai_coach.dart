@@ -105,14 +105,30 @@ class AICoach {
 
     final file = File(_modelPath!);
 
+    // Download model on first launch if not present
     if (!file.existsSync()) {
-      debugPrint('🤖 Model not found at: $_modelPath');
-      throw Exception(
-        'Model not found. Please copy model.gguf to app documents directory or use API mode.',
-      );
+      debugPrint('🤖 Model not found. Downloading...');
+      
+      // TODO: Replace with your model URL
+      const modelUrl = 'YOUR_MODEL_DOWNLOAD_URL_HERE';
+      
+      try {
+        final response = await http.get(Uri.parse(modelUrl));
+        if (response.statusCode == 200) {
+          await file.writeAsBytes(response.bodyBytes);
+          debugPrint('🤖 Model downloaded to: $_modelPath');
+        } else {
+          throw Exception('Failed to download model: ${response.statusCode}');
+        }
+      } catch (e) {
+        debugPrint('🤖 Download failed: $e');
+        throw Exception(
+          'Failed to download model. Please check internet connection or use API mode.',
+        );
+      }
+    } else {
+      debugPrint('🤖 Model found at: $_modelPath');
     }
-
-    debugPrint('🤖 Model found at: $_modelPath');
 
     try {
       final modelParams = ModelParams();
