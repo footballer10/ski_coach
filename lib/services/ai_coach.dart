@@ -36,6 +36,9 @@ class AICoach {
 
   final List<String> _categoriesCoached = [];
   final List<String> _drillsCoached = [];
+  
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
 
   List<String> getCategoriesCoached() => List.unmodifiable(_categoriesCoached);
   List<String> getDrillsCoached() => List.unmodifiable(_drillsCoached);
@@ -49,27 +52,76 @@ class AICoach {
     if (_isInitialized && !forceLoad) return;
     _isInitialized = true;
   }
-
-  bool _isLoading = false;
-
-  /// Load model into memory when switching to Local mode
-  Future<void> loadModelIntoMemory() async {
-    if (_isLoading) {
-      debugPrint('⚠️ Model load/unload already in progress, ignoring request');
+  
+  /// Download model in background if not present
+  Future<void> ensureModelDownloaded() async {
+    final docDir = await getApplicationDocumentsDirectory();
+    final modelPath = '${docDir.path}/model.gguf';
+    final file = File(modelPath);
+    
+    if (file.existsSync()) {
+      debugPrint('🤖 Model already downloaded');
       return;
     }
     
-    _isLoading = true;
+    _downloadModelInBackground();
+  }
+  
+  Future<void> _downloadModelInBackground() async {
+    if (_isDownloading) return;
+    
+    _isDownloading = true;
+    debugPrint('🤖 Starting model download...');
+    
+    // Replace with your actual model URL
+    const modelUrl = 'YOUR_MODEL_DOWNLOAD_URL_HERE';
+    
     try {
-      if (_llama != null) {
-        debugPrint('🤖 Model already loaded in memory');
-        return;
+      final docDir = await getApplicationDocumentsDirectory();
+      final modelPath = '${docDir.path}/model.gguf';
+      final file = File(modelPath);
+      
+      final request = http.Request('GET', Uri.parse(modelUrl));
+      final response = await request.send();
+      
+      if (response.statusCode == 200) {
+        final contentLength = response.contentLength ?? 0;
+        var downloaded = 0;
+        
+        final bytes = <int>[];
+        await for (final chunk in response.stream) {
+          bytes.addAll(chunk);
+          downloaded += chunk.length;
+          
+          if (contentLength > 0) {
+            _downloadProgress = downloaded / contentLength;
+            debugPrint('🤖 Download progress: ${(_downloadProgress * 100).toStringAsFixed(1)}%');
+          }
+        }
+        
+        await file.writeAsBytes(bytes);
+        debugPrint('🤖 Model downloaded successfully to: $modelPath');
+      } else {
+        debugPrint('🤖 Download failed: ${response.statusCode}');
       }
-      debugPrint('🤖 Loading model into memory...');
-      await _loadLocalModel();
-      debugPrint('🤖 Model loaded and ready!');
     } catch (e) {
-      debugPrint('❌ Model load failed: $e');
+      debugPrint('🤖 Download error: $e');
+    } finally {
+      _isDownloading = false;
+    if (!file.existsSync()) {
+      // If model doesn't exist, trigger download
+      debugPrint('🤖 Model not found. Triggering download...');
+      await _downloadModelInBackground();
+      
+      // Check again after download
+      if (!file.existsSync()) {
+        throw Exception(
+          'Model download failed. Please check internet connection or use API mode.',
+        );
+      }
+    }
+
+    debugPrint('🤖 Model found at: $_modelPath'); debugPrint('❌ Model load failed: $e');
       rethrow;
     } finally {
       _isLoading = false;

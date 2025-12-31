@@ -11,6 +11,9 @@ void main() async {
 
   aiCoach.setSystemPromptLocal(localSystemPrompt);
   aiCoach.setSystemPromptAPI(localSystemPrompt);
+  
+  // Download model in background on first launch
+  aiCoach.ensureModelDownloaded();
 
   runApp(const MyApp());
 }
