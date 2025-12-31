@@ -73,8 +73,8 @@ class AICoach {
     _isDownloading = true;
     debugPrint('🤖 Starting model download...');
     
-    // Replace with your actual model URL
-    const modelUrl = 'YOUR_MODEL_DOWNLOAD_URL_HERE';
+    // Qwen 2.5 7B Instruct Q4_K_M from HuggingFace
+    const modelUrl = 'https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf';
     
     try {
       final docDir = await getApplicationDocumentsDirectory();
