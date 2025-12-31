@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'connection_page.dart';
 import 'run_page.dart';
+import '../models.dart';
 
 /// Main controller that manages all run pages and handles connection state.
 class AppController extends StatefulWidget {
@@ -326,6 +327,36 @@ class _AppControllerState extends State<AppController> {
 
   void _addImportedRunPage(dynamic importedRun) {
     // importedRun is an ExportedRun object
+    final exportedRun = importedRun as ExportedRun;
+    final results = exportedRun.analysisResults;
+    
+    // Convert to analysis results format
+    final analysisResults = {
+      'leftSampleCount': results.leftSampleCount,
+      'rightSampleCount': results.rightSampleCount,
+      'leftSegments': results.leftSegments,
+      'rightSegments': results.rightSegments,
+      'duration': results.runDurationSeconds,
+      'startTime': results.runStartTime,
+      'turnCount': results.turnCount,
+      'turnDurations': results.turnDurationsSeconds,
+      'edgeAngles': results.edgeAngles,
+      'turnDirections': results.turnDirections,
+      'parallelBeginning': results.parallelBeginning,
+      'parallelMiddle': results.parallelMiddle,
+      'parallelEnd': results.parallelEnd,
+      'parallelAvg': results.parallelAvg,
+      'turnShapeBeginning': results.turnShapeBeginning,
+      'turnShapeMiddle': results.turnShapeMiddle,
+      'turnShapeEnd': results.turnShapeEnd,
+      'turnShapeAvg': results.turnShapeAvg,
+      'turnSymmetryRatio': results.turnSymmetryRatio,
+      'turnSymmetryScore': results.turnSymmetryScore,
+      'processedLeftSamples': results.processedLeftSamples,
+      'processedRightSamples': results.processedRightSamples,
+      'segments': results.segments,
+    };
+    
     final pageKey = GlobalKey<RunPageState>();
     final newPage = RunPage(
       key: pageKey,
@@ -335,8 +366,12 @@ class _AppControllerState extends State<AppController> {
       onRecordAgain: _addNewRunPage,
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
-      autoStart: false, // Don't auto-start for imported runs
+      autoStart: false,
       onImportedRun: _addImportedRunPage,
+      initialState: RunState.results, // Start directly in results state
+      initialResults: analysisResults,
+      initialImportedName: exportedRun.runName,
+      initialAiFeedback: exportedRun.aiFeedback,
       onResultsShown: () {
         if (!_showArrows) {
           setState(() => _showArrows = true);
@@ -351,19 +386,13 @@ class _AppControllerState extends State<AppController> {
       _runPageKeys.add(pageKey);
     });
 
-    // Jump to the new page and trigger import on it
+    // Jump to the new page
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageController.hasClients && mounted) {
         _pageController.jumpToPage(targetPage);
         setState(() {
           _currentPage = targetPage;
         });
-
-        // Trigger the import on the new page
-        final newPageState = pageKey.currentState;
-        if (newPageState != null && newPageState.mounted) {
-          newPageState.loadImportedRun(importedRun);
-        }
       }
     });
   }

@@ -24,6 +24,10 @@ class RunPage extends StatefulWidget {
   final VoidCallback? onReconnected;
   final bool autoStart;
   final Function(ExportedRun)? onImportedRun; // Handle imported run data
+  final RunState? initialState; // Start in specific state (for imports)
+  final Map<String, dynamic>? initialResults; // Pre-load results (for imports)
+  final String? initialImportedName; // Imported run name
+  final String? initialAiFeedback; // Pre-generated AI feedback
 
   const RunPage({
     super.key,
@@ -37,6 +41,10 @@ class RunPage extends StatefulWidget {
     this.onReconnected,
     this.autoStart = false,
     this.onImportedRun,
+    this.initialState,
+    this.initialResults,
+    this.initialImportedName,
+    this.initialAiFeedback,
   });
 
   @override
@@ -49,7 +57,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  RunState _state = RunState.recording;
+  late RunState _state;
   StreamSubscription<Map<String, double>>? _leftSub;
   StreamSubscription<Map<String, double>>? _rightSub;
   Map<String, double>? _leftLatest;
@@ -73,12 +81,21 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
 
-    // Register which device is left and which is right for calibration
-    widget.bleMgr.registerDeviceSide(widget.leftId, 'left');
-    widget.bleMgr.registerDeviceSide(widget.rightId, 'right');
+    // Initialize state from parameters (for imports)
+    _state = widget.initialState ?? RunState.recording;
+    _analysisResults = widget.initialResults;
+    _importedRunName = widget.initialImportedName;
+    _importedAiFeedback = widget.initialAiFeedback;
 
-    _subscribeToSamples();
-    _startWatchdogs();
+    // Only subscribe to sensors if not starting with imported results
+    if (_state != RunState.results || widget.initialResults == null) {
+      // Register which device is left and which is right for calibration
+      widget.bleMgr.registerDeviceSide(widget.leftId, 'left');
+      widget.bleMgr.registerDeviceSide(widget.rightId, 'right');
+
+      _subscribeToSamples();
+      _startWatchdogs();
+    }
 
     // Auto-start recording if requested
     if (widget.autoStart) {
@@ -91,6 +108,13 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
     // Register reconnect callback
     widget.onReconnected?.call();
+    
+    // If we started with results, notify that results are shown
+    if (_state == RunState.results && widget.initialResults != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onResultsShown?.call();
+      });
+    }
   }
 
   @override
