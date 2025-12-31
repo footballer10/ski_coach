@@ -10,7 +10,7 @@ void main() async {
   await aiCoach.initialize();
 
   aiCoach.setSystemPromptLocal(localSystemPrompt);
-  aiCoach.setSystemPromptAPI(apiSystemPrompt);
+  aiCoach.setSystemPromptAPI(localSystemPrompt);
 
   runApp(const MyApp());
 }
