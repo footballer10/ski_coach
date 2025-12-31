@@ -101,18 +101,27 @@ class AICoach {
     if (_llama != null) return;
 
     final docDir = await getApplicationDocumentsDirectory();
-    _modelPath = '${docDir.path}/llama-3.1-8b-instruct-q4_k_m.gguf';
+    _modelPath = '${docDir.path}/model.gguf';
 
     final file = File(_modelPath!);
 
+    // Copy model from assets if not in documents directory
     if (!file.existsSync()) {
-      throw Exception(
-        'Model file not found at: $_modelPath\n\n'
-        'Please download the model and place it in the app documents directory.',
-      );
+      debugPrint('🤖 Copying model from assets...');
+      try {
+        final assetData = await rootBundle.load('assets/models/model.gguf');
+        final bytes = assetData.buffer.asUint8List();
+        await file.writeAsBytes(bytes);
+        debugPrint('🤖 Model copied to: $_modelPath');
+      } catch (e) {
+        debugPrint('🤖 Failed to load model from assets: $e');
+        throw Exception(
+          'Model file not found. Please ensure model.gguf is in assets/models/',
+        );
+      }
+    } else {
+      debugPrint('🤖 Model found at: $_modelPath');
     }
-
-    debugPrint('🤖 Model found at: $_modelPath');
 
     try {
       final modelParams = ModelParams();
