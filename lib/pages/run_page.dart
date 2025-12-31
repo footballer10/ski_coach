@@ -8,7 +8,7 @@ import '../services/segmentation.dart';
 import '../services/imu_preprocessor.dart';
 import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
-import '../config/ai_config.dart';
+// import '../config/ai_config.dart';  // Unused - API only mode
 import 'package:file_picker/file_picker.dart';
 
 /// Single page that handles the full run lifecycle:
@@ -500,7 +500,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                   'Recording Session',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                _buildAIModeToggle(),
+                // AI Mode toggle removed - API only
               ],
             ),
             const SizedBox(height: 16),
@@ -572,60 +572,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  Widget _buildAIModeToggle() {
-    final isApi = AIPreferences.currentMode == AIMode.api;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isApi ? Icons.cloud : Icons.phone_android,
-            size: 18,
-            color: isApi ? Colors.blue : Colors.green,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            isApi ? 'API' : 'Local',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 4),
-          SizedBox(
-            height: 40,
-            child: Switch(
-              value: isApi,
-              onChanged: (value) async {
-                try {
-                  await AIPreferences.setMode(value ? AIMode.api : AIMode.local);
-                  if (mounted) {
-                    setState(() {}); // Force UI update
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to switch AI mode: ${e.toString().replaceAll('Exception: ', '')}'),
-                        backgroundColor: Colors.red,
-                        duration: const Duration(seconds: 4),
-                      ),
-                    );
-                  }
-                }
-              },
-              activeThumbColor: Colors.blue,
-              inactiveThumbColor: Colors.green,
-              materialTapTargetSize: MaterialTapTargetSize.padded,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // AI Mode toggle removed - API only mode
+  // Widget _buildAIModeToggle() { ... }
 
   Widget _buildProcessingView() {
     return const Center(
