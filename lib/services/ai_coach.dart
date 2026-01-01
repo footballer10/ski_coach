@@ -73,6 +73,7 @@ class AICoach {
     // _downloadModelInBackground();
   }
   
+  // ignore: unused_element
   Future<void> _downloadModelInBackground() async {
     // LOCAL AI TEMPORARILY DISABLED
     debugPrint('🤖 Model download disabled');
@@ -194,6 +195,7 @@ class AICoach {
     // }
   }
 
+  // ignore: unused_element
   Future<void> _loadLocalModel() async {
     // LOCAL AI TEMPORARILY DISABLED
     throw Exception('Local AI is disabled');
@@ -339,6 +341,7 @@ class AICoach {
     }
   }
 
+  // ignore: unused_element
   Future<String> _sendPromptsToLocalLLM(
     String systemPrompt,
     String userPrompt,

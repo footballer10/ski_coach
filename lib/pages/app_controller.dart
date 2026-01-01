@@ -28,7 +28,7 @@ class _AppControllerState extends State<AppController> {
 
   // Track runs for daily summary
   final List<DailyRunSummary> _todaysRuns = [];
-  DateTime _sessionStartDate = DateTime.now();
+  final DateTime _sessionStartDate = DateTime.now();
 
   @override
   void initState() {
@@ -377,6 +377,7 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
+  // ignore: unused_element
   void _addImportedRunPage(dynamic importedRun) {
     // importedRun is an ExportedRun object
     final exportedRun = importedRun as ExportedRun;

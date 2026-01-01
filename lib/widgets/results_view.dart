@@ -1067,6 +1067,8 @@ class _ResultsViewState extends State<ResultsView> {
       if (shouldContinue != true) return;
     }
 
+    if (!mounted) return;
+
     // Show dialog to get run name
     final runName = await showDialog<String>(
       context: context,
@@ -1102,6 +1104,7 @@ class _ResultsViewState extends State<ResultsView> {
       },
     );
 
+    if (!mounted) return;
     if (runName == null || runName.isEmpty) return;
 
     try {
@@ -1130,6 +1133,9 @@ class _ResultsViewState extends State<ResultsView> {
       final sanitizedName = runName.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_');
       final file = File('${tempDir.path}/$sanitizedName.json');
       await file.writeAsString(jsonString);
+
+      // Check if widget is still mounted before using context
+      if (!mounted) return;
 
       // Share the file with proper positioning for iPad
       final box = context.findRenderObject() as RenderBox?;
@@ -2046,7 +2052,7 @@ class _ResultsViewState extends State<ResultsView> {
                       return null;
                     }
                     
-                    if (score != null && allScores.isNotEmpty) {
+                    if (allScores.isNotEmpty) {
                       // Normalize relative to min/max in this dataset
                       final normalized = _normalizeScoreRelative(score, allScores);
                       return _getGradientColor(normalized);
