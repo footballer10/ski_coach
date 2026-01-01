@@ -579,6 +579,75 @@ class _ResultsViewState extends State<ResultsView> {
     });
   }
 
+  /// Get gradient color from red (worst) to green (best) based on normalized value
+  /// value should be between 0.0 (red) and 1.0 (green)
+  Color _getGradientColor(double normalizedValue) {
+    // Clamp between 0 and 1
+    final clamped = normalizedValue.clamp(0.0, 1.0);
+    
+    // Red to Yellow to Green gradient
+    if (clamped < 0.5) {
+      // Red to Yellow (0.0 to 0.5)
+      final t = clamped * 2; // 0 to 1
+      return Color.lerp(Colors.red[400]!, Colors.yellow[600]!, t)!;
+    } else {
+      // Yellow to Green (0.5 to 1.0)
+      final t = (clamped - 0.5) * 2; // 0 to 1
+      return Color.lerp(Colors.yellow[600]!, Colors.green[400]!, t)!;
+    }
+  }
+
+  /// Get all scores for a category/phase to calculate relative coloring
+  List<double> _getScoresForCategory(String category, String phase) {
+    if (category == 'Duration') {
+      final vals = widget.results?.turnDurationsSeconds ?? [];
+      return vals.map((v) => _scoreForDuration(v)).toList();
+    } else if (category == 'Edge Angle') {
+      final vals = widget.results?.edgeAngles ?? [];
+      return vals.map((v) => _scoreForEdgeAngle(v)).toList();
+    } else if (category == 'Parallel') {
+      List<double> vals;
+      if (phase == 'Initiation') {
+        vals = widget.results?.parallelBeginning ?? [];
+      } else if (phase == 'Control') {
+        vals = widget.results?.parallelMiddle ?? [];
+      } else if (phase == 'Completion') {
+        vals = widget.results?.parallelEnd ?? [];
+      } else {
+        vals = widget.results?.parallelAvg ?? [];
+      }
+      return vals.map((v) => _scoreForParallelness(v)).toList();
+    } else if (category == 'Turn Shape') {
+      List<double> vals;
+      if (phase == 'Initiation') {
+        vals = widget.results?.turnShapeBeginning ?? [];
+      } else if (phase == 'Control') {
+        vals = widget.results?.turnShapeMiddle ?? [];
+      } else if (phase == 'Completion') {
+        vals = widget.results?.turnShapeEnd ?? [];
+      } else {
+        vals = widget.results?.turnShapeAvg ?? [];
+      }
+      return vals.map((v) => _scoreForTurnShapeSD(v)).toList();
+    }
+    return [];
+  }
+
+  /// Normalize a score relative to min/max in the dataset (0.0 = worst, 1.0 = best)
+  double _normalizeScoreRelative(double score, List<double> allScores) {
+    if (allScores.isEmpty) return 0.5;
+    if (allScores.length == 1) return 0.5;
+    
+    final minScore = allScores.reduce((a, b) => a < b ? a : b);
+    final maxScore = allScores.reduce((a, b) => a > b ? a : b);
+    
+    // Avoid division by zero
+    if (maxScore == minScore) return 0.5;
+    
+    // Normalize to 0-1 range
+    return (score - minScore) / (maxScore - minScore);
+  }
+
   // Helper methods for dot plots
   double _getOptimalForCategory(String category) {
     switch (category) {
@@ -1914,6 +1983,76 @@ class _ResultsViewState extends State<ResultsView> {
                     _selectCategoryAndTurn(_selectedCategory, turnLabel),
                 child: Card(
                   margin: const EdgeInsets.symmetric(vertical: 4),
+                  color: () {
+                    // Calculate background color based on relative score
+                    double? score;
+                    List<double> allScores;
+                    
+                    if (_selectedCategory == 'Duration') {
+                      if (i < (widget.results?.turnDurationsSeconds.length ?? 0)) {
+                        score = _scoreForDuration(widget.results!.turnDurationsSeconds[i]);
+                        allScores = _getScoresForCategory('Duration', 'Whole Turn');
+                      } else {
+                        return null;
+                      }
+                    } else if (_selectedCategory == 'Edge Angle') {
+                      if (i < (widget.results?.edgeAngles.length ?? 0)) {
+                        score = _scoreForEdgeAngle(widget.results!.edgeAngles[i]);
+                        allScores = _getScoresForCategory('Edge Angle', 'Whole Turn');
+                      } else {
+                        return null;
+                      }
+                    } else if (_selectedCategory == 'Parallel') {
+                      double? val;
+                      if (_categoryPageThird == 'Initiation' &&
+                          i < (widget.results?.parallelBeginning.length ?? 0)) {
+                        val = widget.results!.parallelBeginning[i];
+                      } else if (_categoryPageThird == 'Control' &&
+                          i < (widget.results?.parallelMiddle.length ?? 0)) {
+                        val = widget.results!.parallelMiddle[i];
+                      } else if (_categoryPageThird == 'Completion' &&
+                          i < (widget.results?.parallelEnd.length ?? 0)) {
+                        val = widget.results!.parallelEnd[i];
+                      } else if (i < (widget.results?.parallelAvg.length ?? 0)) {
+                        val = widget.results!.parallelAvg[i];
+                      }
+                      if (val != null) {
+                        score = _scoreForParallelness(val);
+                        allScores = _getScoresForCategory('Parallel', _categoryPageThird);
+                      } else {
+                        return null;
+                      }
+                    } else if (_selectedCategory == 'Turn Shape') {
+                      double? val;
+                      if (_categoryPageThird == 'Initiation' &&
+                          i < (widget.results?.turnShapeBeginning.length ?? 0)) {
+                        val = widget.results!.turnShapeBeginning[i];
+                      } else if (_categoryPageThird == 'Control' &&
+                          i < (widget.results?.turnShapeMiddle.length ?? 0)) {
+                        val = widget.results!.turnShapeMiddle[i];
+                      } else if (_categoryPageThird == 'Completion' &&
+                          i < (widget.results?.turnShapeEnd.length ?? 0)) {
+                        val = widget.results!.turnShapeEnd[i];
+                      } else if (i < (widget.results?.turnShapeAvg.length ?? 0)) {
+                        val = widget.results!.turnShapeAvg[i];
+                      }
+                      if (val != null) {
+                        score = _scoreForTurnShapeSD(val);
+                        allScores = _getScoresForCategory('Turn Shape', _categoryPageThird);
+                      } else {
+                        return null;
+                      }
+                    } else {
+                      return null;
+                    }
+                    
+                    if (score != null && allScores.isNotEmpty) {
+                      // Normalize relative to min/max in this dataset
+                      final normalized = _normalizeScoreRelative(score, allScores);
+                      return _getGradientColor(normalized);
+                    }
+                    return null; // Default card color
+                  }(),
                   child: Container(
                     height: 50,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
