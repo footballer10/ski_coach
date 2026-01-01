@@ -1802,6 +1802,10 @@ class _ResultsViewState extends State<ResultsView> {
     final turnCount = (widget.results?.turnCount ?? 0) > 0
         ? (widget.results?.turnCount ?? 0)
         : 5;
+    
+    // Get all turn scores for relative color coding
+    final turnScores = widget.results?.turnScores ?? [];
+    
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 8),
       child: Card(
@@ -1816,13 +1820,25 @@ class _ResultsViewState extends State<ResultsView> {
                   : '';
               final turnLabel = 'Turn ${i + 1} $direction'.trim();
               final isSelected = _selectedTurn == turnLabel;
+              
+              // Calculate color based on relative score
+              Color blockColor;
+              if (isSelected) {
+                blockColor = Colors.blue;
+              } else if (i < turnScores.length && turnScores.isNotEmpty) {
+                final normalized = _normalizeScoreRelative(turnScores[i], turnScores);
+                blockColor = _getGradientColor(normalized);
+              } else {
+                blockColor = Colors.grey[400]!;
+              }
+              
               return GestureDetector(
                 onTap: () => _selectTurn(turnLabel),
                 child: Container(
                   margin: const EdgeInsets.symmetric(vertical: 3),
                   height: 50,
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.blue : Colors.grey[400],
+                    color: blockColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Center(
@@ -2770,11 +2786,15 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildEdgeAngleGraph(int turnIndex) {
-    final processedLeft =
-        widget.results?.processedLeftSamples as List<ImuSample>?;
-    final processedRight =
-        widget.results?.processedRightSamples as List<ImuSample>?;
-    final segments = widget.results?.segments as List<TurnSegment>?;
+    final processedLeft = (widget.results?.processedLeftSamples as List<dynamic>?)
+        ?.map((e) => e as ImuSample)
+        .toList();
+    final processedRight = (widget.results?.processedRightSamples as List<dynamic>?)
+        ?.map((e) => e as ImuSample)
+        .toList();
+    final segments = (widget.results?.segments as List<dynamic>?)
+        ?.map((e) => e as TurnSegment)
+        .toList();
 
     if (processedLeft == null ||
         processedRight == null ||
@@ -2820,10 +2840,12 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildParallelnessGraph(int turnIndex) {
-    final processedLeft =
-        widget.results?.processedLeftSamples as List<ImuSample>?;
-    final processedRight =
-        widget.results?.processedRightSamples as List<ImuSample>?;
+    final processedLeft = (widget.results?.processedLeftSamples as List<dynamic>?)
+        ?.map((e) => e as ImuSample)
+        .toList();
+    final processedRight = (widget.results?.processedRightSamples as List<dynamic>?)
+        ?.map((e) => e as ImuSample)
+        .toList();
     final segments = (widget.results?.segments as List<dynamic>?)
         ?.map((e) => e as TurnSegment)
         .toList();
