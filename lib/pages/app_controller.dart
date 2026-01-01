@@ -417,7 +417,7 @@ class _AppControllerState extends State<AppController> {
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
       autoStart: false,
-      onImportedRun: _addImportedRunPage,
+      // No onImportedRun callback - imported results pages replace locally
       initialState: RunState.results, // Start directly in results state
       initialResults: analysisResults,
       initialImportedName: exportedRun.runName,
