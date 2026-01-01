@@ -1812,6 +1812,7 @@ class _ResultsViewState extends State<ResultsView> {
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: ListView.builder(
+            padding: EdgeInsets.zero,
             itemCount: turnCount,
             itemBuilder: (context, i) {
               final dirs = widget.results?.turnDirections ?? const [];

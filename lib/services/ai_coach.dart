@@ -391,7 +391,7 @@ class AICoach {
     Future<http.Response> postJson(Uri url, Map<String, dynamic> body) {
       return http
           .post(url, headers: headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 90));
+          .timeout(const Duration(seconds: 180)); // Increased timeout for GPT-5.2
     }
 
     // Preferred: Responses API (matches OpenAI Playground "Responses" behavior).

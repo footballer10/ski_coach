@@ -69,7 +69,7 @@ class _AppControllerState extends State<AppController> {
         autoStart: false,
         onRunCompleted: _recordRun,
         onFinishDay: _showDailySummary,
-        // Don't pass onImportedRun - let pre-recording page handle import locally
+        onImportedRun: _addImportedRunPage,
         onResultsShown: () {
           // Enable arrows after first results shown
           if (!_showArrows) {
@@ -240,7 +240,7 @@ class _AppControllerState extends State<AppController> {
       autoStart: false,
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
-      // Don't pass onImportedRun - let pre-recording page handle import locally
+      onImportedRun: _addImportedRunPage,
       onResultsShown: null,
     );
     int targetIndex = 0;
@@ -349,7 +349,7 @@ class _AppControllerState extends State<AppController> {
       autoStart: true,
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
-      // Don't pass onImportedRun - let pre-recording page handle import locally
+      onImportedRun: _addImportedRunPage,
       onResultsShown: () {
         // Enable arrows after first results shown
         if (!_showArrows) {
@@ -377,7 +377,6 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
-  // ignore: unused_element
   void _addImportedRunPage(dynamic importedRun) {
     // importedRun is an ExportedRun object
     final exportedRun = importedRun as ExportedRun;
