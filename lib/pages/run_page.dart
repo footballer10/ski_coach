@@ -857,7 +857,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   ) {
     // Get device ID from label
     final deviceId = label.contains('LEFT') ? widget.leftId : widget.rightId;
-    final quality = BleManager().getConnectionQuality(deviceId);
+    final batteryLevel = BleManager().getBatteryLevel(deviceId);
 
     if (sample == null) {
       return Card(
@@ -892,12 +892,20 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       );
     }
 
-    // Battery/connection quality color
-    Color qualityColor = quality >= 80
-        ? Colors.green
-        : quality >= 50
-            ? Colors.orange
-            : Colors.red;
+    // Battery level color (green > 50%, orange 20-50%, red < 20%)
+    Color batteryColor;
+    String batteryText;
+    if (batteryLevel < 0) {
+      batteryColor = Colors.grey;
+      batteryText = '--';
+    } else {
+      batteryText = '$batteryLevel%';
+      batteryColor = batteryLevel >= 50
+          ? Colors.green
+          : batteryLevel >= 20
+              ? Colors.orange
+              : Colors.red;
+    }
 
     return Card(
       color: color.withValues(alpha: 0.1),
@@ -913,15 +921,15 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: qualityColor.withValues(alpha: 0.3),
+                    color: batteryColor.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '$quality%',
+                    batteryText,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: qualityColor,
+                      color: batteryColor,
                     ),
                   ),
                 ),

@@ -44,10 +44,9 @@ class BleManager {
   // Device ID to sensor side mapping (deviceId -> 'left' or 'right')
   final Map<String, String> _deviceSideMapping = {};
 
-  // Connection quality tracking (sample count in last second)
-  final Map<String, int> _sampleCounts = {};
-  final Map<String, DateTime> _lastCountReset = {};
-  final Map<String, int> _currentDataRate = {};
+  // Battery level tracking (percentage 0-100)
+  final Map<String, int> _batteryLevels = {};
+  final Map<String, Timer?> _batteryUpdateTimers = {};
 
   // Axis remapping for mirrored sensor mounting
   // When sensors are mounted on opposite feet, their axes are mirrored
@@ -76,11 +75,9 @@ class BleManager {
   /// Get remaining countdown seconds
   int get calibrationCountdown => _calibrationCountdown;
 
-  /// Get connection quality (data rate as percentage of expected 100Hz)
-  int getConnectionQuality(String deviceId) {
-    final rate = _currentDataRate[deviceId] ?? 0;
-    // Clamp between 0-100% (assuming 100Hz is ideal)
-    return (rate.toDouble() / 100.0 * 100).clamp(0, 100).round();
+  /// Get battery level percentage (0-100, -1 if unknown)
+  int getBatteryLevel(String deviceId) {
+    return _batteryLevels[deviceId] ?? -1;
   }
 
   /// Register which device ID corresponds to which sensor side ('left' or 'right')
@@ -128,6 +125,53 @@ class BleManager {
         debugPrint('❌ Failed to send acceleration calibration: $e');
       }
     }
+  }
+
+  /// Request battery level from a device (register 0x64)
+  Future<void> _requestBatteryLevel(String deviceId) async {
+    try {
+      final char = QualifiedCharacteristic(
+        serviceId: _service,
+        characteristicId: _charWrite,
+        deviceId: deviceId,
+      );
+
+      // Send read battery command: FF AA 27 64 00
+      await _ble.writeCharacteristicWithoutResponse(
+        char,
+        value: [0xFF, 0xAA, 0x27, 0x64, 0x00],
+      );
+
+      if (kDebugMode) {
+        debugPrint('🔋 Battery read request sent to $deviceId');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Failed to request battery level: $e');
+      }
+    }
+  }
+
+  /// Start periodic battery monitoring for a device
+  void _startBatteryMonitoring(String deviceId) {
+    // Cancel existing timer if any
+    _batteryUpdateTimers[deviceId]?.cancel();
+    
+    // Request battery immediately
+    _requestBatteryLevel(deviceId);
+    
+    // Then request every 30 seconds
+    _batteryUpdateTimers[deviceId] = Timer.periodic(
+      const Duration(seconds: 30),
+      (timer) => _requestBatteryLevel(deviceId),
+    );
+  }
+
+  /// Stop battery monitoring for a device
+  void _stopBatteryMonitoring(String deviceId) {
+    _batteryUpdateTimers[deviceId]?.cancel();
+    _batteryUpdateTimers.remove(deviceId);
+    _batteryLevels.remove(deviceId);
   }
 
   /// Stream of BLE status (ready, unauthorized, etc)
@@ -180,7 +224,8 @@ class BleManager {
               _sampleControllers[deviceId] ??=
                   StreamController<Map<String, double>>.broadcast();
               _subscribeCharacteristic(deviceId);
-
+              // Start battery monitoring
+              _startBatteryMonitoring(deviceId);
               // Calibration will start automatically when both sensors start streaming data
 
               if (!completer.isCompleted) completer.complete(true);
@@ -245,6 +290,9 @@ class BleManager {
     } catch (_) {}
     _sampleControllers.remove(deviceId);
     _latest.remove(deviceId);
+
+    // Stop battery monitoring
+    _stopBatteryMonitoring(deviceId);
 
     // Reset calibration if either sensor disconnects
     _isCalibrating = false;
@@ -653,19 +701,37 @@ class BleManager {
       i++;
     }
 
+    // Check for register read response packets (0x55 0x71)
+    int j = 0;
+    while (j < bytes.length) {
+      if (bytes[j] == 0x55 && j + 1 < bytes.length && bytes[j + 1] == 0x71) {
+        // Register response packet: 55 71 RegL RegH Data(16 bytes)
+        if (j + 20 <= bytes.length) {
+          final regAddress = (bytes[j + 3] << 8) | bytes[j + 2];
+          
+          // Battery register is 0x64
+          if (regAddress == 0x64) {
+            // Battery voltage in bytes 4-5 (low, high)
+            final voltageRaw = (bytes[j + 5] << 8) | bytes[j + 4];
+            final batteryPercent = _voltageToBatteryPercent(voltageRaw);
+            
+            _batteryLevels[deviceId] = batteryPercent;
+            
+            if (kDebugMode) {
+              debugPrint('🔋 [$deviceId] Battery: $batteryPercent% (raw: $voltageRaw)');
+            }
+          }
+          j += 20;
+          continue;
+        }
+      }
+      j++;
+    }
+
     // If all values exist, emit sample
     final map = _latest[deviceId]!;
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
-
-      // Track data rate for connection quality
-      _sampleCounts[deviceId] = (_sampleCounts[deviceId] ?? 0) + 1;
-      final lastReset = _lastCountReset[deviceId];
-      if (lastReset == null || timestamp.difference(lastReset).inSeconds >= 1) {
-        _currentDataRate[deviceId] = _sampleCounts[deviceId] ?? 0;
-        _sampleCounts[deviceId] = 0;
-        _lastCountReset[deviceId] = timestamp;
-      }
 
       // Check if we should start calibration (both sensors now have data)
       if (!_isCalibrating && _yawOffsetRightMinusLeft == null) {
@@ -761,5 +827,22 @@ class BleManager {
     int raw = (high << 8) | low;
     if (raw > 32767) raw -= 65536;
     return raw;
+  }
+
+  /// Convert voltage register value to battery percentage
+  /// Based on WT9011DCL-BT50 protocol section 3.10
+  int _voltageToBatteryPercent(int voltageRaw) {
+    if (voltageRaw > 396) return 100;
+    if (voltageRaw >= 393) return 90;
+    if (voltageRaw >= 387) return 75;
+    if (voltageRaw >= 382) return 60;
+    if (voltageRaw >= 379) return 50;
+    if (voltageRaw >= 377) return 40;
+    if (voltageRaw >= 373) return 30;
+    if (voltageRaw >= 370) return 20;
+    if (voltageRaw >= 368) return 15;
+    if (voltageRaw >= 350) return 10;
+    if (voltageRaw >= 340) return 5;
+    return 0;
   }
 }
