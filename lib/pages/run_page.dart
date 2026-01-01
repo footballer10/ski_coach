@@ -831,6 +831,9 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
             content: Text('Imported: ${exportedRun.runName}'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
         );
       }
@@ -852,6 +855,10 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     Map<String, double>? sample,
     Color color,
   ) {
+    // Get device ID from label
+    final deviceId = label.contains('LEFT') ? widget.leftId : widget.rightId;
+    final quality = BleManager().getConnectionQuality(deviceId);
+
     if (sample == null) {
       return Card(
         color: color.withValues(alpha: 0.1),
@@ -860,7 +867,23 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '--',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               const Text('Waiting for data...'),
             ],
@@ -869,6 +892,13 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       );
     }
 
+    // Battery/connection quality color
+    Color qualityColor = quality >= 80
+        ? Colors.green
+        : quality >= 50
+            ? Colors.orange
+            : Colors.red;
+
     return Card(
       color: color.withValues(alpha: 0.1),
       child: Padding(
@@ -876,7 +906,27 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: qualityColor.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '$quality%',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: qualityColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -900,9 +950,16 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _chip(String key, double? val) {
-    return Chip(
-      label: Text('$key: ${val?.toStringAsFixed(2) ?? 'N/A'}'),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return SizedBox(
+      width: 90,
+      child: Chip(
+        label: Text(
+          '$key: ${val?.toStringAsFixed(2) ?? 'N/A'}',
+          style: const TextStyle(fontSize: 12),
+        ),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      ),
     );
   }
 

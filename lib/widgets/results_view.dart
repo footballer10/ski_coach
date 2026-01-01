@@ -950,6 +950,8 @@ class _ResultsViewState extends State<ResultsView> {
               backgroundColor: Colors.green,
               duration: Duration(seconds: 3),
               behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.only(bottom: 10, left: 10, right: 10),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           );
         }
@@ -1074,6 +1076,9 @@ class _ResultsViewState extends State<ResultsView> {
             content: Text('Run exported successfully'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(bottom: 10, left: 10, right: 10),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
         );
       }
@@ -1084,6 +1089,9 @@ class _ResultsViewState extends State<ResultsView> {
             content: Text('Export failed: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
         );
       }

@@ -44,6 +44,11 @@ class BleManager {
   // Device ID to sensor side mapping (deviceId -> 'left' or 'right')
   final Map<String, String> _deviceSideMapping = {};
 
+  // Connection quality tracking (sample count in last second)
+  final Map<String, int> _sampleCounts = {};
+  final Map<String, DateTime> _lastCountReset = {};
+  final Map<String, int> _currentDataRate = {};
+
   // Axis remapping for mirrored sensor mounting
   // When sensors are mounted on opposite feet, their axes are mirrored
   // Set this to true if right sensor shows gravity in different axis than left
@@ -70,6 +75,13 @@ class BleManager {
   
   /// Get remaining countdown seconds
   int get calibrationCountdown => _calibrationCountdown;
+
+  /// Get connection quality (data rate as percentage of expected 100Hz)
+  int getConnectionQuality(String deviceId) {
+    final rate = _currentDataRate[deviceId] ?? 0;
+    // Clamp between 0-100% (assuming 100Hz is ideal)
+    return (rate.toDouble() / 100.0 * 100).clamp(0, 100).round();
+  }
 
   /// Register which device ID corresponds to which sensor side ('left' or 'right')
   void registerDeviceSide(String deviceId, String side) {
@@ -645,6 +657,15 @@ class BleManager {
     final map = _latest[deviceId]!;
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
+
+      // Track data rate for connection quality
+      _sampleCounts[deviceId] = (_sampleCounts[deviceId] ?? 0) + 1;
+      final lastReset = _lastCountReset[deviceId];
+      if (lastReset == null || timestamp.difference(lastReset).inSeconds >= 1) {
+        _currentDataRate[deviceId] = _sampleCounts[deviceId] ?? 0;
+        _sampleCounts[deviceId] = 0;
+        _lastCountReset[deviceId] = timestamp;
+      }
 
       // Check if we should start calibration (both sensors now have data)
       if (!_isCalibrating && _yawOffsetRightMinusLeft == null) {

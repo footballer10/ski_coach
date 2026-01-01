@@ -185,6 +185,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please assign both left and right sensors'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(bottom: 10, left: 10, right: 10),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       );
       return;
@@ -231,6 +234,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to connect to one or both sensors'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(bottom: 10, left: 10, right: 10),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       );
       // Disconnect any partial connection so a rescan can rediscover devices
@@ -339,6 +345,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
                 ? 'No data from left sensor'
                 : 'No data from either sensor',
           ),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       );
     }
