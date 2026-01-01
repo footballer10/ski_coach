@@ -2824,7 +2824,9 @@ class _ResultsViewState extends State<ResultsView> {
         widget.results?.processedLeftSamples as List<ImuSample>?;
     final processedRight =
         widget.results?.processedRightSamples as List<ImuSample>?;
-    final segments = widget.results?.segments as List<TurnSegment>?;
+    final segments = (widget.results?.segments as List<dynamic>?)
+        ?.map((e) => e as TurnSegment)
+        .toList();
 
     if (processedLeft == null ||
         processedRight == null ||
