@@ -69,7 +69,6 @@ class _AppControllerState extends State<AppController> {
         autoStart: false,
         onRunCompleted: _recordRun,
         onFinishDay: _showDailySummary,
-        onImportedRun: _addImportedRunPage,
         onResultsShown: () {
           // Enable arrows after first results shown
           if (!_showArrows) {
@@ -240,7 +239,6 @@ class _AppControllerState extends State<AppController> {
       autoStart: false,
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
-      onImportedRun: _addImportedRunPage,
       onResultsShown: null,
     );
     int targetIndex = 0;
@@ -349,7 +347,6 @@ class _AppControllerState extends State<AppController> {
       autoStart: true,
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
-      onImportedRun: _addImportedRunPage,
       onResultsShown: () {
         // Enable arrows after first results shown
         if (!_showArrows) {
