@@ -50,6 +50,26 @@ class TurnSegment {
     required this.durationSeconds,
   });
 
+  factory TurnSegment.fromJson(Map<String, dynamic> json) => TurnSegment(
+    startTime: DateTime.parse(json['startTime'] as String),
+    endTime: DateTime.parse(json['endTime'] as String),
+    startIndexLeft: json['startIndexLeft'] as int,
+    startIndexRight: json['startIndexRight'] as int,
+    endIndexLeft: json['endIndexLeft'] as int,
+    endIndexRight: json['endIndexRight'] as int,
+    direction: json['direction'] as int,
+    maxEdgeAngle: (json['maxEdgeAngle'] as num).toDouble(),
+    avgParallelness: (json['avgParallelness'] as num).toDouble(),
+    beginningParallelness: (json['beginningParallelness'] as num).toDouble(),
+    middleParallelness: (json['middleParallelness'] as num).toDouble(),
+    endParallelness: (json['endParallelness'] as num).toDouble(),
+    beginningTurnShapeSD: (json['beginningTurnShapeSD'] as num).toDouble(),
+    middleTurnShapeSD: (json['middleTurnShapeSD'] as num).toDouble(),
+    endTurnShapeSD: (json['endTurnShapeSD'] as num).toDouble(),
+    avgTurnShapeSD: (json['avgTurnShapeSD'] as num).toDouble(),
+    durationSeconds: (json['durationSeconds'] as num).toDouble(),
+  );
+
   Map<String, dynamic> toJson() => {
     'startTime': startTime.toIso8601String(),
     'endTime': endTime.toIso8601String(),

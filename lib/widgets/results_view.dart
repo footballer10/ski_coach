@@ -2793,7 +2793,7 @@ class _ResultsViewState extends State<ResultsView> {
         ?.map((e) => e as ImuSample)
         .toList();
     final segments = (widget.results?.segments as List<dynamic>?)
-        ?.map((e) => e as TurnSegment)
+        ?.map((e) => e is TurnSegment ? e : TurnSegment.fromJson(e as Map<String, dynamic>))
         .toList();
 
     if (processedLeft == null ||
@@ -2847,7 +2847,7 @@ class _ResultsViewState extends State<ResultsView> {
         ?.map((e) => e as ImuSample)
         .toList();
     final segments = (widget.results?.segments as List<dynamic>?)
-        ?.map((e) => e as TurnSegment)
+        ?.map((e) => e is TurnSegment ? e : TurnSegment.fromJson(e as Map<String, dynamic>))
         .toList();
 
     if (processedLeft == null ||
