@@ -516,6 +516,10 @@ class _ResultsViewState extends State<ResultsView> {
   String? _coachingError;
   // _aiProcessing removed - now using widget.isAnyAiProcessing global state
 
+  // Cache for score calculations to prevent recalculation on every rebuild
+  final Map<String, List<double>> _scoreCache = {};
+  final Map<String, double> _minMaxCache = {}; // Cache for min/max calculations
+
   final List<String> _categories = const [
     'All Categories',
     'Duration',
@@ -605,12 +609,22 @@ class _ResultsViewState extends State<ResultsView> {
 
   /// Get all scores for a category/phase to calculate relative coloring
   List<double> _getScoresForCategory(String category, String phase) {
+    // Create cache key
+    final cacheKey = '$category|$phase';
+    
+    // Return cached result if available
+    if (_scoreCache.containsKey(cacheKey)) {
+      return _scoreCache[cacheKey]!;
+    }
+    
+    // Calculate and cache
+    List<double> scores;
     if (category == 'Duration') {
       final vals = widget.results?.turnDurationsSeconds ?? [];
-      return vals.map((v) => _scoreForDuration(v)).toList();
+      scores = vals.map((v) => _scoreForDuration(v)).toList();
     } else if (category == 'Edge Angle') {
       final vals = widget.results?.edgeAngles ?? [];
-      return vals.map((v) => _scoreForEdgeAngle(v)).toList();
+      scores = vals.map((v) => _scoreForEdgeAngle(v)).toList();
     } else if (category == 'Parallel') {
       List<double> vals;
       if (phase == 'Initiation') {
@@ -622,7 +636,7 @@ class _ResultsViewState extends State<ResultsView> {
       } else {
         vals = widget.results?.parallelAvg ?? [];
       }
-      return vals.map((v) => _scoreForParallelness(v)).toList();
+      scores = vals.map((v) => _scoreForParallelness(v)).toList();
     } else if (category == 'Turn Shape') {
       List<double> vals;
       if (phase == 'Initiation') {
@@ -634,9 +648,13 @@ class _ResultsViewState extends State<ResultsView> {
       } else {
         vals = widget.results?.turnShapeAvg ?? [];
       }
-      return vals.map((v) => _scoreForTurnShapeSD(v)).toList();
+      scores = vals.map((v) => _scoreForTurnShapeSD(v)).toList();
+    } else {
+      scores = [];
     }
-    return [];
+    
+    _scoreCache[cacheKey] = scores;
+    return scores;
   }
 
   /// Normalize a score relative to min/max in the dataset (0.0 = worst, 1.0 = best)
@@ -644,8 +662,23 @@ class _ResultsViewState extends State<ResultsView> {
     if (allScores.isEmpty) return 0.5;
     if (allScores.length == 1) return 0.5;
     
-    final minScore = allScores.reduce((a, b) => a < b ? a : b);
-    final maxScore = allScores.reduce((a, b) => a > b ? a : b);
+    // Use hash code of list as cache key
+    final cacheKey = allScores.hashCode.toString();
+    
+    // Get or calculate min/max
+    double minScore, maxScore;
+    final minKey = '${cacheKey}_min';
+    final maxKey = '${cacheKey}_max';
+    
+    if (_minMaxCache.containsKey(minKey)) {
+      minScore = _minMaxCache[minKey]!;
+      maxScore = _minMaxCache[maxKey]!;
+    } else {
+      minScore = allScores.reduce((a, b) => a < b ? a : b);
+      maxScore = allScores.reduce((a, b) => a > b ? a : b);
+      _minMaxCache[minKey] = minScore;
+      _minMaxCache[maxKey] = maxScore;
+    }
     
     // Avoid division by zero
     if (maxScore == minScore) return 0.5;
