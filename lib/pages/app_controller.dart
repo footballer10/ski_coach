@@ -74,6 +74,7 @@ class _AppControllerState extends State<AppController> {
         autoStart: false,
         onRunCompleted: _recordRun,
         onFinishDay: _showDailySummary,
+        onImportedRun: _addImportedRunPage, // Allow import to create new page
         isAnyAiProcessing: () => _isAnyAiProcessing,
         onAiProcessingChanged: _onAiProcessingChanged,
         onResultsShown: () {

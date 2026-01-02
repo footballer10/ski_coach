@@ -69,9 +69,12 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   // Load AI toggle preference from storage
   Future<void> _loadAiPreference() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _aiEnabled = prefs.getBool('ai_enabled') ?? true;
-    });
+    final enabled = prefs.getBool('ai_enabled') ?? true;
+    if (mounted) {
+      setState(() {
+        _aiEnabled = enabled;
+      });
+    }
   }
 
   // Save AI toggle preference to storage
@@ -87,7 +90,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   Map<String, double>? _rightLatest;
   bool _recording = false;
   Map<String, dynamic>? _analysisResults;
-  bool _aiEnabled = true; // AI toggle state
+  bool _aiEnabled = true; // AI toggle state (will be loaded from prefs in initState)
 
   // Import state
   String? _importedRunName;
@@ -105,14 +108,14 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
 
-    // Load AI toggle preference
-    _loadAiPreference();
-
     // Initialize state from parameters (for imports)
     _state = widget.initialState ?? RunState.recording;
     _analysisResults = widget.initialResults;
     _importedRunName = widget.initialImportedName;
     _importedAiFeedback = widget.initialAiFeedback;
+
+    // Load AI toggle preference asynchronously
+    _loadAiPreference();
 
     // Only subscribe to sensors if not starting with imported results
     if (_state != RunState.results || widget.initialResults == null) {

@@ -519,6 +519,7 @@ class _ResultsViewState extends State<ResultsView> {
   // Cache for score calculations to prevent recalculation on every rebuild
   final Map<String, List<double>> _scoreCache = {};
   final Map<String, double> _minMaxCache = {}; // Cache for min/max calculations
+  final Map<String, List<double>> _normalizedCache = {}; // Cache for normalized scores
 
   final List<String> _categories = const [
     'All Categories',
@@ -685,6 +686,34 @@ class _ResultsViewState extends State<ResultsView> {
     
     // Normalize to 0-1 range
     return (score - minScore) / (maxScore - minScore);
+  }
+
+  /// Get all normalized scores for a list (cached to avoid repeated calculations)
+  List<double> _getNormalizedScores(List<double> allScores) {
+    if (allScores.isEmpty) return [];
+    if (allScores.length == 1) return [0.5];
+    
+    // Use hash code as cache key
+    final cacheKey = allScores.hashCode.toString();
+    
+    if (_normalizedCache.containsKey(cacheKey)) {
+      return _normalizedCache[cacheKey]!;
+    }
+    
+    // Calculate min/max once
+    final minScore = allScores.reduce((a, b) => a < b ? a : b);
+    final maxScore = allScores.reduce((a, b) => a > b ? a : b);
+    
+    // Normalize all scores
+    List<double> normalized;
+    if (maxScore == minScore) {
+      normalized = List.filled(allScores.length, 0.5);
+    } else {
+      normalized = allScores.map((score) => (score - minScore) / (maxScore - minScore)).toList();
+    }
+    
+    _normalizedCache[cacheKey] = normalized;
+    return normalized;
   }
 
   // Helper methods for dot plots
@@ -1861,6 +1890,8 @@ class _ResultsViewState extends State<ResultsView> {
     
     // Get all turn scores for relative color coding
     final turnScores = widget.results?.turnScores ?? [];
+    // Pre-calculate all normalized scores to avoid repeated calculations
+    final normalizedScores = turnScores.isNotEmpty ? _getNormalizedScores(turnScores) : <double>[];
     
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 8),
@@ -1882,9 +1913,8 @@ class _ResultsViewState extends State<ResultsView> {
               Color blockColor;
               if (isSelected) {
                 blockColor = Colors.blue;
-              } else if (i < turnScores.length && turnScores.isNotEmpty) {
-                final normalized = _normalizeScoreRelative(turnScores[i], turnScores);
-                blockColor = _getGradientColor(normalized);
+              } else if (i < normalizedScores.length) {
+                blockColor = _getGradientColor(normalizedScores[i]);
               } else {
                 blockColor = Colors.grey[400]!;
               }
