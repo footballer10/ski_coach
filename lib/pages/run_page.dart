@@ -10,6 +10,7 @@ import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
 // import '../config/ai_config.dart';  // Unused - API only mode
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Single page that handles the full run lifecycle:
 /// recording → processing → results
@@ -65,6 +66,20 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
+  // Load AI toggle preference from storage
+  Future<void> _loadAiPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _aiEnabled = prefs.getBool('ai_enabled') ?? true;
+    });
+  }
+
+  // Save AI toggle preference to storage
+  Future<void> _saveAiPreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('ai_enabled', value);
+  }
+
   late RunState _state;
   StreamSubscription<Map<String, double>>? _leftSub;
   StreamSubscription<Map<String, double>>? _rightSub;
@@ -89,6 +104,9 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
+
+    // Load AI toggle preference
+    _loadAiPreference();
 
     // Initialize state from parameters (for imports)
     _state = widget.initialState ?? RunState.recording;
@@ -554,6 +572,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                         setState(() {
                           _aiEnabled = value;
                         });
+                        _saveAiPreference(value);
                       },
                       activeColor: Colors.blue,
                     ),
