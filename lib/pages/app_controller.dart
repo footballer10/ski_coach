@@ -42,7 +42,9 @@ class _AppControllerState extends State<AppController> {
   void _onPageChanged() {
     final page = _pageController.page?.round() ?? 0;
     if (page != _currentPage) {
-      setState(() => _currentPage = page);
+      setState(() {
+        _currentPage = page;
+      });
     }
   }
 

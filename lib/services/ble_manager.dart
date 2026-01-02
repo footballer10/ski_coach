@@ -452,6 +452,7 @@ class BleManager {
 
   /// Disconnect all connected devices
   Future<void> disconnectAll() async {
+    _isCalibrating = false; // Reset calibration state on disconnect
     if (kDebugMode) {
       debugPrint('🔌 Disconnecting ${_connSubs.length} devices');
     }
