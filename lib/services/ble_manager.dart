@@ -69,6 +69,12 @@ class BleManager {
   /// Check if sensors are currently calibrating (countdown or sampling)
   bool get isCalibrating => _isCalibrating;
   
+  /// Reset calibration state (useful when reconnecting)
+  void resetCalibration() {
+    _isCalibrating = false;
+    _yawOffsetRightMinusLeft = null;
+  }
+  
   /// Check if actively collecting calibration samples
   bool get isCollectingSamples => _isCollectingSamples;
   

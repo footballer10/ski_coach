@@ -66,6 +66,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
     }
     _startingScan = true;
     final bleMgr = _bleMgr as BleManager;
+    
+    // Reset calibration flag to prevent getting stuck
+    bleMgr.resetCalibration();
 
     // Cancel local subscriptions
     _scanSub?.cancel();
