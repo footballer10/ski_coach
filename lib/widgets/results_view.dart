@@ -532,7 +532,7 @@ class _ResultsViewState extends State<ResultsView> {
       'All Turns',
       ...List.generate(count, (i) {
         final dirs = widget.results?.turnDirections ?? const [];
-        final direction = i < dirs.length ? (dirs[i] == 1 ? '(R)' : '(L)') : '';
+        final direction = i < dirs.length ? (dirs[i] == 1 ? '(L)' : '(R)') : '';
         return 'Turn ${i + 1} $direction'.trim();
       }),
     ];
@@ -1840,7 +1840,7 @@ class _ResultsViewState extends State<ResultsView> {
             itemBuilder: (context, i) {
               final dirs = widget.results?.turnDirections ?? const [];
               final direction = i < dirs.length
-                  ? (dirs[i] == 1 ? '(R)' : '(L)')
+                  ? (dirs[i] == 1 ? '(L)' : '(R)')
                   : '';
               final turnLabel = 'Turn ${i + 1} $direction'.trim();
               final isSelected = _selectedTurn == turnLabel;
@@ -1950,7 +1950,7 @@ class _ResultsViewState extends State<ResultsView> {
               // Create turn label with direction to match _turns list
               final dirs = widget.results?.turnDirections ?? const [];
               final direction = i < dirs.length
-                  ? (dirs[i] == 1 ? '(R)' : '(L)')
+                  ? (dirs[i] == 1 ? '(L)' : '(R)')
                   : '';
               final turnLabel = 'Turn ${i + 1} $direction'.trim();
               final turnDuration =
