@@ -29,6 +29,9 @@ class _AppControllerState extends State<AppController> {
   // Track runs for daily summary
   final List<DailyRunSummary> _todaysRuns = [];
   final DateTime _sessionStartDate = DateTime.now();
+  
+  // Track AI processing state globally
+  bool _isAnyAiProcessing = false;
 
   @override
   void initState() {
@@ -69,6 +72,8 @@ class _AppControllerState extends State<AppController> {
         autoStart: false,
         onRunCompleted: _recordRun,
         onFinishDay: _showDailySummary,
+        isAnyAiProcessing: _isAnyAiProcessing,
+        onAiProcessingChanged: _onAiProcessingChanged,
         onResultsShown: () {
           // Enable arrows after first results shown
           if (!_showArrows) {
@@ -86,6 +91,12 @@ class _AppControllerState extends State<AppController> {
     // Hide connection overlay
     setState(() {
       _showConnectionOverlay = false;
+    });
+  }
+
+  void _onAiProcessingChanged(bool isProcessing) {
+    setState(() {
+      _isAnyAiProcessing = isProcessing;
     });
   }
 
@@ -239,6 +250,8 @@ class _AppControllerState extends State<AppController> {
       autoStart: false,
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
+      isAnyAiProcessing: _isAnyAiProcessing,
+      onAiProcessingChanged: _onAiProcessingChanged,
       onResultsShown: null,
     );
     int targetIndex = 0;
@@ -348,6 +361,8 @@ class _AppControllerState extends State<AppController> {
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
       onImportedRun: _addImportedRunPage,
+      isAnyAiProcessing: _isAnyAiProcessing,
+      onAiProcessingChanged: _onAiProcessingChanged,
       onResultsShown: () {
         // Enable arrows after first results shown
         if (!_showArrows) {
@@ -418,6 +433,8 @@ class _AppControllerState extends State<AppController> {
       onManualReconnect: _onManualReconnectPressed,
       autoStart: false,
       onImportedRun: _addImportedRunPage, // All results pages create new page on import
+      isAnyAiProcessing: _isAnyAiProcessing,
+      onAiProcessingChanged: _onAiProcessingChanged,
       initialState: RunState.results, // Start directly in results state
       initialResults: analysisResults,
       initialImportedName: exportedRun.runName,

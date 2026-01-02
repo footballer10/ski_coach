@@ -474,6 +474,8 @@ class ResultsView extends StatefulWidget {
   final bool showTryAgainButton;
   final String? aiFeedback; // Pre-generated AI feedback (for imports)
   final String? importedRunName; // Display name badge if imported
+  final bool isAnyAiProcessing; // Global AI processing state
+  final Function(bool) onAiProcessingChanged; // Notify parent of AI state changes
 
   const ResultsView({
     super.key,
@@ -487,6 +489,8 @@ class ResultsView extends StatefulWidget {
     this.showTryAgainButton = true,
     this.aiFeedback,
     this.importedRunName,
+    required this.isAnyAiProcessing,
+    required this.onAiProcessingChanged,
   });
 
   @override
@@ -508,7 +512,7 @@ class _ResultsViewState extends State<ResultsView> {
   String _coachingAdvice = '';
   bool _loadingCoachingAdvice = false;
   String? _coachingError;
-  bool _aiProcessing = false;
+  // _aiProcessing removed - now using widget.isAnyAiProcessing global state
 
   final List<String> _categories = const [
     'All Categories',
@@ -762,14 +766,14 @@ class _ResultsViewState extends State<ResultsView> {
           _coachingError =
               'No AI feedback available (exported before AI completed)';
           _loadingCoachingAdvice = false;
-          _aiProcessing = false;
         });
+        widget.onAiProcessingChanged(false);
       } else {
         setState(() {
           _coachingAdvice = widget.aiFeedback!;
           _loadingCoachingAdvice = false;
-          _aiProcessing = false;
         });
+        widget.onAiProcessingChanged(false);
       }
       return;
     }
@@ -777,10 +781,10 @@ class _ResultsViewState extends State<ResultsView> {
     // Otherwise, generate AI feedback asynchronously (normal run)
     if (widget.results != null) {
       setState(() {
-        _aiProcessing = true;
         _loadingCoachingAdvice = true;
         _coachingError = null;
       });
+      widget.onAiProcessingChanged(true);
       Future.microtask(() => _generateCoachingAdvice());
     }
   }
@@ -788,9 +792,9 @@ class _ResultsViewState extends State<ResultsView> {
   Future<void> _generateCoachingAdvice() async {
     if (widget.results == null) {
       setState(() {
-        _aiProcessing = false;
         _loadingCoachingAdvice = false;
       });
+      widget.onAiProcessingChanged(false);
       return;
     }
 
@@ -1010,8 +1014,8 @@ class _ResultsViewState extends State<ResultsView> {
         setState(() {
           _coachingAdvice = feedbackParagraph;
           _loadingCoachingAdvice = false;
-          _aiProcessing = false;
         });
+        widget.onAiProcessingChanged(false);
 
         // Show notification banner when AI feedback is ready
         if (mounted) {
@@ -1033,8 +1037,8 @@ class _ResultsViewState extends State<ResultsView> {
         setState(() {
           _coachingError = 'Failed to generate advice: $e';
           _loadingCoachingAdvice = false;
-          _aiProcessing = false;
         });
+        widget.onAiProcessingChanged(false);
       }
     }
   }
@@ -1235,7 +1239,7 @@ class _ResultsViewState extends State<ResultsView> {
                   const SizedBox(height: 8),
                 if (widget.showTryAgainButton)
                   ElevatedButton.icon(
-                    onPressed: _aiProcessing ? null : widget.onNewRun,
+                    onPressed: widget.isAnyAiProcessing ? null : widget.onNewRun,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Start Another Run'),
                     style: ElevatedButton.styleFrom(
@@ -1289,7 +1293,7 @@ class _ResultsViewState extends State<ResultsView> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: _aiProcessing ? null : widget.onNewRun,
+                  onPressed: widget.isAnyAiProcessing ? null : widget.onNewRun,
                   icon: const Icon(Icons.add, size: 24),
                   label: const Text('Start New Run'),
                   style: ElevatedButton.styleFrom(

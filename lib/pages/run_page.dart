@@ -30,6 +30,8 @@ class RunPage extends StatefulWidget {
   final Map<String, dynamic>? initialResults; // Pre-load results (for imports)
   final String? initialImportedName; // Imported run name
   final String? initialAiFeedback; // Pre-generated AI feedback
+  final bool isAnyAiProcessing; // Global AI processing state from AppController
+  final Function(bool) onAiProcessingChanged; // Notify AppController of AI state changes
 
   const RunPage({
     super.key,
@@ -49,6 +51,8 @@ class RunPage extends StatefulWidget {
     this.initialResults,
     this.initialImportedName,
     this.initialAiFeedback,
+    required this.isAnyAiProcessing,
+    required this.onAiProcessingChanged,
   });
 
   @override
@@ -641,6 +645,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
         aiFeedback: _importedAiFeedback,
         importedRunName: _importedRunName,
+        isAnyAiProcessing: widget.isAnyAiProcessing,
+        onAiProcessingChanged: widget.onAiProcessingChanged,
       );
     }
 
@@ -773,6 +779,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       showReconnectButton: false,
       aiFeedback: _importedAiFeedback,
       importedRunName: _importedRunName,
+      isAnyAiProcessing: widget.isAnyAiProcessing,
+      onAiProcessingChanged: widget.onAiProcessingChanged,
     );
   }
 
