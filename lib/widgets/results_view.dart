@@ -814,6 +814,9 @@ class _ResultsViewState extends State<ResultsView> {
     // _loadingCoachingAdvice and _aiProcessing already set to true in initState
 
     try {
+      // Yield to UI thread before heavy computation
+      await Future.value();
+      
       final aiCoach = getAICoach();
 
       // Calculate scores for all categories
@@ -936,6 +939,9 @@ class _ResultsViewState extends State<ResultsView> {
                 widget.results!.turnShapeAvg.length
           : 0.0;
       final symmetryRatio = widget.results?.turnSymmetryRatio ?? 0.0;
+
+      // Yield to UI thread after heavy calculations
+      await Future.value();
 
       // Get session history
       final categoriesCoached = aiCoach.getCategoriesCoached();
