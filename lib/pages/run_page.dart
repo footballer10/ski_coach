@@ -833,15 +833,30 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       // If we're on results page already, use callback to create new page
       if (widget.onImportedRun != null) {
         widget.onImportedRun!(exportedRun);
-      } else {
-        // Otherwise update state to show results (from pre-recording page)
-        setState(() {
-          _state = RunState.results;
-          _analysisResults = analysisResults;
-          _importedRunName = exportedRun.runName;
-          _importedAiFeedback = exportedRun.aiFeedback;
-        });
+        
+        // Show success message on current page
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Imported: ${exportedRun.runName}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          );
+        }
+        return; // Don't update current page state
       }
+      
+      // Otherwise update state to show results (from pre-recording page)
+      setState(() {
+        _state = RunState.results;
+        _analysisResults = analysisResults;
+        _importedRunName = exportedRun.runName;
+        _importedAiFeedback = exportedRun.aiFeedback;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
