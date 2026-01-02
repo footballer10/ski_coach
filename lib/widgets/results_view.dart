@@ -1293,7 +1293,7 @@ class _ResultsViewState extends State<ResultsView> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: widget.isAnyAiProcessing ? null : widget.onNewRun,
+                  onPressed: widget.isAnyAiProcessing() ? null : widget.onNewRun,
                   icon: const Icon(Icons.add, size: 24),
                   label: const Text('Start New Run'),
                   style: ElevatedButton.styleFrom(
