@@ -388,26 +388,30 @@ class AICoach {
       'Authorization': 'Bearer $apiKey',
     };
 
-    Future<http.Response> postJson(Uri url, Map<String, dynamic> body) {
-      return http
-          .post(url, headers: headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 300)); // 5 minute timeout for GPT-5.2
-    }
+    // Create a new client for each request to avoid connection reuse issues
+    final client = http.Client();
+    
+    try {
+      Future<http.Response> postJson(Uri url, Map<String, dynamic> body) {
+        return client
+            .post(url, headers: headers, body: jsonEncode(body))
+            .timeout(const Duration(seconds: 300)); // 5 minute timeout for GPT-5.2
+      }
 
-    // Preferred: Responses API (matches OpenAI Playground "Responses" behavior).
-    http.Response response = await postJson(responsesUrl, <String, dynamic>{
-      'model': 'gpt-5.2',
-      'input': [
-        {'role': 'system', 'content': systemPrompt},
-        {'role': 'user', 'content': userPrompt},
-      ],
-      'temperature': 0.0,
-      'max_output_tokens': _apiMaxResponseTokens,
-    });
+      // Preferred: Responses API (matches OpenAI Playground "Responses" behavior).
+      http.Response response = await postJson(responsesUrl, <String, dynamic>{
+        'model': 'gpt-5.2',
+        'input': [
+          {'role': 'system', 'content': systemPrompt},
+          {'role': 'user', 'content': userPrompt},
+        ],
+        'temperature': 0.0,
+        'max_output_tokens': _apiMaxResponseTokens,
+      });
 
-    // Fallback: Chat Completions API (older schema).
-    if (response.statusCode != 200) {
-      response = await postJson(chatCompletionsUrl, <String, dynamic>{
+      // Fallback: Chat Completions API (older schema).
+      if (response.statusCode != 200) {
+        response = await postJson(chatCompletionsUrl, <String, dynamic>{
         'model': 'gpt-5.2',
         'messages': [
           {'role': 'system', 'content': systemPrompt},
@@ -484,5 +488,9 @@ class AICoach {
     );
 
     return aiResponse;
+    } finally {
+      // Always close the client to prevent connection reuse issues
+      client.close();
+    }
   }
 }
