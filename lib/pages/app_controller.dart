@@ -72,7 +72,7 @@ class _AppControllerState extends State<AppController> {
         autoStart: false,
         onRunCompleted: _recordRun,
         onFinishDay: _showDailySummary,
-        isAnyAiProcessing: _isAnyAiProcessing,
+        isAnyAiProcessing: () => _isAnyAiProcessing,
         onAiProcessingChanged: _onAiProcessingChanged,
         onResultsShown: () {
           // Enable arrows after first results shown
@@ -95,6 +95,8 @@ class _AppControllerState extends State<AppController> {
   }
 
   void _onAiProcessingChanged(bool isProcessing) {
+    if (_isAnyAiProcessing == isProcessing) return; // No change
+    
     setState(() {
       _isAnyAiProcessing = isProcessing;
     });
@@ -250,7 +252,7 @@ class _AppControllerState extends State<AppController> {
       autoStart: false,
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
-      isAnyAiProcessing: _isAnyAiProcessing,
+      isAnyAiProcessing: () => _isAnyAiProcessing,
       onAiProcessingChanged: _onAiProcessingChanged,
       onResultsShown: null,
     );
@@ -361,7 +363,7 @@ class _AppControllerState extends State<AppController> {
       onRunCompleted: _recordRun,
       onFinishDay: _showDailySummary,
       onImportedRun: _addImportedRunPage,
-      isAnyAiProcessing: _isAnyAiProcessing,
+      isAnyAiProcessing: () => _isAnyAiProcessing,
       onAiProcessingChanged: _onAiProcessingChanged,
       onResultsShown: () {
         // Enable arrows after first results shown
@@ -433,7 +435,7 @@ class _AppControllerState extends State<AppController> {
       onManualReconnect: _onManualReconnectPressed,
       autoStart: false,
       onImportedRun: _addImportedRunPage, // All results pages create new page on import
-      isAnyAiProcessing: _isAnyAiProcessing,
+      isAnyAiProcessing: () => _isAnyAiProcessing,
       onAiProcessingChanged: _onAiProcessingChanged,
       initialState: RunState.results, // Start directly in results state
       initialResults: analysisResults,

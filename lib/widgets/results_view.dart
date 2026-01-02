@@ -474,7 +474,7 @@ class ResultsView extends StatefulWidget {
   final bool showTryAgainButton;
   final String? aiFeedback; // Pre-generated AI feedback (for imports)
   final String? importedRunName; // Display name badge if imported
-  final bool isAnyAiProcessing; // Global AI processing state
+  final bool Function() isAnyAiProcessing; // Getter for global AI processing state
   final Function(bool) onAiProcessingChanged; // Notify parent of AI state changes
 
   const ResultsView({
@@ -1239,7 +1239,7 @@ class _ResultsViewState extends State<ResultsView> {
                   const SizedBox(height: 8),
                 if (widget.showTryAgainButton)
                   ElevatedButton.icon(
-                    onPressed: widget.isAnyAiProcessing ? null : widget.onNewRun,
+                    onPressed: widget.isAnyAiProcessing() ? null : widget.onNewRun,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Start Another Run'),
                     style: ElevatedButton.styleFrom(
