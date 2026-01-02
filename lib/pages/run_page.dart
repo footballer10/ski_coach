@@ -72,6 +72,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   Map<String, double>? _rightLatest;
   bool _recording = false;
   Map<String, dynamic>? _analysisResults;
+  bool _aiEnabled = true; // AI toggle state
 
   // Import state
   String? _importedRunName;
@@ -536,7 +537,28 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                   'Recording Session',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                // AI Mode toggle removed - API only
+                Row(
+                  children: [
+                    Text(
+                      'AI',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: _aiEnabled ? Colors.blue : Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: _aiEnabled,
+                      onChanged: (value) {
+                        setState(() {
+                          _aiEnabled = value;
+                        });
+                      },
+                      activeColor: Colors.blue,
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -646,8 +668,9 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         showTryAgainButton: startAnotherRun || (!isSensorDisconnect),
         aiFeedback: _importedAiFeedback,
         importedRunName: _importedRunName,
-        isAnyAiProcessing: widget.isAnyAiProcessing, // Pass the function
+        isAnyAiProcessing: widget.isAnyAiProcessing,
         onAiProcessingChanged: widget.onAiProcessingChanged,
+        aiEnabled: _aiEnabled,
       );
     }
 
@@ -780,8 +803,9 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       showReconnectButton: false,
       aiFeedback: _importedAiFeedback,
       importedRunName: _importedRunName,
-      isAnyAiProcessing: widget.isAnyAiProcessing, // Pass the function
+      isAnyAiProcessing: widget.isAnyAiProcessing,
       onAiProcessingChanged: widget.onAiProcessingChanged,
+      aiEnabled: _aiEnabled,
     );
   }
 

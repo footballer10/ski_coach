@@ -476,6 +476,7 @@ class ResultsView extends StatefulWidget {
   final String? importedRunName; // Display name badge if imported
   final bool Function() isAnyAiProcessing; // Getter for global AI processing state
   final Function(bool) onAiProcessingChanged; // Notify parent of AI state changes
+  final bool aiEnabled; // Whether AI coaching is enabled
 
   const ResultsView({
     super.key,
@@ -491,6 +492,7 @@ class ResultsView extends StatefulWidget {
     this.importedRunName,
     required this.isAnyAiProcessing,
     required this.onAiProcessingChanged,
+    this.aiEnabled = true, // Default to enabled for imported runs
   });
 
   @override
@@ -775,6 +777,17 @@ class _ResultsViewState extends State<ResultsView> {
         });
         widget.onAiProcessingChanged(false);
       }
+      return;
+    }
+
+    // Check if AI is disabled
+    if (!widget.aiEnabled) {
+      setState(() {
+        _coachingAdvice = '';
+        _coachingError = 'AI mode is disabled';
+        _loadingCoachingAdvice = false;
+      });
+      widget.onAiProcessingChanged(false);
       return;
     }
 
@@ -2791,13 +2804,13 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildEdgeAngleGraph(int turnIndex) {
-    final processedLeft = (widget.results?.processedLeftSamples as List<dynamic>?)
+    final processedLeft = (widget.results?.processedLeftSamples)
         ?.map((e) => e as ImuSample)
         .toList();
-    final processedRight = (widget.results?.processedRightSamples as List<dynamic>?)
+    final processedRight = (widget.results?.processedRightSamples)
         ?.map((e) => e as ImuSample)
         .toList();
-    final segments = (widget.results?.segments as List<dynamic>?)
+    final segments = (widget.results?.segments)
         ?.map((e) => e is TurnSegment ? e : TurnSegment.fromJson(e as Map<String, dynamic>))
         .toList();
 
@@ -2845,13 +2858,13 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildParallelnessGraph(int turnIndex) {
-    final processedLeft = (widget.results?.processedLeftSamples as List<dynamic>?)
+    final processedLeft = (widget.results?.processedLeftSamples)
         ?.map((e) => e as ImuSample)
         .toList();
-    final processedRight = (widget.results?.processedRightSamples as List<dynamic>?)
+    final processedRight = (widget.results?.processedRightSamples)
         ?.map((e) => e as ImuSample)
         .toList();
-    final segments = (widget.results?.segments as List<dynamic>?)
+    final segments = (widget.results?.segments)
         ?.map((e) => e is TurnSegment ? e : TurnSegment.fromJson(e as Map<String, dynamic>))
         .toList();
 
