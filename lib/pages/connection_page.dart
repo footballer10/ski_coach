@@ -8,11 +8,13 @@ class ConnectionPage extends StatefulWidget {
   final void Function(dynamic bleMgr, String leftId, String rightId)?
   onConnected;
   final bool showCloseButton;
+  final VoidCallback? onClose;
 
   const ConnectionPage({
     super.key,
     this.onConnected,
     this.showCloseButton = false,
+    this.onClose,
   });
 
   @override
@@ -378,7 +380,13 @@ class _ConnectionPageState extends State<ConnectionPage> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    if (widget.onClose != null) {
+                      widget.onClose!();
+                    } else {
+                      Navigator.of(context).pop();
+                    }
+                  },
                 ),
               ],
               automaticallyImplyLeading: false,

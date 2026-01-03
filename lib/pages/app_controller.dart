@@ -484,7 +484,14 @@ class _AppControllerState extends State<AppController> {
           if (_showConnectionOverlay)
             Container(
               color: Colors.white,
-              child: ConnectionPage(onConnected: _onSensorsConnected),
+              child: ConnectionPage(
+                onConnected: _onSensorsConnected,
+                onClose: () {
+                  setState(() {
+                    _showConnectionOverlay = false;
+                  });
+                },
+              ),
             ),
 
           // Navigation arrows removed per user request
