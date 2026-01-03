@@ -338,7 +338,7 @@ class DotPlot extends StatelessWidget {
     final labelHeight = 30.0;
     final dotSpacing = 2.0; // vertical margin is 1px on each side
     final totalHeight = plotHeight + labelHeight;
-    final verticalPadding = 15.0; // Space reserved for labels and padding at bottom
+    final verticalPadding = 30.0; // Space reserved for labels and padding at bottom
 
     return SizedBox(
       height: totalHeight,
