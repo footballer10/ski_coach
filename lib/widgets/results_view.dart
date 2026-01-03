@@ -827,8 +827,7 @@ class _ResultsViewState extends State<ResultsView> {
       if (widget.aiFeedback == '__NO_AI_FEEDBACK__') {
         setState(() {
           _coachingAdvice = '';
-          _coachingError =
-              'No AI feedback available (exported before AI completed)';
+          _coachingError = 'No AI feedback';
           _loadingCoachingAdvice = false;
         });
         widget.onAiProcessingChanged(false);

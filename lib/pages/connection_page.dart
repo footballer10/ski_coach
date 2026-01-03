@@ -373,7 +373,17 @@ class _ConnectionPageState extends State<ConnectionPage> {
               ),
               automaticallyImplyLeading: false,
             )
-          : null,
+          : AppBar(
+              title: const Text('Connect Sensors'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: 'Skip and import runs',
+                ),
+              ],
+              automaticallyImplyLeading: false,
+            ),
       body: SafeArea(
         child: Center(
           child: Padding(

@@ -53,15 +53,11 @@ class BleManager {
   // Set this to true if right sensor shows gravity in different axis than left
   static const bool _mirrorRightSensorAxes = true;
 
-  // Calibration state: collect samples when both sensors connect
+  // Calibration state: single reading when countdown completes
   bool _isCalibrating = false;
-  bool _isCollectingSamples = false; // True when actually collecting samples
+  bool _isCollectingSamples = false; // True when taking reading at countdown end
   int _calibrationCountdown = 5; // Countdown in seconds
   final Map<String, List<double>> _calibrationSamples = {};
-  static const int _calibrationSampleCount =
-      100; // Increased from 50 to allow more settling time
-  static const int _calibrationStartSample = 80; // Skip first 80 samples
-  static const int _calibrationEndSample = 100; // Use samples 80-100
 
   /// Get the calibrated yaw offset (right - left) established at connection
   double? get yawOffset => _yawOffsetRightMinusLeft;
@@ -335,7 +331,7 @@ class BleManager {
     }
   }
 
-  /// Start calibration process - collect samples from both sensors
+  /// Start calibration process - take single reading after countdown
   void _startCalibration() {
     // Show calibration overlay immediately
     _isCalibrating = true;
@@ -363,29 +359,23 @@ class BleManager {
           if (kDebugMode) {
             debugPrint('🎯 Countdown: ${_calibrationCountdown}s');
           }
+          
+          // On final countdown (0), take single reading
+          if (_calibrationCountdown == 0) {
+            _isCollectingSamples = true;
+            if (kDebugMode) {
+              debugPrint('🎯 Taking calibration reading now!');
+            }
+          }
         }
       });
     }
-    
-    // Start collecting samples after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
-      if (_isCalibrating && _yawOffsetRightMinusLeft == null) {
-        _isCollectingSamples = true;
-        if (kDebugMode) {
-          debugPrint(
-            '🎯 STARTING YAW CALIBRATION (after 5s settling time)',
-          );
-          debugPrint(
-            '🎯 Collecting $_calibrationSampleCount samples from each sensor...',
-          );
-        }
-      }
-    });
   }
 
   /// Try to calibrate with current samples
   void _tryCalibrate(String deviceId, double yaw) {
     if (!_isCalibrating) return;
+    if (!_isCollectingSamples) return; // Only collect when countdown reaches 0
 
     // Determine which sensor this is using the mapping
     final sensorKey = _deviceSideMapping[deviceId];
@@ -398,36 +388,22 @@ class BleManager {
       return;
     }
 
-    // Add sample to calibration buffer
+    // Take single reading from each sensor
     if (_calibrationSamples[sensorKey] != null &&
-        _calibrationSamples[sensorKey]!.length < _calibrationSampleCount) {
+        _calibrationSamples[sensorKey]!.isEmpty) {
       _calibrationSamples[sensorKey]!.add(yaw);
     }
 
-    // Check if we have enough samples from both sensors
+    // Check if we have one reading from both sensors
     final leftCount = _calibrationSamples['left']?.length ?? 0;
     final rightCount = _calibrationSamples['right']?.length ?? 0;
 
-    if (leftCount >= _calibrationSampleCount &&
-        rightCount >= _calibrationSampleCount) {
-      // Calculate offset using samples 40-50
-      final leftSamples = _calibrationSamples['left']!;
-      final rightSamples = _calibrationSamples['right']!;
+    if (leftCount >= 1 && rightCount >= 1) {
+      // Use single reading from each sensor
+      final leftYaw = _calibrationSamples['left']![0];
+      final rightYaw = _calibrationSamples['right']![0];
 
-      final leftAvg =
-          leftSamples
-              .skip(_calibrationStartSample)
-              .take(_calibrationEndSample - _calibrationStartSample)
-              .reduce((a, b) => a + b) /
-          (_calibrationEndSample - _calibrationStartSample);
-      final rightAvg =
-          rightSamples
-              .skip(_calibrationStartSample)
-              .take(_calibrationEndSample - _calibrationStartSample)
-              .reduce((a, b) => a + b) /
-          (_calibrationEndSample - _calibrationStartSample);
-
-      _yawOffsetRightMinusLeft = rightAvg - leftAvg;
+      _yawOffsetRightMinusLeft = rightYaw - leftYaw;
       _isCalibrating = false;
       _isCollectingSamples = false;
       _calibrationSamples.clear();
@@ -437,11 +413,9 @@ class BleManager {
           '🎯 ════════════════════════════════════════════════════════════════',
         );
         debugPrint('🎯 YAW OFFSET CALIBRATION COMPLETE');
-        debugPrint(
-          '🎯 Used samples $_calibrationStartSample-$_calibrationEndSample after connection',
-        );
-        debugPrint('🎯 Left sensor average: ${leftAvg.toStringAsFixed(2)}°');
-        debugPrint('🎯 Right sensor average: ${rightAvg.toStringAsFixed(2)}°');
+        debugPrint('🎯 Used single reading from each sensor');
+        debugPrint('🎯 Left sensor: ${leftYaw.toStringAsFixed(2)}°');
+        debugPrint('🎯 Right sensor: ${rightYaw.toStringAsFixed(2)}°');
         debugPrint(
           '🎯 Offset (right - left): ${_yawOffsetRightMinusLeft!.toStringAsFixed(2)}°',
         );
@@ -449,9 +423,9 @@ class BleManager {
           '🎯 ════════════════════════════════════════════════════════════════',
         );
       }
-    } else if (kDebugMode && (leftCount % 10 == 0 || rightCount % 10 == 0)) {
+    } else if (kDebugMode) {
       debugPrint(
-        '🎯 Calibration progress: Left=$leftCount/$_calibrationSampleCount, Right=$rightCount/$_calibrationSampleCount',
+        '🎯 Calibration progress: Left=$leftCount/1, Right=$rightCount/1',
       );
     }
   }

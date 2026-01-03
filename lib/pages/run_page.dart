@@ -430,12 +430,19 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       }
     }
 
-    final segments = TurnSegmentation.segment(
+    final allSegments = TurnSegmentation.segment(
       leftSamples: leftImu,
       rightSamples: rightImu,
       yawOffset: yawOffset,
       samplingRate: samplingRate,
     );
+
+    // Skip first and last turns (need at least 3 turns total)
+    final segments = allSegments.length >= 3
+        ? allSegments.sublist(1, allSegments.length - 1)
+        : allSegments;
+
+    debugPrint('📊 Analysis: ${allSegments.length} total turns, using ${segments.length} (skipped first/last)');
 
     // Store processed data for graphs (we need the processed samples from segmentation)
     // Re-process to get the corrected samples (same pipeline as segmentation)
@@ -462,8 +469,6 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final turnShapeMiddle = segments.map((s) => s.middleTurnShapeSD).toList();
     final turnShapeEnd = segments.map((s) => s.endTurnShapeSD).toList();
     final turnShapeAvg = segments.map((s) => s.avgTurnShapeSD).toList();
-
-    debugPrint('📊 Analysis: ${segments.length} turns detected');
 
     // Check if no turns detected
     if (segments.isEmpty) {
@@ -1076,16 +1081,14 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                       const SizedBox(height: 24),
                       Text(
                         BleManager().isCollectingSamples
-                            ? 'Calibration in Progress'
-                            : 'Preparing Calibration',
+                            ? 'Calibrating...'
+                            : 'Calibrating in ${BleManager().calibrationCountdown}',
                         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        BleManager().isCollectingSamples
-                            ? 'Please keep sensors still...'
-                            : 'Starting in ${BleManager().calibrationCountdown}s...',
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        'Get your skis parallel',
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
                       ),
                     ],
                   ),
