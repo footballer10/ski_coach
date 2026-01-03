@@ -2673,8 +2673,8 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ],
               const SizedBox(height: 8),
-              // Add time series graph for Edge Angle only (no Turn Shape graph per request)
-              if (selectedTurnIndex != null && metric == 'Edge Angle') ...[
+              // Add time series graph for Edge Angle and Parallel (no Turn Shape graph per request)
+              if (selectedTurnIndex != null && (metric == 'Edge Angle' || metric == 'Parallel')) ...[
                 SizedBox(
                   height: 120,
                   child: _buildTimeSeriesGraphForMetric(
