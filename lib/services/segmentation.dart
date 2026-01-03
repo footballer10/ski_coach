@@ -183,10 +183,19 @@ class TurnSegmentation {
       }
     }
 
-    // STEP 6: Build turn segments between consecutive peaks
+    // STEP 6: Build turn segments between consecutive peaks (skip first and last)
     final segments = <TurnSegment>[];
 
-    for (int k = 0; k < peaks.length - 1; k++) {
+    // Skip first and last peaks - need at least 3 peaks to get 1 turn
+    if (peaks.length < 3) {
+      if (kDebugMode) {
+        debugPrint('⚠️  Not enough peaks (${peaks.length}) to create turns after skipping first/last');
+      }
+      return segments;
+    }
+
+    // Start from second peak (index 1) and end at second-to-last (peaks.length - 2)
+    for (int k = 1; k < peaks.length - 2; k++) {
       final a = peaks[k];
       final b = peaks[k + 1];
 
@@ -196,7 +205,7 @@ class TurnSegmentation {
           '🔄 ════════════════════════════════════════════════════════════════════════',
         );
         debugPrint(
-          '🔄 PROCESSING TURN ${k + 1} (between peaks ${k + 1} and ${k + 2})',
+          '🔄 PROCESSING TURN ${k} (between peaks ${k + 1} and ${k + 2}, skipping first/last)',
         );
         debugPrint(
           '🔄 ════════════════════════════════════════════════════════════════════════',

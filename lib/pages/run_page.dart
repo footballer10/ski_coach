@@ -437,19 +437,14 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       }
     }
 
-    final allSegments = TurnSegmentation.segment(
+    final segments = TurnSegmentation.segment(
       leftSamples: leftImu,
       rightSamples: rightImu,
       yawOffset: yawOffset,
       samplingRate: samplingRate,
     );
 
-    // Always skip first and last turns
-    final segments = allSegments.length >= 2
-        ? allSegments.sublist(1, allSegments.length - 1)
-        : <TurnSegment>[];
-
-    debugPrint('📊 Analysis: ${allSegments.length} total turns, using ${segments.length} (skipped first/last)');
+    debugPrint('📊 Analysis: ${segments.length} turns detected');
 
     // Store processed data for graphs (we need the processed samples from segmentation)
     // Re-process to get the corrected samples (same pipeline as segmentation)
