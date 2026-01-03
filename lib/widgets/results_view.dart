@@ -477,6 +477,7 @@ class ResultsView extends StatefulWidget {
   final bool Function() isAnyAiProcessing; // Getter for global AI processing state
   final Function(bool) onAiProcessingChanged; // Notify parent of AI state changes
   final bool aiEnabled; // Whether AI coaching is enabled
+  final bool sensorsConnected; // Whether sensors are currently connected
 
   const ResultsView({
     super.key,
@@ -493,6 +494,7 @@ class ResultsView extends StatefulWidget {
     required this.isAnyAiProcessing,
     required this.onAiProcessingChanged,
     this.aiEnabled = true, // Default to enabled for imported runs
+    this.sensorsConnected = true, // Default to connected
   });
 
   @override
@@ -1373,7 +1375,7 @@ class _ResultsViewState extends State<ResultsView> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: widget.isAnyAiProcessing() ? null : widget.onNewRun,
+                  onPressed: (widget.isAnyAiProcessing() || !widget.sensorsConnected) ? null : widget.onNewRun,
                   icon: const Icon(Icons.add, size: 24),
                   label: const Text('Start New Run'),
                   style: ElevatedButton.styleFrom(

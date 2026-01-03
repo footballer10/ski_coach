@@ -379,7 +379,6 @@ class _ConnectionPageState extends State<ConnectionPage> {
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.of(context).pop(),
-                  tooltip: 'Skip and import runs',
                 ),
               ],
               automaticallyImplyLeading: false,

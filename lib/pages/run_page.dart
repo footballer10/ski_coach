@@ -83,6 +83,13 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     await prefs.setBool('ai_enabled', value);
   }
 
+  // Check if both sensors are currently connected
+  bool _areSensorsConnected() {
+    final bleMgr = widget.bleMgr as BleManager?;
+    if (bleMgr == null) return false;
+    return bleMgr.isConnected(widget.leftId) && bleMgr.isConnected(widget.rightId);
+  }
+
   late RunState _state;
   StreamSubscription<Map<String, double>>? _leftSub;
   StreamSubscription<Map<String, double>>? _rightSub;
@@ -437,10 +444,10 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       samplingRate: samplingRate,
     );
 
-    // Skip first and last turns (need at least 3 turns total)
-    final segments = allSegments.length >= 3
+    // Always skip first and last turns
+    final segments = allSegments.length >= 2
         ? allSegments.sublist(1, allSegments.length - 1)
-        : allSegments;
+        : <TurnSegment>[];
 
     debugPrint('📊 Analysis: ${allSegments.length} total turns, using ${segments.length} (skipped first/last)');
 
@@ -604,7 +611,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
             const SizedBox(height: 16),
             if (!_recording)
               ElevatedButton.icon(
-                onPressed: _startRecording,
+                onPressed: _areSensorsConnected() ? _startRecording : null,
                 icon: const Icon(Icons.fiber_manual_record, size: 28),
                 label: const Text(
                   'Start Recording',
@@ -617,6 +624,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                   ),
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey,
+                  disabledForegroundColor: Colors.white70,
                 ),
               ),
             if (!_recording) const SizedBox(height: 8),
@@ -698,6 +707,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         isAnyAiProcessing: widget.isAnyAiProcessing,
         onAiProcessingChanged: widget.onAiProcessingChanged,
         aiEnabled: _aiEnabled,
+        sensorsConnected: _areSensorsConnected(),
       );
     }
 
@@ -833,6 +843,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       isAnyAiProcessing: widget.isAnyAiProcessing,
       onAiProcessingChanged: widget.onAiProcessingChanged,
       aiEnabled: _aiEnabled,
+      sensorsConnected: _areSensorsConnected(),
     );
   }
 
