@@ -2017,7 +2017,8 @@ class _ResultsViewState extends State<ResultsView> {
           padding: const EdgeInsets.all(12.0),
           child: _buildCategorySummary(),
         ),
-        Expanded(
+        SizedBox(
+          height: 300,
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             itemCount: actualTurnCount,
