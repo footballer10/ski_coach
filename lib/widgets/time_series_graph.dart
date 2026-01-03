@@ -34,7 +34,10 @@ class TimeSeriesGraph extends StatelessWidget {
       );
     }
 
-    final maxDataValue = dataPoints.map((p) => p.value).reduce(math.max);
+    // Downsample data points to max 200 points for performance
+    final sampledPoints = _downsamplePoints(dataPoints, maxPoints: 200);
+
+    final maxDataValue = sampledPoints.map((p) => p.value).reduce(math.max);
     final maxYValue = math.max(maxDataValue, optimalValue);
 
     // Determine y-axis increment
@@ -57,7 +60,7 @@ class TimeSeriesGraph extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(40, 10, 10, 30),
         child: CustomPaint(
           painter: TimeSeriesGraphPainter(
-            dataPoints: dataPoints,
+            dataPoints: sampledPoints,
             optimalValue: optimalValue,
             yMax: yMax.toDouble(),
             yIncrement: yIncrement,
@@ -68,6 +71,28 @@ class TimeSeriesGraph extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Downsample data points to reduce rendering load
+  List<GraphPoint> _downsamplePoints(List<GraphPoint> points, {required int maxPoints}) {
+    if (points.length <= maxPoints) return points;
+
+    final sampled = <GraphPoint>[];
+    final step = points.length / maxPoints;
+    
+    for (int i = 0; i < maxPoints; i++) {
+      final index = (i * step).floor();
+      if (index < points.length) {
+        sampled.add(points[index]);
+      }
+    }
+    
+    // Always include the last point
+    if (sampled.last != points.last) {
+      sampled.add(points.last);
+    }
+    
+    return sampled;
   }
 }
 
