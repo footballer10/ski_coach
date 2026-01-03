@@ -2903,15 +2903,11 @@ class _ResultsViewState extends State<ResultsView> {
     final segment = segments[turnIndex];
     final dataPoints = <GraphPoint>[];
 
-    // Calculate stride to limit to ~200 points for performance
-    final totalSamples = segment.endIndexLeft - segment.startIndexLeft + 1;
-    final stride = math.max(1, (totalSamples / 200).ceil());
-
     // Get samples for this turn and plot max(left.pitch, right.pitch) over time
     for (
       int i = segment.startIndexLeft;
       i <= segment.endIndexLeft && i < processedLeft.length;
-      i += stride
+      i++
     ) {
       final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
 
@@ -2999,12 +2995,8 @@ class _ResultsViewState extends State<ResultsView> {
     final dataPoints = <GraphPoint>[];
     final sectionStartTime = processedLeft[startIdx].timestamp;
 
-    // Calculate stride to limit to ~200 points for performance
-    final sectionSamples = endIdx - startIdx + 1;
-    final stride = math.max(1, (sectionSamples / 200).ceil());
-
     // Get samples for this section and plot |left.yaw - right.yaw|
-    for (int i = startIdx; i <= endIdx && i < processedLeft.length; i += stride) {
+    for (int i = startIdx; i <= endIdx && i < processedLeft.length; i++) {
       final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
 
       if (rightIndex >= segment.startIndexRight &&
