@@ -502,6 +502,7 @@ class _AppControllerState extends State<AppController> {
                         onManualReconnect: _onManualReconnectPressed,
                         autoStart: false,
                         onRunCompleted: _recordRun,
+                        onFinishDay: _showDailySummary,
                         onAiProcessingChanged: _onAiProcessingChanged,
                         onImportedRun: _addImportedRunPage,
                         isAnyAiProcessing: () => _isAnyAiProcessing,
