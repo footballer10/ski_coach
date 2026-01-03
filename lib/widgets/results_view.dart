@@ -724,7 +724,7 @@ class _ResultsViewState extends State<ResultsView> {
   double _getOptimalForCategory(String category) {
     switch (category) {
       case 'Duration':
-        return 2.0;
+        return 1.0;
       case 'Edge Angle':
         return 45.0;
       case 'Parallel':
@@ -2230,7 +2230,7 @@ class _ResultsViewState extends State<ResultsView> {
     String scoreText = '—';
 
     if (_selectedCategory == 'Duration') {
-      optimalText = '2.000s';
+      optimalText = '1.000s';
       final durations = widget.results?.turnDurationsSeconds ?? const [];
       if (_selectedTurn == 'All Turns') {
         if (durations.isNotEmpty) {
