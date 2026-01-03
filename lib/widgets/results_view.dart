@@ -2685,7 +2685,7 @@ class _ResultsViewState extends State<ResultsView> {
               ],
               if (selectedTurnIndex != null) ...[
                 SizedBox(
-                  height: 100,
+                  height: 150,
                   child: DotPlot(
                     values: _getValuesForMetric(
                       metric,
@@ -2698,7 +2698,7 @@ class _ResultsViewState extends State<ResultsView> {
                     highlightIndex: selectedTurnIndex,
                     optimalValue: _getOptimalForCategory(metric),
                     units: _getUnitsForCategory(metric),
-                    height: 100,
+                    height: 150,
                   ),
                 ),
               ],
@@ -2847,7 +2847,7 @@ class _ResultsViewState extends State<ResultsView> {
                       highlightIndex: selectedTurnIndex,
                       optimalValue: _getOptimalForCategory(_selectedCategory),
                       units: _getUnitsForCategory(_selectedCategory),
-                      height: 120,
+                      height: 150,
                     ),
                   ] else ...[
                     const Text(
