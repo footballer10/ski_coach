@@ -377,7 +377,7 @@ class DotPlot extends StatelessWidget {
                         bottom: 30,
                         child: CustomPaint(
                           painter: DottedLinePainter(color: Colors.red),
-                          size: Size(1, calculatedPlotHeight),
+                          size: Size(1, fixedPlotHeight),
                         ),
                       ),
                     // Dots
