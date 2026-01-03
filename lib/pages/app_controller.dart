@@ -489,6 +489,25 @@ class _AppControllerState extends State<AppController> {
                 onClose: () {
                   setState(() {
                     _showConnectionOverlay = false;
+                    // If no run pages exist yet, create the first one without sensors
+                    if (_runPages.isEmpty) {
+                      final pageKey = GlobalKey<RunPageState>();
+                      final newPage = RunPage(
+                        key: pageKey,
+                        bleMgr: null,
+                        leftId: '',
+                        rightId: '',
+                        onRecordAgain: _addNewRunPage,
+                        onDisconnect: _onSensorsDisconnected,
+                        onManualReconnect: _onManualReconnectPressed,
+                        autoStart: false,
+                        onRunCompleted: _recordRun,
+                        onAiProcessingChanged: _onAiProcessingChanged,
+                        onImportedRun: _addImportedRunPage,
+                      );
+                      _runPages.add(newPage);
+                      _runPageKeys.add(pageKey);
+                    }
                   });
                 },
               ),
