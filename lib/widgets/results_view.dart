@@ -351,8 +351,9 @@ class DotPlot extends StatelessWidget {
                 
                 // Calculate max dot size to fit all dots in tallest column
                 // Available height divided by number of dots, accounting for spacing
+                // Dots are positioned from top=0 to bottom=30, so available height is plotHeight - 30
                 final maxDotSizeFromHeight = maxDotsInColumn > 0
-                    ? (plotHeight - 10) / maxDotsInColumn - dotSpacing
+                    ? (plotHeight - 30) / maxDotsInColumn - dotSpacing
                     : 6.0;
                 
                 // Cap at column width and ensure minimum size, round down to prevent overflow
