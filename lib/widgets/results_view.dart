@@ -330,14 +330,14 @@ class DotPlot extends StatelessWidget {
     );
     final adjustedOptimalColumn = scaler.optimalColumn - firstNonEmpty;
 
-    // Calculate adaptive dot size based on fixed height constraint
+    // Calculate adaptive dot size based on the provided height constraint
     final maxDotsInColumn = trimmedColumnCounts
         .map((col) => col.length)
         .reduce(math.max);
-    final fixedPlotHeight = 200.0; // Fixed height for dot area
+    final plotHeight = height; // Use the height parameter passed to the widget
     final labelHeight = 30.0;
     final dotSpacing = 2.0; // vertical margin is 1px on each side
-    final totalHeight = fixedPlotHeight + labelHeight;
+    final totalHeight = plotHeight + labelHeight;
 
     return SizedBox(
       height: totalHeight,
@@ -352,17 +352,17 @@ class DotPlot extends StatelessWidget {
                 // Calculate max dot size to fit all dots in tallest column
                 // Available height divided by number of dots, accounting for spacing
                 final maxDotSizeFromHeight = maxDotsInColumn > 0
-                    ? (fixedPlotHeight - 10) / maxDotsInColumn - dotSpacing
+                    ? (plotHeight - 10) / maxDotsInColumn - dotSpacing
                     : 6.0;
                 
-                // Cap at column width and ensure minimum size
-                final dotSize = math.max(
+                // Cap at column width and ensure minimum size, round down to prevent overflow
+                final dotSize = (math.max(
                   1.0, // Minimum dot size
                   math.min(
                     maxDotSizeFromHeight,
                     columnWidth * 0.8, // 80% of column width
                   ),
-                );
+                )).floorToDouble();
                 return Stack(
                   children: [
                     // Optimal line (only show if in visible range)
@@ -377,7 +377,7 @@ class DotPlot extends StatelessWidget {
                         bottom: 30,
                         child: CustomPaint(
                           painter: DottedLinePainter(color: Colors.red),
-                          size: Size(1, fixedPlotHeight),
+                          size: Size(1, plotHeight),
                         ),
                       ),
                     // Dots
@@ -2434,7 +2434,7 @@ class _ResultsViewState extends State<ResultsView> {
               highlightIndex: null,
               optimalValue: _getOptimalForCategory(_selectedCategory),
               units: _getUnitsForCategory(_selectedCategory),
-              height: 200,
+              height: 150,
             ),
           ],
         ),
@@ -2685,7 +2685,7 @@ class _ResultsViewState extends State<ResultsView> {
               ],
               if (selectedTurnIndex != null) ...[
                 SizedBox(
-                  height: 200,
+                  height: 100,
                   child: DotPlot(
                     values: _getValuesForMetric(
                       metric,
@@ -2698,7 +2698,7 @@ class _ResultsViewState extends State<ResultsView> {
                     highlightIndex: selectedTurnIndex,
                     optimalValue: _getOptimalForCategory(metric),
                     units: _getUnitsForCategory(metric),
-                    height: 200,
+                    height: 100,
                   ),
                 ),
               ],
@@ -2847,7 +2847,7 @@ class _ResultsViewState extends State<ResultsView> {
                       highlightIndex: selectedTurnIndex,
                       optimalValue: _getOptimalForCategory(_selectedCategory),
                       units: _getUnitsForCategory(_selectedCategory),
-                      height: 200,
+                      height: 120,
                     ),
                   ] else ...[
                     const Text(
