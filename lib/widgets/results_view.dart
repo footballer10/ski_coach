@@ -330,19 +330,14 @@ class DotPlot extends StatelessWidget {
     );
     final adjustedOptimalColumn = scaler.optimalColumn - firstNonEmpty;
 
-    // Calculate required height based on max dots in any column
+    // Calculate adaptive dot size based on fixed height constraint
     final maxDotsInColumn = trimmedColumnCounts
         .map((col) => col.length)
         .reduce(math.max);
-    final dotSize = 6.0;
-    final dotSpacing = 2.0; // vertical margin is 1px on each side
-    final minPlotHeight = 60.0;
+    final fixedPlotHeight = 200.0; // Fixed height for dot area
     final labelHeight = 30.0;
-    final calculatedPlotHeight = math.max(
-      minPlotHeight,
-      maxDotsInColumn * (dotSize + dotSpacing) + 10,
-    );
-    final totalHeight = calculatedPlotHeight + labelHeight;
+    final dotSpacing = 2.0; // vertical margin is 1px on each side
+    final totalHeight = fixedPlotHeight + labelHeight;
 
     return SizedBox(
       height: totalHeight,
@@ -353,6 +348,21 @@ class DotPlot extends StatelessWidget {
               builder: (context, constraints) {
                 final columnWidth =
                     (constraints.maxWidth - 20) / trimmedNumColumns;
+                
+                // Calculate max dot size to fit all dots in tallest column
+                // Available height divided by number of dots, accounting for spacing
+                final maxDotSizeFromHeight = maxDotsInColumn > 0
+                    ? (fixedPlotHeight - 10) / maxDotsInColumn - dotSpacing
+                    : 6.0;
+                
+                // Cap at column width and ensure minimum size
+                final dotSize = math.max(
+                  1.0, // Minimum dot size
+                  math.min(
+                    maxDotSizeFromHeight,
+                    columnWidth * 0.8, // 80% of column width
+                  ),
+                );
                 return Stack(
                   children: [
                     // Optimal line (only show if in visible range)
