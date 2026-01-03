@@ -431,8 +431,8 @@ class _AppControllerState extends State<AppController> {
     final newPage = RunPage(
       key: pageKey,
       bleMgr: _bleMgr,
-      leftId: _leftId!,
-      rightId: _rightId!,
+      leftId: _leftId ?? '',
+      rightId: _rightId ?? '',
       onRecordAgain: _addNewRunPage,
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
