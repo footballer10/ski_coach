@@ -505,6 +505,7 @@ class _AppControllerState extends State<AppController> {
                         onAiProcessingChanged: _onAiProcessingChanged,
                         onImportedRun: _addImportedRunPage,
                         isAnyAiProcessing: () => _isAnyAiProcessing,
+                        onFinishDay: _showDailySummary,
                       );
                       _runPages.add(newPage);
                       _runPageKeys.add(pageKey);
