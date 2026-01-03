@@ -124,8 +124,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     // Load AI toggle preference asynchronously
     _loadAiPreference();
 
-    // Only subscribe to sensors if not starting with imported results and sensors are connected
-    if (widget.bleMgr != null && (_state != RunState.results || widget.initialResults == null)) {
+    // Only subscribe to sensors if not starting with imported results
+    if (_state != RunState.results || widget.initialResults == null) {
       // Register which device is left and which is right for calibration
       widget.bleMgr.registerDeviceSide(widget.leftId, 'left');
       widget.bleMgr.registerDeviceSide(widget.rightId, 'right');

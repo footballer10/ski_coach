@@ -338,6 +338,7 @@ class DotPlot extends StatelessWidget {
     final labelHeight = 30.0;
     final dotSpacing = 2.0; // vertical margin is 1px on each side
     final totalHeight = plotHeight + labelHeight;
+    final verticalPadding = 15.0; // Space reserved for labels and padding at bottom
 
     return SizedBox(
       height: totalHeight,
@@ -350,10 +351,10 @@ class DotPlot extends StatelessWidget {
                     (constraints.maxWidth - 20) / trimmedNumColumns;
                 
                 // Calculate max dot size to fit all dots in tallest column
-                // Available height divided by number of dots, accounting for spacing
-                // Dots are positioned from top=0 to bottom=30, so available height is plotHeight - 30
+                // Only use available space for dots, not the label area
+                final availableHeight = plotHeight - verticalPadding;
                 final maxDotSizeFromHeight = maxDotsInColumn > 0
-                    ? (plotHeight - 30) / maxDotsInColumn - dotSpacing
+                    ? (availableHeight) / maxDotsInColumn - dotSpacing
                     : 6.0;
                 
                 // Cap at column width and ensure minimum size, round down to prevent overflow
@@ -366,21 +367,6 @@ class DotPlot extends StatelessWidget {
                 )).floorToDouble();
                 return Stack(
                   children: [
-                    // Optimal line (only show if in visible range)
-                    if (adjustedOptimalColumn >= 0 &&
-                        adjustedOptimalColumn < trimmedNumColumns)
-                      Positioned(
-                        left:
-                            10 +
-                            adjustedOptimalColumn * columnWidth +
-                            columnWidth / 2,
-                        top: 0,
-                        bottom: 30,
-                        child: CustomPaint(
-                          painter: DottedLinePainter(color: Colors.red),
-                          size: Size(1, plotHeight),
-                        ),
-                      ),
                     // Dots
                     ...List.generate(trimmedNumColumns, (colIndex) {
                       final dotsInColumn = trimmedColumnCounts[colIndex];
@@ -417,7 +403,7 @@ class DotPlot extends StatelessWidget {
                         ),
                       );
                     }),
-                    // Column labels
+                    // Column labels with optimal column in red
                     Positioned(
                       left: 0,
                       right: 0,
@@ -425,11 +411,16 @@ class DotPlot extends StatelessWidget {
                       height: 30,
                       child: Row(
                         children: List.generate(trimmedNumColumns, (i) {
+                          final isOptimal = i == adjustedOptimalColumn;
                           return Expanded(
                             child: Center(
                               child: Text(
                                 trimmedColumns[i].toStringAsFixed(2),
-                                style: const TextStyle(fontSize: 9),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: isOptimal ? Colors.red : Colors.black,
+                                  fontWeight: isOptimal ? FontWeight.bold : FontWeight.normal,
+                                ),
                               ),
                             ),
                           );
@@ -2017,8 +2008,7 @@ class _ResultsViewState extends State<ResultsView> {
           padding: const EdgeInsets.all(12.0),
           child: _buildCategorySummary(),
         ),
-        SizedBox(
-          height: 300,
+        Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             itemCount: actualTurnCount,
@@ -2674,8 +2664,8 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ],
               const SizedBox(height: 8),
-              // Add time series graph for Edge Angle and Parallel (no Turn Shape graph per request)
-              if (selectedTurnIndex != null && (metric == 'Edge Angle' || metric == 'Parallel')) ...[
+              // Add time series graph for Edge Angle only (no Turn Shape graph per request)
+              if (selectedTurnIndex != null && metric == 'Edge Angle') ...[
                 SizedBox(
                   height: 120,
                   child: _buildTimeSeriesGraphForMetric(
