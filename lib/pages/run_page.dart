@@ -377,7 +377,16 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   }
 
   Future<void> _startRecording() async {
-    // Use BleManager's built-in recording
+    // First trigger calibration
+    widget.bleMgr.startCalibration();
+    
+    // Wait for calibration to complete
+    while (widget.bleMgr.isCalibrating) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+    }
+    
+    // Now start recording
     widget.bleMgr.startRecording();
     setState(() => _recording = true);
   }

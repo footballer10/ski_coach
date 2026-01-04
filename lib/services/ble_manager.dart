@@ -331,6 +331,15 @@ class BleManager {
     }
   }
 
+  /// Start calibration process manually (called before recording)
+  void startCalibration() {
+    if (_yawOffsetRightMinusLeft != null) {
+      // Reset previous calibration
+      _yawOffsetRightMinusLeft = null;
+    }
+    _startCalibration();
+  }
+
   /// Start calibration process - take single reading after countdown
   void _startCalibration() {
     // Show calibration overlay immediately
@@ -714,12 +723,7 @@ class BleManager {
     if (_hasAllFields(map)) {
       final timestamp = DateTime.now();
 
-      // Check if we should start calibration (both sensors now have data)
-      if (!_isCalibrating && _yawOffsetRightMinusLeft == null) {
-        _checkAndStartCalibration();
-      }
-
-      // Feed calibration system if active
+      // Feed calibration system if active (now triggered manually before recording)
       if (_isCalibrating) {
         _tryCalibrate(deviceId, map['yaw']!);
       }
