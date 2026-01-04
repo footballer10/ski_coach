@@ -10,6 +10,7 @@ class SymmetryResult {
   final int rightCount;
   final double? leftAverage;
   final double? rightAverage;
+  final String? biggerSide; // 'L' or 'R' indicating which side had longer average
 
   SymmetryResult({
     required this.ratio,
@@ -17,6 +18,7 @@ class SymmetryResult {
     required this.rightCount,
     required this.leftAverage,
     required this.rightAverage,
+    required this.biggerSide,
   });
 }
 
@@ -25,6 +27,7 @@ class SymmetryCalculator {
   ///
   /// Returns the ratio of (longer average) / (shorter average) for left vs right turns.
   /// A ratio of 1.0 = perfect symmetry, higher values = more asymmetric.
+  /// Also tracks which side (L or R) had the longer average.
   static SymmetryResult calculate({
     required List<double> turnDurations,
     required List<int> turnDirections,
@@ -72,6 +75,7 @@ class SymmetryCalculator {
     double? leftAvg;
     double? rightAvg;
     double? ratio;
+    String? biggerSide;
 
     if (leftDurations.isNotEmpty && rightDurations.isNotEmpty) {
       leftAvg = leftDurations.reduce((a, b) => a + b) / leftDurations.length;
@@ -79,10 +83,12 @@ class SymmetryCalculator {
 
       final bigger = leftAvg > rightAvg ? leftAvg : rightAvg;
       final smaller = leftAvg > rightAvg ? rightAvg : leftAvg;
+      biggerSide = leftAvg > rightAvg ? 'L' : 'R';
       ratio = bigger / smaller;
 
       if (!ratio.isFinite || ratio <= 0) {
         ratio = null;
+        biggerSide = null;
       }
 
       if (kDebugMode) {
@@ -90,7 +96,7 @@ class SymmetryCalculator {
         debugPrint('     Left average: ${leftAvg.toStringAsFixed(3)}s');
         debugPrint('     Right average: ${rightAvg.toStringAsFixed(3)}s');
         debugPrint(
-          '     Symmetry ratio: ${ratio?.toStringAsFixed(3) ?? "N/A"}',
+          '     Symmetry ratio: ${ratio?.toStringAsFixed(3) ?? "N/A"} ($biggerSide:${biggerSide == "L" ? "R" : "L"})',
         );
         debugPrint('     (1.0 = perfect, higher = more asymmetric)');
       }
@@ -108,6 +114,7 @@ class SymmetryCalculator {
       rightCount: rightDurations.length,
       leftAverage: leftAvg,
       rightAverage: rightAvg,
+      biggerSide: biggerSide,
     );
   }
 }

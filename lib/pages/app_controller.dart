@@ -421,6 +421,7 @@ class _AppControllerState extends State<AppController> {
       'turnShapeEnd': results.turnShapeEnd,
       'turnShapeAvg': results.turnShapeAvg,
       'turnSymmetryRatio': results.turnSymmetryRatio,
+      'turnSymmetryBiggerSide': results.turnSymmetryBiggerSide,
       'turnSymmetryScore': results.turnSymmetryScore,
       'processedLeftSamples': results.processedLeftSamples,
       'processedRightSamples': results.processedRightSamples,

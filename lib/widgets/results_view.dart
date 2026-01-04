@@ -1005,6 +1005,25 @@ class _ResultsViewState extends State<ResultsView> {
           : 0.0;
       final symmetryRatio = widget.results?.turnSymmetryRatio ?? 0.0;
 
+      // Calculate left/right ratio for AI (different from bigger/smaller shown in UI)
+      double aiSymmetryRatio = 1.0;
+      if (widget.results?.turnDurationsSeconds != null && widget.results?.turnDirections != null) {
+        final leftDurations = <double>[];
+        final rightDurations = <double>[];
+        for (int i = 0; i < widget.results!.turnDirections.length && i < widget.results!.turnDurationsSeconds.length; i++) {
+          if (widget.results!.turnDirections[i] == -1) {
+            leftDurations.add(widget.results!.turnDurationsSeconds[i]);
+          } else if (widget.results!.turnDirections[i] == 1) {
+            rightDurations.add(widget.results!.turnDurationsSeconds[i]);
+          }
+        }
+        if (leftDurations.isNotEmpty && rightDurations.isNotEmpty) {
+          final leftAvg = leftDurations.reduce((a, b) => a + b) / leftDurations.length;
+          final rightAvg = rightDurations.reduce((a, b) => a + b) / rightDurations.length;
+          aiSymmetryRatio = leftAvg / rightAvg;
+        }
+      }
+
       // Yield to UI thread after heavy calculations
       await Future.value();
 
@@ -1065,7 +1084,7 @@ class _ResultsViewState extends State<ResultsView> {
       "completion": ${avgShapeCompletion.toStringAsFixed(3)},
       "whole_turn": ${avgShapeWhole.toStringAsFixed(3)}
     },
-    "turn_symmetry_ratio": ${symmetryRatio.toStringAsFixed(3)}
+    "turn_symmetry_ratio": ${aiSymmetryRatio.toStringAsFixed(3)}
   },
 
   "previous_drills": $drillsJson
@@ -1795,7 +1814,13 @@ class _ResultsViewState extends State<ResultsView> {
 
   Widget _buildLeftPane({bool includeSimilarity = false}) {
     final items = _categories.skip(1).toList();
-    if (includeSimilarity) items.add('Turn Symmetry');
+    if (includeSimilarity) {
+      final biggerSide = widget.results?.turnSymmetryBiggerSide;
+      final label = biggerSide != null 
+          ? 'Turn Symmetry ($biggerSide:${biggerSide == "L" ? "R" : "L"})'
+          : 'Turn Symmetry';
+      items.add(label);
+    }
 
     // Precompute Duration average value and score
     String turnDurationVal = '—';
@@ -1874,12 +1899,12 @@ class _ResultsViewState extends State<ResultsView> {
                   ? 'Val: $parallelVal | Score: $parallelScore'
                   : cat == 'Turn Shape'
                   ? 'Val: $smoothVal | Score: $smoothScore'
-                  : cat == 'Turn Symmetry'
+                  : cat.startsWith('Turn Symmetry')
                   ? 'Val: ${widget.results?.turnSymmetryRatio != null ? widget.results!.turnSymmetryRatio!.toStringAsFixed(3) : '—'} | Score: ${widget.results?.turnSymmetryScore != null ? widget.results!.turnSymmetryScore!.toStringAsFixed(1) : '—'}'
                   : 'Val: — | Score: —',
               style: const TextStyle(fontSize: 11),
             ),
-            onTap: cat == 'Turn Symmetry' ? null : () => _selectCategory(cat),
+            onTap: cat.startsWith('Turn Symmetry') ? null : () => _selectCategory(cat),
           ),
         ),
       ],

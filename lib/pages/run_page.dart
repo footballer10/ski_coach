@@ -197,6 +197,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'turnShapeEnd': results.turnShapeEnd,
         'turnShapeAvg': results.turnShapeAvg,
         'turnSymmetryRatio': results.turnSymmetryRatio,
+        'turnSymmetryBiggerSide': results.turnSymmetryBiggerSide,
         'turnSymmetryScore': results.turnSymmetryScore,
         'processedLeftSamples': results.processedLeftSamples,
         'processedRightSamples': results.processedRightSamples,
@@ -486,6 +487,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
     // Compute turn symmetry (main page only)
     double? turnSymmetryRatio;
+    String? turnSymmetryBiggerSide;
     double? turnSymmetryScore;
     if (turnDirections.isNotEmpty && turnDurations.isNotEmpty) {
       final symmetryResult = SymmetryCalculator.calculate(
@@ -494,6 +496,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       );
 
       turnSymmetryRatio = symmetryResult.ratio;
+      turnSymmetryBiggerSide = symmetryResult.biggerSide;
       if (turnSymmetryRatio != null && turnSymmetryRatio > 0) {
         turnSymmetryScore = Scoring.symmetry(turnSymmetryRatio);
       }
@@ -529,6 +532,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       'turnShapeEnd': turnShapeEnd,
       'turnShapeAvg': turnShapeAvg,
       'turnSymmetryRatio': turnSymmetryRatio,
+      'turnSymmetryBiggerSide': turnSymmetryBiggerSide,
       'turnSymmetryScore': turnSymmetryScore,
     };
 
@@ -742,6 +746,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     final turnShapeAvg =
         (_analysisResults!['turnShapeAvg'] as List?)?.cast<double>() ?? [];
     final turnSymmetryRatio = _analysisResults!['turnSymmetryRatio'] as double?;
+    final turnSymmetryBiggerSide = _analysisResults!['turnSymmetryBiggerSide'] as String?;
     final turnSymmetryScore = _analysisResults!['turnSymmetryScore'] as double?;
 
     // Compute per-turn scores (average of 4 categories: duration, edge, parallel, smooth)
@@ -821,6 +826,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       turnShapeAvg: turnShapeAvg,
       turnScores: turnScores,
       turnSymmetryRatio: turnSymmetryRatio,
+      turnSymmetryBiggerSide: turnSymmetryBiggerSide,
       turnSymmetryScore: turnSymmetryScore,
       overallScore: overallScore,
       processedLeftSamples: processedLeftSamples,
@@ -881,6 +887,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'turnShapeEnd': results.turnShapeEnd,
         'turnShapeAvg': results.turnShapeAvg,
         'turnSymmetryRatio': results.turnSymmetryRatio,
+        'turnSymmetryBiggerSide': results.turnSymmetryBiggerSide,
         'turnSymmetryScore': results.turnSymmetryScore,
         'processedLeftSamples': results.processedLeftSamples,
         'processedRightSamples': results.processedRightSamples,

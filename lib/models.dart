@@ -84,6 +84,7 @@ class AnalysisResults {
   final List<double> turnScores;
 
   final double? turnSymmetryRatio;
+  final String? turnSymmetryBiggerSide; // 'L' or 'R'
   final double? turnSymmetryScore;
   final double? overallScore;
 
@@ -112,6 +113,7 @@ class AnalysisResults {
     required this.turnShapeAvg,
     required this.turnScores,
     required this.turnSymmetryRatio,
+    required this.turnSymmetryBiggerSide,
     required this.turnSymmetryScore,
     required this.overallScore,
     this.processedLeftSamples,
@@ -127,6 +129,7 @@ class AnalysisResults {
     'overallScore': overallScore,
     'turnSymmetryScore': turnSymmetryScore,
     'turnSymmetryRatio': turnSymmetryRatio,
+    'turnSymmetryBiggerSide': turnSymmetryBiggerSide,
     'turnDurationsSeconds': turnDurationsSeconds,
     'edgeAngles': edgeAngles,
     'parallelAvg': parallelAvg,
@@ -182,6 +185,7 @@ class AnalysisResults {
         turnShapeAvg: (json['turnShapeAvg'] as List).cast<double>(),
         turnScores: (json['turnScores'] as List).cast<double>(),
         turnSymmetryRatio: json['turnSymmetryRatio'] as double?,
+        turnSymmetryBiggerSide: json['turnSymmetryBiggerSide'] as String?,
         turnSymmetryScore: json['turnSymmetryScore'] as double?,
         overallScore: json['overallScore'] as double?,
         processedLeftSamples: json['processedLeftSamples'] != null
