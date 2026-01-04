@@ -19,7 +19,7 @@ AICoach getAICoach() {
 // LOCAL AI TEMPORARILY DISABLED
 // const int _localContextTokens = 8000;
 // const int _localMaxResponseTokens = 3000;
-const int _apiMaxResponseTokens = 8000;
+const int _apiMaxResponseTokens = 10000;
 
 class AICoach {
   static final AICoach _instance = AICoach._();
