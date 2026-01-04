@@ -505,6 +505,11 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     // Simulate analysis delay
     await Future.delayed(const Duration(milliseconds: 300));
 
+    // Calculate run duration as sum of all turn durations
+    final runDurationSeconds = turnDurations.isNotEmpty
+        ? turnDurations.reduce((a, b) => a + b).round()
+        : 0;
+
     final results = {
       'leftSampleCount': leftSamples.length,
       'rightSampleCount': rightSamples.length,
@@ -513,12 +518,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       'processedLeftSamples': unwrappedLeft,
       'processedRightSamples': correctedRightYaw,
       'segments': segments,
-      'duration': leftSamples.isNotEmpty && leftSamples.length > 1
-          ? leftSamples.last.timestamp
-                .difference(leftSamples.first.timestamp)
-                .inSeconds
-          : 0,
-      'startTime': leftSamples.isNotEmpty ? leftSamples.first.timestamp : null,
+      'duration': runDurationSeconds,
+      'startTime': segments.isNotEmpty ? segments.first.startTime : (leftSamples.isNotEmpty ? leftSamples.first.timestamp : null),
       'turnCount': segments.length,
       'turnDurations': turnDurations,
       'edgeAngles': edgeAngles,
@@ -588,7 +589,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                         });
                         _saveAiPreference(value);
                       },
-                      activeColor: Colors.blue,
+                      activeThumbColor: Colors.blue,
                     ),
                   ],
                 ),

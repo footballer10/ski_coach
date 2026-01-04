@@ -1720,8 +1720,12 @@ class _ResultsViewState extends State<ResultsView> {
   Widget _buildCompactSummary({bool includeSimilarity = false}) {
     final duration = widget.results?.runDurationSeconds ?? 0;
     final durationStr = duration > 0 ? '${duration}s' : '—';
-    final startTimeStr = widget.results?.runStartTime != null
-        ? '${widget.results!.runStartTime!.hour.toString().padLeft(2, '0')}:${widget.results!.runStartTime!.minute.toString().padLeft(2, '0')}'
+    final startTime = widget.results?.runStartTime;
+    final dateStr = startTime != null
+        ? '${startTime.month}/${startTime.day}/${startTime.year}'
+        : '—';
+    final timeStr = startTime != null
+        ? '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}'
         : '—';
 
     return Padding(
@@ -1757,12 +1761,12 @@ class _ResultsViewState extends State<ResultsView> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  _summaryItemStacked('Date', dateStr, timeStr),
+                  _summaryItem('Duration', durationStr),
                   _summaryItem(
                     'Turns',
                     '${(widget.results?.turnCount ?? 0) > 0 ? (widget.results?.turnCount ?? 0) : (_turns.length - 1)}',
                   ),
-                  _summaryItem('Duration', durationStr),
-                  _summaryItem('Start', startTimeStr),
                   _summaryItem(
                     'Score',
                     widget.results?.overallScore != null
@@ -1812,12 +1816,44 @@ class _ResultsViewState extends State<ResultsView> {
     );
   }
 
+  Widget _summaryItemStacked(String label, String topValue, String bottomValue) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+            fontWeight: FontWeight.normal,
+          ),
+        ),
+        Text(
+          topValue,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        Text(
+          bottomValue,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildLeftPane({bool includeSimilarity = false}) {
     final items = _categories.skip(1).toList();
     if (includeSimilarity) {
       final biggerSide = widget.results?.turnSymmetryBiggerSide;
       final label = biggerSide != null 
-          ? 'Turn Symmetry ($biggerSide:${biggerSide == "L" ? "R" : "L"})'
+          ? 'Turn Symmetry (${biggerSide == "L" ? "R" : "L"}:$biggerSide)'
           : 'Turn Symmetry';
       items.add(label);
     }
