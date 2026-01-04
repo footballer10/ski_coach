@@ -3,10 +3,11 @@ library;
 
 import '../../models.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 
 class EdgeAngleCalculator {
-  /// Calculate maximum absolute pitch during turn segment
-  /// Filters out unrealistic values (>90 degrees) and returns the maximum
+  /// Calculate maximum averaged edge angle from both sensors
+  /// Averages each left/right pair, then finds the max of those averages
   static double calculateMaxEdgeAngle({
     required List<ImuSample> leftSamples,
     required List<ImuSample> rightSamples,
@@ -21,7 +22,7 @@ class EdgeAngleCalculator {
       debugPrint(
         '📊 ════════════════════════════════════════════════════════════════════════',
       );
-      debugPrint('📊 METRIC 1: MAX EDGE ANGLE (Pitch)');
+      debugPrint('📊 METRIC 1: MAX EDGE ANGLE (Averaged Pitch)');
       debugPrint(
         '📊 ════════════════════════════════════════════════════════════════════════',
       );
@@ -30,58 +31,49 @@ class EdgeAngleCalculator {
       debugPrint('📊 Right indices: $startIdxRight → $endIdxRight');
     }
 
-    double maxEdgeAngle = 0.0;
+    double maxAvgEdgeAngle = 0.0;
 
-    // Check left sensor - filter out unrealistic values
-    for (int i = startIdxLeft; i <= endIdxLeft && i < leftSamples.length; i++) {
-      final pitch = leftSamples[i].pitch.abs();
+    // Iterate through overlapping indices and average each pair
+    final minLength = math.min(leftSamples.length, rightSamples.length);
+    final startIdx = math.max(startIdxLeft, startIdxRight);
+    final endIdx = math.min(
+      math.min(endIdxLeft, endIdxRight),
+      minLength - 1,
+    );
+
+    for (int i = startIdx; i <= endIdx; i++) {
+      final leftPitch = leftSamples[i].pitch.abs();
+      final rightPitch = rightSamples[i].pitch.abs();
+      
       // Only consider pitch values that are reasonable for skiing (0-90 degrees)
-      if (pitch <= 90.0 && pitch > maxEdgeAngle) {
-        maxEdgeAngle = pitch;
-        if (kDebugMode) {
-          debugPrint('   L[$i] pitch=${pitch.toStringAsFixed(2)}° ← NEW MAX');
+      if (leftPitch <= 90.0 && rightPitch <= 90.0) {
+        final avgPitch = (leftPitch + rightPitch) / 2.0;
+        
+        if (avgPitch > maxAvgEdgeAngle) {
+          maxAvgEdgeAngle = avgPitch;
+          if (kDebugMode) {
+            debugPrint(
+              '   [$i] L=${leftPitch.toStringAsFixed(2)}° R=${rightPitch.toStringAsFixed(2)}° AVG=${avgPitch.toStringAsFixed(2)}° ← NEW MAX',
+            );
+          }
+        } else if (kDebugMode) {
+          debugPrint(
+            '   [$i] L=${leftPitch.toStringAsFixed(2)}° R=${rightPitch.toStringAsFixed(2)}° AVG=${avgPitch.toStringAsFixed(2)}°',
+          );
         }
       } else if (kDebugMode) {
-        if (pitch > 90.0) {
-          debugPrint(
-            '   L[$i] pitch=${pitch.toStringAsFixed(2)}° ✗ (out of range)',
-          );
-        } else {
-          debugPrint('   L[$i] pitch=${pitch.toStringAsFixed(2)}°');
-        }
-      }
-    }
-
-    // Check right sensor - filter out unrealistic values
-    for (
-      int i = startIdxRight;
-      i <= endIdxRight && i < rightSamples.length;
-      i++
-    ) {
-      final pitch = rightSamples[i].pitch.abs();
-      // Only consider pitch values that are reasonable for skiing (0-90 degrees)
-      if (pitch <= 90.0 && pitch > maxEdgeAngle) {
-        maxEdgeAngle = pitch;
-        if (kDebugMode) {
-          debugPrint('   R[$i] pitch=${pitch.toStringAsFixed(2)}° ← NEW MAX');
-        }
-      } else if (kDebugMode) {
-        if (pitch > 90.0) {
-          debugPrint(
-            '   R[$i] pitch=${pitch.toStringAsFixed(2)}° ✗ (out of range)',
-          );
-        } else {
-          debugPrint('   R[$i] pitch=${pitch.toStringAsFixed(2)}°');
-        }
+        debugPrint(
+          '   [$i] L=${leftPitch.toStringAsFixed(2)}° R=${rightPitch.toStringAsFixed(2)}° ✗ (out of range)',
+        );
       }
     }
 
     if (kDebugMode) {
       debugPrint(
-        '📊 FINAL MAX EDGE ANGLE: ${maxEdgeAngle.toStringAsFixed(2)}°',
+        '📊 FINAL MAX AVERAGED EDGE ANGLE: ${maxAvgEdgeAngle.toStringAsFixed(2)}°',
       );
     }
 
-    return maxEdgeAngle;
+    return maxAvgEdgeAngle;
   }
 }
