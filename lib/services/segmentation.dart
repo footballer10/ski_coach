@@ -209,7 +209,7 @@ class TurnSegmentation {
           '🔄 ════════════════════════════════════════════════════════════════════════',
         );
         debugPrint(
-          '🔄 PROCESSING TURN ${k} (between peaks ${k + 1} and ${k + 2}, skipping first/last)',
+          '🔄 PROCESSING TURN $k (between peaks ${k + 1} and ${k + 2}, skipping first/last)',
         );
         debugPrint(
           '🔄 ════════════════════════════════════════════════════════════════════════',
