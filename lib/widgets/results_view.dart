@@ -242,7 +242,8 @@ class DotPlotScaler {
 class DotPlot extends StatelessWidget {
   final List<double> values;
   final int? highlightIndex;
-  final double optimalValue;
+  final double? optimalValue;
+  final bool showOptimal;
   final String units;
   final double height;
 
@@ -250,7 +251,8 @@ class DotPlot extends StatelessWidget {
     super.key,
     required this.values,
     this.highlightIndex,
-    required this.optimalValue,
+    this.optimalValue,
+    this.showOptimal = true,
     required this.units,
     this.height = 100,
   });
@@ -267,10 +269,15 @@ class DotPlot extends StatelessWidget {
     final minValue = values.reduce(math.min);
     final maxValue = values.reduce(math.max);
 
+    // DotPlotScaler requires a value; when we don't want an "optimal" marker
+    // (e.g., Edge Angle now uses "optimal = max"), use the midpoint so
+    // scaling stays based on the data range.
+    final scalerOptimalValue = optimalValue ?? ((minValue + maxValue) / 2.0);
+
     final scaler = DotPlotScaler(
       minValue: minValue,
       maxValue: maxValue,
-      optimalValue: optimalValue,
+      optimalValue: scalerOptimalValue,
     );
 
     final numColumns = scaler.columns.length;
@@ -282,9 +289,30 @@ class DotPlot extends StatelessWidget {
       columnCounts[columnIndex].add(i);
     }
 
-    // Trim empty columns from start and end, but keep optimal column
-    int firstNonEmpty = scaler.optimalColumn; // Start with optimal
-    int lastNonEmpty = scaler.optimalColumn; // Start with optimal
+    // Trim empty columns from start and end.
+    int firstNonEmpty;
+    int lastNonEmpty;
+    if (showOptimal && optimalValue != null) {
+      // Keep the optimal column even if it's empty.
+      firstNonEmpty = scaler.optimalColumn;
+      lastNonEmpty = scaler.optimalColumn;
+    } else {
+      // No optimal marker: start from the data.
+      firstNonEmpty = 0;
+      lastNonEmpty = numColumns - 1;
+      for (int i = 0; i < numColumns; i++) {
+        if (columnCounts[i].isNotEmpty) {
+          firstNonEmpty = i;
+          break;
+        }
+      }
+      for (int i = numColumns - 1; i >= 0; i--) {
+        if (columnCounts[i].isNotEmpty) {
+          lastNonEmpty = i;
+          break;
+        }
+      }
+    }
 
     // Expand to include all data points
     for (int i = 0; i < numColumns; i++) {
@@ -328,7 +356,9 @@ class DotPlot extends StatelessWidget {
       firstNonEmpty,
       lastNonEmpty + 1,
     );
-    final adjustedOptimalColumn = scaler.optimalColumn - firstNonEmpty;
+    final int? adjustedOptimalColumn = (showOptimal && optimalValue != null)
+        ? (scaler.optimalColumn - firstNonEmpty)
+        : null;
 
     // Calculate adaptive dot size based on the provided height constraint
     final maxDotsInColumn = trimmedColumnCounts
@@ -403,7 +433,7 @@ class DotPlot extends StatelessWidget {
                         ),
                       );
                     }),
-                    // Column labels with optimal column in red
+                    // Column labels (optionally highlight the optimal column)
                     Positioned(
                       left: 0,
                       right: 0,
@@ -411,7 +441,9 @@ class DotPlot extends StatelessWidget {
                       height: 30,
                       child: Row(
                         children: List.generate(trimmedNumColumns, (i) {
-                          final isOptimal = i == adjustedOptimalColumn;
+                          final isOptimal =
+                              adjustedOptimalColumn != null &&
+                              i == adjustedOptimalColumn;
                           return Expanded(
                             child: Center(
                               child: Text(
@@ -721,12 +753,12 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   // Helper methods for dot plots
-  double _getOptimalForCategory(String category) {
+  double? _getOptimalForCategory(String category) {
     switch (category) {
       case 'Duration':
         return 1.0;
       case 'Edge Angle':
-        return 45.0;
+        return null; // Optimal is "max" (no fixed target)
       case 'Parallel':
         return 0.0;
       case 'Turn Shape':
@@ -2420,7 +2452,7 @@ class _ResultsViewState extends State<ResultsView> {
         }
       }
     } else if (_selectedCategory == 'Edge Angle') {
-      optimalText = '45.0°';
+      optimalText = 'Max';
       final angles = widget.results?.edgeAngles ?? const [];
       if (_selectedTurn == 'All Turns') {
         if (angles.isNotEmpty) {
@@ -2486,6 +2518,7 @@ class _ResultsViewState extends State<ResultsView> {
               values: values,
               highlightIndex: null,
               optimalValue: _getOptimalForCategory(_selectedCategory),
+              showOptimal: _selectedCategory != 'Edge Angle',
               units: _getUnitsForCategory(_selectedCategory),
               height: 200,
             ),
@@ -2750,6 +2783,7 @@ class _ResultsViewState extends State<ResultsView> {
                     ),
                     highlightIndex: selectedTurnIndex,
                     optimalValue: _getOptimalForCategory(metric),
+                    showOptimal: metric != 'Edge Angle',
                     units: _getUnitsForCategory(metric),
                     height: 200,
                   ),
@@ -2899,6 +2933,7 @@ class _ResultsViewState extends State<ResultsView> {
                       ),
                       highlightIndex: selectedTurnIndex,
                       optimalValue: _getOptimalForCategory(_selectedCategory),
+                      showOptimal: _selectedCategory != 'Edge Angle',
                       units: _getUnitsForCategory(_selectedCategory),
                       height: 200,
                     ),
@@ -2982,7 +3017,8 @@ class _ResultsViewState extends State<ResultsView> {
 
     return TimeSeriesGraph(
       dataPoints: dataPoints,
-      optimalValue: 45.0,
+      optimalValue: null,
+      showOptimalLine: false,
       yAxisLabel: 'Edge Angle (°)',
       durationSeconds: segment.durationSeconds,
       height: 120,

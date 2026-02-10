@@ -11,7 +11,8 @@ class GraphPoint {
 /// Time series graph widget for edge angle and parallelness over time
 class TimeSeriesGraph extends StatelessWidget {
   final List<GraphPoint> dataPoints;
-  final double optimalValue;
+  final double? optimalValue;
+  final bool showOptimalLine;
   final String yAxisLabel;
   final double durationSeconds;
   final double height;
@@ -19,7 +20,8 @@ class TimeSeriesGraph extends StatelessWidget {
   const TimeSeriesGraph({
     super.key,
     required this.dataPoints,
-    required this.optimalValue,
+    this.optimalValue,
+    this.showOptimalLine = true,
     required this.yAxisLabel,
     required this.durationSeconds,
     this.height = 150,
@@ -35,7 +37,9 @@ class TimeSeriesGraph extends StatelessWidget {
     }
 
     final maxDataValue = dataPoints.map((p) => p.value).reduce(math.max);
-    final maxYValue = math.max(maxDataValue, optimalValue);
+    final maxYValue = (showOptimalLine && optimalValue != null)
+      ? math.max(maxDataValue, optimalValue!)
+      : maxDataValue;
 
     // Determine y-axis increment
     final double yIncrement;
@@ -59,6 +63,7 @@ class TimeSeriesGraph extends StatelessWidget {
           painter: TimeSeriesGraphPainter(
             dataPoints: dataPoints,
             optimalValue: optimalValue,
+            showOptimalLine: showOptimalLine,
             yMax: yMax.toDouble(),
             yIncrement: yIncrement,
             durationSeconds: durationSeconds,
@@ -73,7 +78,8 @@ class TimeSeriesGraph extends StatelessWidget {
 
 class TimeSeriesGraphPainter extends CustomPainter {
   final List<GraphPoint> dataPoints;
-  final double optimalValue;
+  final double? optimalValue;
+  final bool showOptimalLine;
   final double yMax;
   final double yIncrement;
   final double durationSeconds;
@@ -82,6 +88,7 @@ class TimeSeriesGraphPainter extends CustomPainter {
   TimeSeriesGraphPainter({
     required this.dataPoints,
     required this.optimalValue,
+    required this.showOptimalLine,
     required this.yMax,
     required this.yIncrement,
     required this.durationSeconds,
@@ -157,15 +164,17 @@ class TimeSeriesGraphPainter extends CustomPainter {
       );
     }
 
-    // Draw optimal value dotted line
-    final optimalY = size.height - (optimalValue / yMax) * size.height;
-    if (optimalValue <= yMax) {
-      _drawDottedLine(
-        canvas,
-        Offset(0, optimalY),
-        Offset(size.width, optimalY),
-        optimalLinePaint,
-      );
+    // Draw optimal value dotted line (optional)
+    if (showOptimalLine && optimalValue != null) {
+      final optimalY = size.height - (optimalValue! / yMax) * size.height;
+      if (optimalValue! <= yMax) {
+        _drawDottedLine(
+          canvas,
+          Offset(0, optimalY),
+          Offset(size.width, optimalY),
+          optimalLinePaint,
+        );
+      }
     }
 
     // Draw data points
