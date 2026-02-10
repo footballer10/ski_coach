@@ -757,7 +757,12 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         (_analysisResults!['turnShapeAvg'] as List?)?.cast<double>() ?? [];
     final turnSymmetryRatio = _analysisResults!['turnSymmetryRatio'] as double?;
     final turnSymmetryBiggerSide = _analysisResults!['turnSymmetryBiggerSide'] as String?;
-    final turnSymmetryScore = _analysisResults!['turnSymmetryScore'] as double?;
+    // Important for imports: always recompute symmetry score from ratio using
+    // the *current* scoring formula, so old exported runs use updated scoring.
+    final storedTurnSymmetryScore = _analysisResults!['turnSymmetryScore'] as double?;
+    final turnSymmetryScore = turnSymmetryRatio != null
+      ? Scoring.symmetry(turnSymmetryRatio)
+      : storedTurnSymmetryScore;
 
     // Compute per-turn scores (average of 4 categories: duration, edge, parallel, smooth)
     final turnScores = <double>[];

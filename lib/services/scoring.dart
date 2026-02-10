@@ -12,9 +12,10 @@ class Scoring {
     }
   }
 
-  /// Edge Angle: 100·cos(π/90·(x-45))^5
+  /// Edge Angle: 100 - 100·e^(-0.00003·x^3)
   static double edgeAngle(double degrees) {
-    final v = 100.0 * math.pow(math.cos((math.pi / 90.0) * (degrees - 45.0)), 5);
+    final x = degrees.isFinite ? math.max(0.0, degrees) : 0.0;
+    final v = 100.0 - 100.0 * math.exp(-0.00003 * math.pow(x, 3));
     return v.isFinite ? v.toDouble().clamp(0.0, 100.0) : 0.0;
   }
 
