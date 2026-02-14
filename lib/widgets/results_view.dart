@@ -899,6 +899,39 @@ class _ResultsViewState extends State<ResultsView> {
     }
   }
 
+  Future<void> _regenerateCoachingAdvice() async {
+    if (_loadingCoachingAdvice || widget.isAnyAiProcessing()) return;
+
+    if (!widget.aiEnabled) {
+      setState(() {
+        _coachingAdvice = '';
+        _coachingError = 'AI mode is disabled';
+        _loadingCoachingAdvice = false;
+      });
+      widget.onAiProcessingChanged(false);
+      return;
+    }
+
+    if (widget.results == null) {
+      setState(() {
+        _coachingAdvice = '';
+        _coachingError = 'No run data available for AI feedback';
+        _loadingCoachingAdvice = false;
+      });
+      widget.onAiProcessingChanged(false);
+      return;
+    }
+
+    setState(() {
+      _coachingAdvice = '';
+      _coachingError = null;
+      _loadingCoachingAdvice = true;
+    });
+    widget.onAiProcessingChanged(true);
+
+    await _generateCoachingAdvice();
+  }
+
   Future<void> _generateCoachingAdvice() async {
     if (widget.results == null) {
       setState(() {
@@ -1035,8 +1068,6 @@ class _ResultsViewState extends State<ResultsView> {
           ? widget.results!.turnShapeAvg.reduce((a, b) => a + b) /
                 widget.results!.turnShapeAvg.length
           : 0.0;
-      final symmetryRatio = widget.results?.turnSymmetryRatio ?? 0.0;
-
       // Calculate left/right ratio for AI (different from bigger/smaller shown in UI)
       double aiSymmetryRatio = 1.0;
       if (widget.results?.turnDurationsSeconds != null && widget.results?.turnDirections != null) {
@@ -1059,18 +1090,6 @@ class _ResultsViewState extends State<ResultsView> {
       // Yield to UI thread after heavy calculations
       await Future.value();
 
-      // Get session history
-      final categoriesCoached = aiCoach.getCategoriesCoached();
-      final drillsCoached = aiCoach.getDrillsCoached();
-
-      // Format arrays for JSON - use "none" if empty
-      final categoriesJson = categoriesCoached.isEmpty
-          ? '[none]'
-          : '["${categoriesCoached.join('", "')}"]';
-      final drillsJson = drillsCoached.isEmpty
-          ? '[none]'
-          : '["${drillsCoached.join('", "')}"]';
-
       // Set user prompt in exact JSON format
       aiCoach.setUserPrompt('''
 {
@@ -1083,8 +1102,6 @@ class _ResultsViewState extends State<ResultsView> {
   },
 
   "overall_score": ${widget.results?.overallScore?.toStringAsFixed(3) ?? "0.000"},
-
-  "previous_categories": $categoriesJson,
 
   "phase_scores": {
     "parallelness": {
@@ -1117,9 +1134,7 @@ class _ResultsViewState extends State<ResultsView> {
       "whole_turn": ${avgShapeWhole.toStringAsFixed(3)}
     },
     "turn_symmetry_ratio": ${aiSymmetryRatio.toStringAsFixed(3)}
-  },
-
-  "previous_drills": $drillsJson
+  }
 }''');
 
       final categoryScores = {
@@ -1140,8 +1155,8 @@ class _ResultsViewState extends State<ResultsView> {
 
       debugPrint('🤖 Raw AI advice received (${advice.length} chars): $advice');
 
-      // Parse the AI response to extract category, drill, and feedback
-      final feedbackParagraph = aiCoach.parseAndStoreResponse(advice);
+      // User-visible feedback is everything after the last "//" delimiter.
+      final feedbackParagraph = aiCoach.extractFeedback(advice);
 
       debugPrint('🤖 Parsed feedback: $feedbackParagraph');
 
@@ -1182,7 +1197,7 @@ class _ResultsViewState extends State<ResultsView> {
     if (widget.results == null) return;
 
     // Check if AI feedback is still loading
-    if (_loadingCoachingAdvice && widget.aiFeedback == null) {
+    if (_loadingCoachingAdvice) {
       final shouldContinue = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -1259,6 +1274,7 @@ class _ResultsViewState extends State<ResultsView> {
       // Create export object
       final exportedRun = ExportedRun(
         schemaVersion: 1,
+        turnRange: '',
         runName: runName,
         analysisResults: widget.results!,
         aiFeedback: feedbackToExport,
@@ -1491,6 +1507,15 @@ class _ResultsViewState extends State<ResultsView> {
                     color: Colors.blue,
                   ),
                 ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Regenerate AI feedback',
+                  onPressed:
+                      (_loadingCoachingAdvice || widget.isAnyAiProcessing())
+                          ? null
+                          : _regenerateCoachingAdvice,
+                  icon: const Icon(Icons.refresh, color: Colors.blue),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -1504,7 +1529,7 @@ class _ResultsViewState extends State<ResultsView> {
                   ),
                   SizedBox(width: 12),
                   Text(
-                    'Waiting for AI...',
+                    'Generating AI feedback...',
                     style: TextStyle(
                       fontSize: 13,
                       fontStyle: FontStyle.italic,

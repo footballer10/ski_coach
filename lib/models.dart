@@ -200,17 +200,102 @@ class AnalysisResults {
             : null,
         segments: json['segments'] as List?,
       );
+
+  AnalysisResults sliceTurns({
+    required int startTurn1Based,
+    required int endTurn1Based,
+  }) {
+    if (turnCount <= 0) return this;
+
+    final start = startTurn1Based.clamp(1, turnCount);
+    final end = endTurn1Based.clamp(start, turnCount);
+
+    final startIndex = start - 1;
+    final endExclusive = end;
+
+    List<T> sliceList<T>(List<T> list) {
+      if (startIndex >= list.length) return <T>[];
+      final effectiveEnd = endExclusive.clamp(0, list.length);
+      if (effectiveEnd <= startIndex) return <T>[];
+      return list.sublist(startIndex, effectiveEnd);
+    }
+
+    final slicedDurations = sliceList<double>(turnDurationsSeconds);
+    final slicedDurationSeconds = slicedDurations.isNotEmpty
+        ? slicedDurations.reduce((a, b) => a + b).round()
+        : 0;
+
+    DateTime? slicedStartTime = runStartTime;
+    if (segments is List && (segments as List).isNotEmpty) {
+      final segs = segments as List;
+      if (startIndex >= 0 && startIndex < segs.length) {
+        final firstSeg = segs[startIndex];
+        if (firstSeg is Map) {
+          final raw = firstSeg['startTime'] ??
+              firstSeg['start_time'] ??
+              firstSeg['timestamp'] ??
+              firstSeg['startTimestamp'] ??
+              firstSeg['start_timestamp'];
+          if (raw is String) {
+            try {
+              slicedStartTime = DateTime.parse(raw);
+            } catch (_) {
+              // Ignore parse errors; keep existing runStartTime
+            }
+          } else if (raw is int) {
+            try {
+              slicedStartTime = DateTime.fromMillisecondsSinceEpoch(raw);
+            } catch (_) {
+              // Ignore invalid epoch; keep existing runStartTime
+            }
+          }
+        }
+      }
+    }
+
+    return AnalysisResults(
+      leftSampleCount: leftSampleCount,
+      rightSampleCount: rightSampleCount,
+      leftSegments: leftSegments,
+      rightSegments: rightSegments,
+      runDurationSeconds: slicedDurationSeconds,
+      runStartTime: slicedStartTime,
+      turnCount: (end - start + 1),
+      turnDurationsSeconds: slicedDurations,
+      edgeAngles: sliceList<double>(edgeAngles),
+      turnDirections: sliceList<int>(turnDirections),
+      parallelBeginning: sliceList<double>(parallelBeginning),
+      parallelMiddle: sliceList<double>(parallelMiddle),
+      parallelEnd: sliceList<double>(parallelEnd),
+      parallelAvg: sliceList<double>(parallelAvg),
+      turnShapeBeginning: sliceList<double>(turnShapeBeginning),
+      turnShapeMiddle: sliceList<double>(turnShapeMiddle),
+      turnShapeEnd: sliceList<double>(turnShapeEnd),
+      turnShapeAvg: sliceList<double>(turnShapeAvg),
+      turnScores: sliceList<double>(turnScores),
+      // Recompute symmetry/overall on display/import; clear stored values.
+      turnSymmetryRatio: null,
+      turnSymmetryBiggerSide: null,
+      turnSymmetryScore: null,
+      overallScore: null,
+      processedLeftSamples: processedLeftSamples,
+      processedRightSamples: processedRightSamples,
+      segments: segments is List ? sliceList(segments as List) : segments,
+    );
+  }
 }
 
 /// Exported run data for sharing/importing
 class ExportedRun {
   final int schemaVersion;
+  final String turnRange;
   final String runName;
   final AnalysisResults analysisResults;
   final String? aiFeedback;
 
   const ExportedRun({
     required this.schemaVersion,
+    this.turnRange = '',
     required this.runName,
     required this.analysisResults,
     this.aiFeedback,
@@ -218,6 +303,7 @@ class ExportedRun {
 
   Map<String, dynamic> toJson() => {
     'schemaVersion': schemaVersion,
+    'turnRange': turnRange,
     'runName': runName,
     'analysisResults': analysisResults.toJson(),
     if (aiFeedback != null) 'aiFeedback': aiFeedback,
@@ -229,12 +315,57 @@ class ExportedRun {
         'Unsupported schema version: ${json['schemaVersion']}',
       );
     }
+
+    final rawTurnRange = json['turnRange'];
+    final parsedTurnRange = rawTurnRange is String ? rawTurnRange : '';
+
     return ExportedRun(
       schemaVersion: json['schemaVersion'] as int,
+      turnRange: parsedTurnRange,
       runName: json['runName'] as String,
       analysisResults: AnalysisResults.fromJson(json['analysisResults']),
       aiFeedback: json['aiFeedback'] as String?,
     );
+  }
+
+  /// If [turnRange] is filled (e.g. "5-17"), returns a new [ExportedRun]
+  /// whose [analysisResults] include only that turn subset.
+  ///
+  /// Invalid/blank ranges are ignored.
+  ExportedRun applyTurnRangeIfPresent() {
+    final range = _tryParseTurnRange(turnRange);
+    if (range == null) return this;
+
+    final start = range[0];
+    final end = range[1];
+    final sliced = analysisResults.sliceTurns(
+      startTurn1Based: start,
+      endTurn1Based: end,
+    );
+
+    return ExportedRun(
+      schemaVersion: schemaVersion,
+      turnRange: turnRange,
+      runName: runName,
+      analysisResults: sliced,
+      aiFeedback: aiFeedback,
+    );
+  }
+
+  static List<int>? _tryParseTurnRange(String? value) {
+    if (value == null) return null;
+    final v = value.trim();
+    if (v.isEmpty) return null;
+
+    final match = RegExp(r'^(\d+)\s*-\s*(\d+)$').firstMatch(v);
+    if (match == null) return null;
+
+    final start = int.tryParse(match.group(1)!);
+    final end = int.tryParse(match.group(2)!);
+    if (start == null || end == null) return null;
+    if (start <= 0 || end <= 0) return null;
+
+    return start <= end ? <int>[start, end] : <int>[end, start];
   }
 
   String toJsonString() => jsonEncode(toJson());

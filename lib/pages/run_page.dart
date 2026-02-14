@@ -755,14 +755,26 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         (_analysisResults!['turnShapeEnd'] as List?)?.cast<double>() ?? [];
     final turnShapeAvg =
         (_analysisResults!['turnShapeAvg'] as List?)?.cast<double>() ?? [];
-    final turnSymmetryRatio = _analysisResults!['turnSymmetryRatio'] as double?;
-    final turnSymmetryBiggerSide = _analysisResults!['turnSymmetryBiggerSide'] as String?;
+    // Symmetry should always be computed from the turns we are displaying.
+    // This matters for imports with a turnRange selection.
+    double? turnSymmetryRatio;
+    String? turnSymmetryBiggerSide;
+    if (turnDirections.isNotEmpty && turnDurations.isNotEmpty) {
+      final symmetryResult = SymmetryCalculator.calculate(
+        turnDurations: turnDurations,
+        turnDirections: turnDirections,
+      );
+      turnSymmetryRatio = symmetryResult.ratio;
+      turnSymmetryBiggerSide = symmetryResult.biggerSide;
+    }
+
     // Important for imports: always recompute symmetry score from ratio using
     // the *current* scoring formula, so old exported runs use updated scoring.
-    final storedTurnSymmetryScore = _analysisResults!['turnSymmetryScore'] as double?;
+    final storedTurnSymmetryScore =
+        _analysisResults!['turnSymmetryScore'] as double?;
     final turnSymmetryScore = turnSymmetryRatio != null
-      ? Scoring.symmetry(turnSymmetryRatio)
-      : storedTurnSymmetryScore;
+        ? Scoring.symmetry(turnSymmetryRatio)
+        : storedTurnSymmetryScore;
 
     // Compute per-turn scores (average of 4 categories: duration, edge, parallel, smooth)
     final turnScores = <double>[];
@@ -878,7 +890,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       final jsonString = await file.readAsString();
 
       // Parse and validate
-      final exportedRun = ExportedRun.fromJsonString(jsonString);
+        final exportedRun =
+          ExportedRun.fromJsonString(jsonString).applyTurnRangeIfPresent();
 
       // Convert imported data to analysis results format
       final results = exportedRun.analysisResults;

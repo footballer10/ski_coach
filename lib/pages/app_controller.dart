@@ -397,7 +397,7 @@ class _AppControllerState extends State<AppController> {
 
   void _addImportedRunPage(dynamic importedRun) {
     // importedRun is an ExportedRun object
-    final exportedRun = importedRun as ExportedRun;
+    final exportedRun = (importedRun as ExportedRun).applyTurnRangeIfPresent();
     final results = exportedRun.analysisResults;
     
     // Convert to analysis results format

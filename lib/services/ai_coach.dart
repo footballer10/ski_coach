@@ -33,22 +33,12 @@ class AICoach {
   String? _systemPromptLocal;
   String? _systemPromptAPI;
   String? _userPrompt;
-
-  final List<String> _categoriesCoached = [];
-  final List<String> _drillsCoached = [];
   
   // LOCAL AI TEMPORARILY DISABLED
   // bool _isDownloading = false;
   // double _downloadProgress = 0.0;
   // bool _isLoading = false;
 
-  List<String> getCategoriesCoached() => List.unmodifiable(_categoriesCoached);
-  List<String> getDrillsCoached() => List.unmodifiable(_drillsCoached);
-
-  void clearSessionHistory() {
-    _categoriesCoached.clear();
-    _drillsCoached.clear();
-  }
 
   Future<void> initialize({bool forceLoad = false}) async {
     if (_isInitialized && !forceLoad) return;
@@ -309,36 +299,16 @@ class AICoach {
     }
   }
 
-  String parseAndStoreResponse(String aiResponse) {
-    try {
-      final separators = <int>[];
-      int index = aiResponse.indexOf('//');
-      while (index != -1) {
-        separators.add(index);
-        index = aiResponse.indexOf('//', index + 2);
-      }
-
-      if (separators.length < 3) {
-        return aiResponse;
-      }
-
-      final thirdToLastPos = separators[separators.length - 3];
-      final secondToLastPos = separators[separators.length - 2];
-      final lastPos = separators[separators.length - 1];
-
-      final category = aiResponse
-          .substring(thirdToLastPos + 2, secondToLastPos)
-          .trim();
-      final drill = aiResponse.substring(secondToLastPos + 2, lastPos).trim();
-      final feedback = aiResponse.substring(lastPos + 2).trim();
-
-      if (category.isNotEmpty) _categoriesCoached.add(category);
-      if (drill.isNotEmpty) _drillsCoached.add(drill);
-
-      return feedback;
-    } catch (e) {
-      return aiResponse;
-    }
+  /// Extracts the user-visible coaching feedback from the model output.
+  ///
+  /// New contract: the model may include reasoning, and the user-facing text is
+  /// everything after the LAST occurrence of `//`.
+  ///
+  /// If no delimiter exists, returns the entire response.
+  String extractFeedback(String aiResponse) {
+    final last = aiResponse.lastIndexOf('//');
+    if (last == -1) return aiResponse.trim();
+    return aiResponse.substring(last + 2).trim();
   }
 
   // ignore: unused_element
