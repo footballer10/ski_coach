@@ -537,6 +537,16 @@ class ResultsView extends StatefulWidget {
 
 enum ViewMode { overview, categoryAll, turnAll, categoryTurn }
 
+class _ExportRunDialogResult {
+  final String runName;
+  final String turnRange;
+
+  const _ExportRunDialogResult({
+    required this.runName,
+    required this.turnRange,
+  });
+}
+
 class _ResultsViewState extends State<ResultsView> {
   String _selectedCategory = 'All Categories';
   String _selectedTurn = 'All Turns';
@@ -1223,21 +1233,78 @@ class _ResultsViewState extends State<ResultsView> {
 
     if (!mounted) return;
 
-    // Show dialog to get run name
-    final runName = await showDialog<String>(
+    final maxTurns = widget.results!.turnCount;
+    final scaffoldContext = context;
+
+    // Show dialog to get run name + optional turn range
+    final exportOptions = await showDialog<_ExportRunDialogResult>(
       context: context,
       builder: (context) {
-        final controller = TextEditingController();
+        final nameController = TextEditingController(
+          text: (widget.importedRunName ?? '').trim(),
+        );
+        final startTurnController = TextEditingController();
+        final endTurnController = TextEditingController();
+
+        void showMessage(String message) {
+          ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          );
+        }
+
         return AlertDialog(
           title: const Text('Name this run'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'e.g., Morning Run - Blue Square',
-              border: OutlineInputBorder(),
-            ),
-            textCapitalization: TextCapitalization.words,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'e.g., Morning Run - Blue Square',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Turn range'),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: startTurnController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Start',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: endTurnController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'End',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -1246,10 +1313,42 @@ class _ResultsViewState extends State<ResultsView> {
             ),
             FilledButton(
               onPressed: () {
-                final name = controller.text.trim();
-                if (name.isNotEmpty) {
-                  Navigator.pop(context, name);
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+
+                final startRaw = startTurnController.text.trim();
+                final endRaw = endTurnController.text.trim();
+
+                String computedTurnRange = '';
+                if (startRaw.isNotEmpty || endRaw.isNotEmpty) {
+                  final start = startRaw.isEmpty ? 1 : int.tryParse(startRaw);
+                  final end = endRaw.isEmpty ? maxTurns : int.tryParse(endRaw);
+
+                  if (start == null || end == null) {
+                    showMessage('You can only use numbers');
+                    return;
+                  }
+
+                  if (start < 1 || end < 1 || start > maxTurns || end > maxTurns) {
+                    showMessage('Turn numbers must be between 1 and $maxTurns');
+                    return;
+                  }
+
+                  if (start > end) {
+                    showMessage('Start turn must be less than or equal to end turn');
+                    return;
+                  }
+
+                  computedTurnRange = '$start-$end';
                 }
+
+                Navigator.pop(
+                  context,
+                  _ExportRunDialogResult(
+                    runName: name,
+                    turnRange: computedTurnRange,
+                  ),
+                );
               },
               child: const Text('Continue'),
             ),
@@ -1259,7 +1358,10 @@ class _ResultsViewState extends State<ResultsView> {
     );
 
     if (!mounted) return;
-    if (runName == null || runName.isEmpty) return;
+    if (exportOptions == null || exportOptions.runName.isEmpty) return;
+
+    final runName = exportOptions.runName;
+    final turnRangeToExport = exportOptions.turnRange;
 
     try {
       // Determine AI feedback status
@@ -1274,7 +1376,7 @@ class _ResultsViewState extends State<ResultsView> {
       // Create export object
       final exportedRun = ExportedRun(
         schemaVersion: 1,
-        turnRange: '',
+        turnRange: turnRangeToExport,
         runName: runName,
         analysisResults: widget.results!,
         aiFeedback: feedbackToExport,

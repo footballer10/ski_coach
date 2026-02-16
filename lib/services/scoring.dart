@@ -12,16 +12,16 @@ class Scoring {
     }
   }
 
-  /// Edge Angle: 100 - 100·e^(-0.00003·x^3)
+  /// Edge Angle: 100 - 100·e^(-0.00005·x^2.96)
   static double edgeAngle(double degrees) {
     final x = degrees.isFinite ? math.max(0.0, degrees) : 0.0;
-    final v = 100.0 - 100.0 * math.exp(-0.00003 * math.pow(x, 3));
+    final v = 100.0 - 100.0 * math.exp(-0.00005 * math.pow(x, 2.96));
     return v.isFinite ? v.toDouble().clamp(0.0, 100.0) : 0.0;
   }
 
-  /// Parallelness: 100·e^(-((x/37.3)^1.47))
+  /// Parallelness: 100·e^(-((x/30)^2))
   static double parallel(double value) {
-    final v = 100.0 * math.exp(-math.pow(value / 37.3, 1.47));
+    final v = 100.0 * math.exp(-math.pow(value / 30.0, 2));
     return v.isFinite ? v.toDouble().clamp(0.0, 100.0) : 0.0;
   }
 
