@@ -887,6 +887,19 @@ class _ResultsViewState extends State<ResultsView> {
       return;
     }
 
+    // Imported run with no embedded AI feedback: do NOT auto-generate.
+    // AI feedback should only be generated after recording a run or when the
+    // user explicitly presses the regenerate button.
+    if (widget.importedRunName != null) {
+      setState(() {
+        _coachingAdvice = '';
+        _coachingError = 'No AI feedback';
+        _loadingCoachingAdvice = false;
+      });
+      widget.onAiProcessingChanged(false);
+      return;
+    }
+
     // Check if AI is disabled
     if (!widget.aiEnabled) {
       setState(() {
@@ -1078,24 +1091,17 @@ class _ResultsViewState extends State<ResultsView> {
           ? widget.results!.turnShapeAvg.reduce((a, b) => a + b) /
                 widget.results!.turnShapeAvg.length
           : 0.0;
-      // Calculate left/right ratio for AI (different from bigger/smaller shown in UI)
-      double aiSymmetryRatio = 1.0;
-      if (widget.results?.turnDurationsSeconds != null && widget.results?.turnDirections != null) {
-        final leftDurations = <double>[];
-        final rightDurations = <double>[];
-        for (int i = 0; i < widget.results!.turnDirections.length && i < widget.results!.turnDurationsSeconds.length; i++) {
-          if (widget.results!.turnDirections[i] == -1) {
-            leftDurations.add(widget.results!.turnDurationsSeconds[i]);
-          } else if (widget.results!.turnDirections[i] == 1) {
-            rightDurations.add(widget.results!.turnDurationsSeconds[i]);
-          }
-        }
-        if (leftDurations.isNotEmpty && rightDurations.isNotEmpty) {
-          final leftAvg = leftDurations.reduce((a, b) => a + b) / leftDurations.length;
-          final rightAvg = rightDurations.reduce((a, b) => a + b) / rightDurations.length;
-          aiSymmetryRatio = leftAvg / rightAvg;
-        }
-      }
+      // Turn symmetry values for AI: use the same ratio used by the results view
+      // (bigger/smaller, so >= 1.0) plus which side is bigger.
+      final symmetryRatioForAi = widget.results?.turnSymmetryRatio;
+      final symmetryRatioJson = symmetryRatioForAi != null
+          ? symmetryRatioForAi.toStringAsFixed(3)
+          : 'null';
+
+      final biggerSide = widget.results?.turnSymmetryBiggerSide;
+      final biggerSideJson = biggerSide == 'L'
+          ? '"left"'
+          : (biggerSide == 'R' ? '"right"' : 'null');
 
       // Yield to UI thread after heavy calculations
       await Future.value();
@@ -1143,7 +1149,8 @@ class _ResultsViewState extends State<ResultsView> {
       "completion": ${avgShapeCompletion.toStringAsFixed(3)},
       "whole_turn": ${avgShapeWhole.toStringAsFixed(3)}
     },
-    "turn_symmetry_ratio": ${aiSymmetryRatio.toStringAsFixed(3)}
+    "turn_symmetry_ratio": $symmetryRatioJson,
+    "bigger_side": $biggerSideJson
   }
 }''');
 
