@@ -368,7 +368,36 @@ class ExportedRun {
     return start <= end ? <int>[start, end] : <int>[end, start];
   }
 
-  String toJsonString() => jsonEncode(toJson());
+  static dynamic _roundJsonNumbers(dynamic value) {
+    if (value == null) return null;
+
+    if (value is double) {
+      if (!value.isFinite) return null;
+      return double.parse(value.toStringAsFixed(3));
+    }
+
+    if (value is int) return value;
+    if (value is String) return value;
+    if (value is bool) return value;
+
+    if (value is List) {
+      return value.map(_roundJsonNumbers).toList();
+    }
+
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k, _roundJsonNumbers(v)));
+    }
+
+    if (value is num) {
+      final asDouble = value.toDouble();
+      if (!asDouble.isFinite) return null;
+      return double.parse(asDouble.toStringAsFixed(3));
+    }
+
+    return value;
+  }
+
+  String toJsonString() => jsonEncode(_roundJsonNumbers(toJson()));
 
   static ExportedRun fromJsonString(String jsonString) {
     final json = jsonDecode(jsonString) as Map<String, dynamic>;
