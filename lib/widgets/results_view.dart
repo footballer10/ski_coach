@@ -900,11 +900,12 @@ class _ResultsViewState extends State<ResultsView> {
       return;
     }
 
-    // Check if AI is disabled
+    // AI mode controls only whether we auto-generate feedback after recording.
+    // Regeneration should still be available via the refresh button.
     if (!widget.aiEnabled) {
       setState(() {
         _coachingAdvice = '';
-        _coachingError = 'AI mode is disabled';
+        _coachingError = null;
         _loadingCoachingAdvice = false;
       });
       widget.onAiProcessingChanged(false);
@@ -924,16 +925,6 @@ class _ResultsViewState extends State<ResultsView> {
 
   Future<void> _regenerateCoachingAdvice() async {
     if (_loadingCoachingAdvice || widget.isAnyAiProcessing()) return;
-
-    if (!widget.aiEnabled) {
-      setState(() {
-        _coachingAdvice = '';
-        _coachingError = 'AI mode is disabled';
-        _loadingCoachingAdvice = false;
-      });
-      widget.onAiProcessingChanged(false);
-      return;
-    }
 
     if (widget.results == null) {
       setState(() {
