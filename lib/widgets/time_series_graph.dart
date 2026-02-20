@@ -29,17 +29,30 @@ class TimeSeriesGraph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (dataPoints.isEmpty) {
+    final filteredPoints = dataPoints
+        .where((p) => p.time.isFinite && p.value.isFinite)
+        .toList(growable: false);
+
+    if (filteredPoints.isEmpty || !durationSeconds.isFinite || durationSeconds <= 0) {
       return SizedBox(
         height: height,
         child: const Center(child: Text('No data')),
       );
     }
 
-    final maxDataValue = dataPoints.map((p) => p.value).reduce(math.max);
-    final maxYValue = (showOptimalLine && optimalValue != null)
-      ? math.max(maxDataValue, optimalValue!)
-      : maxDataValue;
+    final maxDataValue = filteredPoints.map((p) => p.value).reduce(math.max);
+    final hasFiniteOptimal =
+        showOptimalLine && optimalValue != null && optimalValue!.isFinite;
+    final maxYValue = hasFiniteOptimal
+        ? math.max(maxDataValue, optimalValue!)
+        : maxDataValue;
+
+    if (!maxYValue.isFinite || maxYValue <= 0) {
+      return SizedBox(
+        height: height,
+        child: const Center(child: Text('No data')),
+      );
+    }
 
     // Determine y-axis increment
     final double yIncrement;
@@ -61,7 +74,7 @@ class TimeSeriesGraph extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(40, 10, 10, 30),
         child: CustomPaint(
           painter: TimeSeriesGraphPainter(
-            dataPoints: dataPoints,
+            dataPoints: filteredPoints,
             optimalValue: optimalValue,
             showOptimalLine: showOptimalLine,
             yMax: yMax.toDouble(),
@@ -97,6 +110,9 @@ class TimeSeriesGraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (!durationSeconds.isFinite || durationSeconds <= 0) return;
+    if (!yMax.isFinite || yMax <= 0) return;
+
     final axisPaint = Paint()
       ..color = Colors.grey[700]!
       ..strokeWidth = 1.5;
@@ -179,6 +195,7 @@ class TimeSeriesGraphPainter extends CustomPainter {
 
     // Draw data points
     for (final point in dataPoints) {
+      if (!point.time.isFinite || !point.value.isFinite) continue;
       final x = (point.time / durationSeconds) * size.width;
       final y = size.height - (point.value / yMax) * size.height;
       canvas.drawCircle(Offset(x, y), 3, dotPaint);
