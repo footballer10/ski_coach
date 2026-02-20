@@ -150,6 +150,15 @@ class AnalysisResults {
     'segments': segments
         ?.map((s) {
           if (s == null) return null;
+          // If segments are already serialized (e.g., from an imported run),
+          // preserve them so exports keep the data needed to rebuild graphs.
+          if (s is Map) {
+            try {
+              return Map<String, dynamic>.from(s);
+            } catch (_) {
+              return null;
+            }
+          }
           try {
             return (s as dynamic).toJson();
           } catch (e) {
