@@ -2457,10 +2457,7 @@ class _ResultsViewState extends State<ResultsView> {
           // score: average of per-turn scores
           double scoreSum = 0.0;
           for (final x in durations) {
-            final s =
-                100.0 *
-                (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
-            scoreSum += s;
+            scoreSum += _scoreForDuration(x);
           }
           final avgScore = scoreSum / durations.length;
           scoreText = avgScore.isFinite ? avgScore.toStringAsFixed(1) : '—';
@@ -2473,9 +2470,7 @@ class _ResultsViewState extends State<ResultsView> {
           if (idx >= 0 && idx < durations.length) {
             final x = durations[idx];
             valueText = '${x.toStringAsFixed(3)}s';
-            final score =
-                100.0 *
-                (math.pow(0.1205, math.pow(math.log(x / 2.0), 2)) as double);
+            final score = _scoreForDuration(x);
             scoreText = score.isFinite ? score.toStringAsFixed(1) : '—';
           }
         }
