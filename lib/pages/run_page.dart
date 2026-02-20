@@ -103,6 +103,73 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   String? _importedRunName;
   String? _importedAiFeedback;
 
+  double _estimateSamplingRateHz(List<ImuSample> samples) {
+    if (samples.length <= 1) return 100.0;
+    final duration = samples.last.timestamp.difference(samples.first.timestamp);
+    if (duration.inMilliseconds <= 0) return 100.0;
+    return (samples.length - 1) * 1000.0 / duration.inMilliseconds;
+  }
+
+  List<TurnSegment> _matchSegmentsToDurations({
+    required List<TurnSegment> computed,
+    required List<double> expectedDurationsSeconds,
+  }) {
+    if (expectedDurationsSeconds.isEmpty) return computed;
+    final desired = expectedDurationsSeconds.length;
+    if (computed.length <= desired) return computed;
+    if (computed.length == desired) return computed;
+
+    double bestCost = double.infinity;
+    int bestStart = 0;
+
+    for (int start = 0; start <= computed.length - desired; start++) {
+      double cost = 0.0;
+      for (int i = 0; i < desired; i++) {
+        cost +=
+            (computed[start + i].durationSeconds - expectedDurationsSeconds[i])
+                .abs();
+      }
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestStart = start;
+      }
+    }
+
+    return computed.sublist(bestStart, bestStart + desired);
+  }
+
+  List<TurnSegment>? _rebuildSegmentsForImportIfMissing(AnalysisResults results) {
+    final existing = results.segments;
+    final hasExisting = existing is List && existing.isNotEmpty;
+    if (hasExisting) return null;
+
+    final leftRaw = results.processedLeftSamples;
+    final rightRaw = results.processedRightSamples;
+    if (leftRaw is! List || rightRaw is! List) return null;
+
+    final left = leftRaw.whereType<ImuSample>().toList();
+    final right = rightRaw.whereType<ImuSample>().toList();
+    if (left.isEmpty || right.isEmpty) return null;
+
+    final samplingRate = _estimateSamplingRateHz(left);
+
+    // NOTE: processedRightSamples already have yaw offset applied during
+    // original analysis, so use yawOffset=0 to avoid double-applying.
+    final computed = TurnSegmentation.segment(
+      leftSamples: left,
+      rightSamples: right,
+      yawOffset: 0.0,
+      samplingRate: samplingRate,
+    );
+
+    if (computed.isEmpty) return null;
+
+    return _matchSegmentsToDurations(
+      computed: computed,
+      expectedDurationsSeconds: results.turnDurationsSeconds,
+    );
+  }
+
   // Watchdog timers to detect sensor disconnection
   Timer? _leftWatchdog;
   Timer? _rightWatchdog;
@@ -173,6 +240,12 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
   void loadImportedRun(ExportedRun exportedRun) {
     final results = exportedRun.analysisResults;
 
+    final rebuiltSegments = _rebuildSegmentsForImportIfMissing(results);
+    final segmentsForGraphs = (results.segments is List &&
+            (results.segments as List).isNotEmpty)
+        ? results.segments
+        : rebuiltSegments;
+
     setState(() {
       _state = RunState.results;
       _importedRunName = exportedRun.runName;
@@ -183,7 +256,10 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'leftSegments': results.leftSegments,
         'rightSegments': results.rightSegments,
         'duration': results.runDurationSeconds,
-        'startTime': results.runStartTime,
+        'startTime': (segmentsForGraphs is List<TurnSegment> &&
+            segmentsForGraphs.isNotEmpty)
+          ? segmentsForGraphs.first.startTime
+          : results.runStartTime,
         'turnCount': results.turnCount,
         'turnDurations': results.turnDurationsSeconds,
         'edgeAngles': results.edgeAngles,
@@ -201,7 +277,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'turnSymmetryScore': results.turnSymmetryScore,
         'processedLeftSamples': results.processedLeftSamples,
         'processedRightSamples': results.processedRightSamples,
-        'segments': results.segments,
+        'segments': segmentsForGraphs,
       };
     });
 
@@ -895,13 +971,22 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
       // Convert imported data to analysis results format
       final results = exportedRun.analysisResults;
+
+      final rebuiltSegments = _rebuildSegmentsForImportIfMissing(results);
+      final segmentsForGraphs = (results.segments is List &&
+              (results.segments as List).isNotEmpty)
+          ? results.segments
+          : rebuiltSegments;
       final analysisResults = {
         'leftSampleCount': results.leftSampleCount,
         'rightSampleCount': results.rightSampleCount,
         'leftSegments': results.leftSegments,
         'rightSegments': results.rightSegments,
         'duration': results.runDurationSeconds,
-        'startTime': results.runStartTime,
+        'startTime': (segmentsForGraphs is List<TurnSegment> &&
+                segmentsForGraphs.isNotEmpty)
+            ? segmentsForGraphs.first.startTime
+            : results.runStartTime,
         'turnCount': results.turnCount,
         'turnDurations': results.turnDurationsSeconds,
         'edgeAngles': results.edgeAngles,
@@ -919,7 +1004,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'turnSymmetryScore': results.turnSymmetryScore,
         'processedLeftSamples': results.processedLeftSamples,
         'processedRightSamples': results.processedRightSamples,
-        'segments': results.segments,
+        'segments': segmentsForGraphs,
       };
 
       // If we're on results page already, use callback to create new page
