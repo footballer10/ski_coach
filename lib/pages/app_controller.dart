@@ -4,6 +4,7 @@ import 'run_page.dart';
 import 'daily_summary_page.dart';
 import '../models.dart';
 import '../models/daily_summary.dart';
+import '../services/segmentation.dart';
 
 /// Main controller that manages all run pages and handles connection state.
 class AppController extends StatefulWidget {
@@ -32,6 +33,72 @@ class _AppControllerState extends State<AppController> {
   
   // Track AI processing state globally
   bool _isAnyAiProcessing = false;
+
+  double _estimateSamplingRateHz(List<ImuSample> samples) {
+    if (samples.length <= 1) return 100.0;
+    final duration = samples.last.timestamp.difference(samples.first.timestamp);
+    if (duration.inMilliseconds <= 0) return 100.0;
+    return (samples.length - 1) * 1000.0 / duration.inMilliseconds;
+  }
+
+  List<TurnSegment> _matchSegmentsToDurations({
+    required List<TurnSegment> computed,
+    required List<double> expectedDurationsSeconds,
+  }) {
+    if (expectedDurationsSeconds.isEmpty) return computed;
+    final desired = expectedDurationsSeconds.length;
+    if (computed.length <= desired) return computed;
+    if (computed.length == desired) return computed;
+
+    double bestCost = double.infinity;
+    int bestStart = 0;
+
+    for (int start = 0; start <= computed.length - desired; start++) {
+      double cost = 0.0;
+      for (int i = 0; i < desired; i++) {
+        cost +=
+            (computed[start + i].durationSeconds - expectedDurationsSeconds[i])
+                .abs();
+      }
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestStart = start;
+      }
+    }
+
+    return computed.sublist(bestStart, bestStart + desired);
+  }
+
+  List<TurnSegment>? _rebuildSegmentsForImportIfMissing(AnalysisResults results) {
+    final existing = results.segments;
+    final hasExisting = existing is List && existing.isNotEmpty;
+    if (hasExisting) return null;
+
+    final leftRaw = results.processedLeftSamples;
+    final rightRaw = results.processedRightSamples;
+    if (leftRaw is! List || rightRaw is! List) return null;
+
+    final left = leftRaw.whereType<ImuSample>().toList();
+    final right = rightRaw.whereType<ImuSample>().toList();
+    if (left.isEmpty || right.isEmpty) return null;
+
+    final samplingRate = _estimateSamplingRateHz(left);
+
+    // processedRightSamples already have yaw offset applied during original
+    // analysis, so use yawOffset=0 to avoid double-applying.
+    final computed = TurnSegmentation.segment(
+      leftSamples: left,
+      rightSamples: right,
+      yawOffset: 0.0,
+      samplingRate: samplingRate,
+    );
+    if (computed.isEmpty) return null;
+
+    return _matchSegmentsToDurations(
+      computed: computed,
+      expectedDurationsSeconds: results.turnDurationsSeconds,
+    );
+  }
 
   @override
   void initState() {
@@ -399,6 +466,12 @@ class _AppControllerState extends State<AppController> {
     // importedRun is an ExportedRun object
     final exportedRun = (importedRun as ExportedRun).applyTurnRangeIfPresent();
     final results = exportedRun.analysisResults;
+
+    final rebuiltSegments = _rebuildSegmentsForImportIfMissing(results);
+    final segmentsForGraphs = (results.segments is List &&
+            (results.segments as List).isNotEmpty)
+        ? results.segments
+        : rebuiltSegments;
     
     // Convert to analysis results format
     final analysisResults = {
@@ -407,7 +480,10 @@ class _AppControllerState extends State<AppController> {
       'leftSegments': results.leftSegments,
       'rightSegments': results.rightSegments,
       'duration': results.runDurationSeconds,
-      'startTime': results.runStartTime,
+        'startTime': (segmentsForGraphs is List<TurnSegment> &&
+            segmentsForGraphs.isNotEmpty)
+          ? segmentsForGraphs.first.startTime
+          : results.runStartTime,
       'turnCount': results.turnCount,
       'turnDurations': results.turnDurationsSeconds,
       'edgeAngles': results.edgeAngles,
@@ -425,7 +501,7 @@ class _AppControllerState extends State<AppController> {
       'turnSymmetryScore': results.turnSymmetryScore,
       'processedLeftSamples': results.processedLeftSamples,
       'processedRightSamples': results.processedRightSamples,
-      'segments': results.segments,
+      'segments': segmentsForGraphs,
     };
     
     final pageKey = GlobalKey<RunPageState>();

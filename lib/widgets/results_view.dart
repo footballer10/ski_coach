@@ -3111,11 +3111,18 @@ class _ResultsViewState extends State<ResultsView> {
     final segment = segments[turnIndex];
     final dataPoints = <GraphPoint>[];
 
+    // Prevent UI freezes if a segment spans a very large number of samples.
+    const int maxPoints = 600;
+    final int rawCount = (segment.endIndexLeft - segment.startIndexLeft + 1);
+    final int step = rawCount > maxPoints
+        ? (rawCount / maxPoints).ceil().clamp(1, 1000000)
+        : 1;
+
     // Get samples for this turn and plot max(left.pitch, right.pitch) over time
     for (
       int i = segment.startIndexLeft;
       i <= segment.endIndexLeft && i < processedLeft.length;
-      i++
+      i += step
     ) {
       final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
 
@@ -3204,8 +3211,15 @@ class _ResultsViewState extends State<ResultsView> {
     final dataPoints = <GraphPoint>[];
     final sectionStartTime = processedLeft[startIdx].timestamp;
 
+    // Prevent UI freezes if a segment section spans too many samples.
+    const int maxPoints = 600;
+    final int rawCount = (endIdx - startIdx + 1);
+    final int step = rawCount > maxPoints
+      ? (rawCount / maxPoints).ceil().clamp(1, 1000000)
+      : 1;
+
     // Get samples for this section and plot |left.yaw - right.yaw|
-    for (int i = startIdx; i <= endIdx && i < processedLeft.length; i++) {
+    for (int i = startIdx; i <= endIdx && i < processedLeft.length; i += step) {
       final rightIndex = segment.startIndexRight + (i - segment.startIndexLeft);
 
       if (rightIndex >= segment.startIndexRight &&
