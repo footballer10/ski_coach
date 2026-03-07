@@ -17,7 +17,7 @@ Ski Coach uses Bluetooth IMU sensors on each ski to analyze your skiing techniqu
   - Turn Duration and Symmetry
 - **Dual AI Modes**:
   - Local: On-device Llama 3.1 8B (no internet required)
-  - API: OpenAI GPT-5.2 via API calls
+  - API: OpenAI GPT-5.4 via API calls
 - **Real-time Visualization**: Turn-by-turn metrics with graphs and dot plots
 
 ## Quick Start

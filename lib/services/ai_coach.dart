@@ -19,6 +19,7 @@ AICoach getAICoach() {
 // LOCAL AI TEMPORARILY DISABLED
 // const int _localContextTokens = 8000;
 // const int _localMaxResponseTokens = 3000;
+const String _apiModel = 'gpt-5.4';
 const int _apiMaxResponseTokens = 10000;
 
 class AICoach {
@@ -365,12 +366,12 @@ class AICoach {
       Future<http.Response> postJson(Uri url, Map<String, dynamic> body) {
         return client
             .post(url, headers: headers, body: jsonEncode(body))
-            .timeout(const Duration(seconds: 300)); // 5 minute timeout for GPT-5.2
+            .timeout(const Duration(seconds: 300)); // 5 minute timeout for GPT-5.4
       }
 
       // Preferred: Responses API (matches OpenAI Playground "Responses" behavior).
       http.Response response = await postJson(responsesUrl, <String, dynamic>{
-        'model': 'gpt-5.2',
+        'model': _apiModel,
         'input': [
           {'role': 'system', 'content': systemPrompt},
           {'role': 'user', 'content': userPrompt},
@@ -382,7 +383,7 @@ class AICoach {
       // Fallback: Chat Completions API (older schema).
       if (response.statusCode != 200) {
         response = await postJson(chatCompletionsUrl, <String, dynamic>{
-        'model': 'gpt-5.2',
+        'model': _apiModel,
         'messages': [
           {'role': 'system', 'content': systemPrompt},
           {'role': 'user', 'content': userPrompt},

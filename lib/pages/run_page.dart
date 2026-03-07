@@ -966,8 +966,32 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       final jsonString = await file.readAsString();
 
       // Parse and validate
-        final exportedRun =
-          ExportedRun.fromJsonString(jsonString).applyTurnRangeIfPresent();
+      final exportedRunRaw = ExportedRun.fromJsonString(jsonString);
+
+      // If we're on results page already, use callback to create a new page.
+      // Important: do NOT apply the turn range here, because AppController will
+      // apply it when it builds the new page. Applying twice shifts the start
+      // (e.g. start=2 becomes 3; start=3 becomes 5).
+      if (widget.onImportedRun != null) {
+        widget.onImportedRun!(exportedRunRaw);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Imported: ${exportedRunRaw.runName}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          );
+        }
+        return; // Don't update current page state
+      }
+
+      // Otherwise, apply any embedded turn range and show results in-place.
+      final exportedRun = exportedRunRaw.applyTurnRangeIfPresent();
 
       // Convert imported data to analysis results format
       final results = exportedRun.analysisResults;
@@ -1007,26 +1031,6 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         'segments': segmentsForGraphs,
       };
 
-      // If we're on results page already, use callback to create new page
-      if (widget.onImportedRun != null) {
-        widget.onImportedRun!(exportedRun);
-        
-        // Show success message on current page
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Imported: ${exportedRun.runName}'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-          );
-        }
-        return; // Don't update current page state
-      }
-      
       // Otherwise update state to show results (from pre-recording page)
       setState(() {
         _state = RunState.results;
