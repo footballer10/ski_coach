@@ -6,15 +6,19 @@
 lib/
 ├── main.dart                    # App entry point & initialization
 ├── models.dart                  # Data models (ImuSample, AnalysisResults)
+├── models/
+│   └── daily_summary.dart      # Daily summary model
 ├── config/                      # Configuration files
-│   ├── ai_config.dart          # AI mode selection & API key
-│   └── ai_prompts.dart         # System prompts (local + API)
+│   ├── ai_config.dart          # Reads the API key from secrets.dart
+│   ├── ai_prompts.dart         # Coaching system prompt + drill handbook
+│   └── secrets.dart            # OpenAI API key (gitignored, create locally)
 ├── pages/                       # UI screens
 │   ├── app_controller.dart     # Root navigation controller
 │   ├── connection_page.dart    # BLE sensor connection UI
+│   ├── daily_summary_page.dart # End-of-day summary
 │   └── run_page.dart           # Recording & results screen
 ├── services/                    # Business logic
-│   ├── ai_coach.dart           # AI inference (local + API)
+│   ├── ai_coach.dart           # OpenAI API call (GPT-6 Luna)
 │   ├── ble_manager.dart        # Bluetooth sensor management
 │   ├── imu_preprocessor.dart   # Sensor data preprocessing
 │   ├── scoring.dart            # Metric → score conversion
@@ -36,7 +40,7 @@ lib/
 All data structures consolidated in `models.dart`.
 
 ### Config
-Application configuration and AI settings.
+API key and the coaching prompt.
 
 ### Pages
 Full-screen UI with state management.
@@ -74,4 +78,4 @@ import 'package:ski_coach/services/metrics/edge_angle_calculator.dart';
 4. **Clean Dependencies**: UI depends on services, not vice versa
 5. **Consolidated Models**: Simple data classes in one file
 
-See [docs/CODE_ORGANIZATION.md](../docs/CODE_ORGANIZATION.md) for detailed architecture.
+See the [main README](../README.md) for the full data pipeline.
