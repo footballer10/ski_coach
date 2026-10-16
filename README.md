@@ -4,8 +4,6 @@ An iPhone app that turns two boot-mounted motion sensors into ski coaching. You 
 
 **Author:** Luke Postma
 
-**Demo video:** _add link here_
-
 ## What it does
 
 - Connects to two Bluetooth IMU sensors (WitMotion WT9011DCL), one strapped to each ski boot
