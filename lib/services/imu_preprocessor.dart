@@ -1,4 +1,4 @@
-/// IMU data preprocessing: unwrapping, calibration, jump correction, averaging.
+/// IMU data preprocessing: unwrapping, calibration, averaging.
 library;
 
 import '../models.dart';
@@ -184,96 +184,7 @@ class ImuPreprocessor {
     return corrected;
   }
 
-  /// STEP 3: Correct angle jumps with accumulating offset
-  static List<ImuSample> correctAngleJumps(
-    List<ImuSample> samples, [
-    String label = '',
-    double threshold = 10.0,
-  ]) {
-    if (samples.isEmpty) return samples;
-
-    if (kDebugMode) {
-      debugPrint('');
-      debugPrint(
-        '🔧 ════════════════════════════════════════════════════════════════════════',
-      );
-      debugPrint('🔧 STEP 2: CORRECT ANGLE JUMPS ($label)');
-      debugPrint(
-        '🔧 ════════════════════════════════════════════════════════════════════════',
-      );
-      debugPrint('🔧 Threshold: ${threshold.toStringAsFixed(2)}°');
-      debugPrint('🔧 Input: ${samples.length} samples');
-    }
-
-    final corrected = <ImuSample>[];
-    corrected.add(samples[0]);
-
-    double yawAccumOffset = 0.0;
-    double pitchAccumOffset = 0.0;
-    double rollAccumOffset = 0.0;
-
-    for (int i = 1; i < samples.length; i++) {
-      final prev = corrected[i - 1];
-      final curr = samples[i];
-
-      // Detect yaw jump
-      final yawDiff = (curr.yaw - prev.yaw).abs();
-      if (yawDiff > threshold && yawDiff < 180) {
-        // Not a wraparound
-        yawAccumOffset += (prev.yaw - curr.yaw);
-      }
-
-      // Detect pitch jump
-      final pitchDiff = (curr.pitch - prev.pitch).abs();
-      if (pitchDiff > threshold && pitchDiff < 180) {
-        pitchAccumOffset += (prev.pitch - curr.pitch);
-      }
-
-      // Detect roll jump
-      final rollDiff = (curr.roll - prev.roll).abs();
-      if (rollDiff > threshold && rollDiff < 180) {
-        rollAccumOffset += (prev.roll - curr.roll);
-      }
-
-      corrected.add(
-        ImuSample(
-          timestamp: curr.timestamp,
-          ax: curr.ax,
-          ay: curr.ay,
-          az: curr.az,
-          gx: curr.gx,
-          gy: curr.gy,
-          gz: curr.gz,
-          yaw: curr.yaw + yawAccumOffset,
-          pitch: curr.pitch + pitchAccumOffset,
-          roll: curr.roll + rollAccumOffset,
-          parallelness: curr.parallelness,
-        ),
-      );
-    }
-
-    if (kDebugMode) {
-      debugPrint('🔧 SIDE-BY-SIDE COMPARISON:');
-      debugPrint(
-        '   Idx | Before Roll  | After Roll   | Before Pitch | After Pitch  | Before Yaw   | After Yaw',
-      );
-      debugPrint(
-        '   ────|──────────────|──────────────|──────────────|──────────────|──────────────|───────────',
-      );
-      for (int i = 0; i < samples.length; i++) {
-        final orig = samples[i];
-        final corr = corrected[i];
-        debugPrint(
-          '   ${i.toString().padLeft(3)} | ${orig.roll.toStringAsFixed(2).padLeft(12)} | ${corr.roll.toStringAsFixed(2).padLeft(12)} | ${orig.pitch.toStringAsFixed(2).padLeft(12)} | ${corr.pitch.toStringAsFixed(2).padLeft(12)} | ${orig.yaw.toStringAsFixed(2).padLeft(12)} | ${corr.yaw.toStringAsFixed(2).padLeft(9)}',
-        );
-      }
-      debugPrint('🔧 Jump correction complete.');
-    }
-
-    return corrected;
-  }
-
-  /// STEP 4: Average yaw signals from both sensors (preserves originals)
+  /// STEP 3: Average yaw signals from both sensors (preserves originals)
   static List<AnglePoint> averageYawSignals(
     List<ImuSample> left,
     List<ImuSample> right,

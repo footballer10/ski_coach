@@ -183,7 +183,7 @@ class TurnSegmentation {
       }
     }
 
-    // STEP 6: Build turn segments between consecutive peaks (skip first and last)
+    // STEP 5: Build turn segments between consecutive peaks (skip first and last)
     final segments = <TurnSegment>[];
 
     // Skip first and last 2 peaks - need at least 4 peaks to get 1 turn

@@ -90,45 +90,6 @@ class BleManager {
     }
   }
 
-  /// Send acceleration calibration command to a device
-  Future<void> calibrateAcceleration(String deviceId) async {
-    try {
-      final char = QualifiedCharacteristic(
-        serviceId: _service,
-        characteristicId: _charWrite,
-        deviceId: deviceId,
-      );
-
-      // Step 1: Unlock (must complete within 10 seconds)
-      await _ble.writeCharacteristicWithoutResponse(
-        char,
-        value: [0xFF, 0xAA, 0x69, 0x88, 0xB5],
-      );
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Step 2: Acceleration calibration command
-      await _ble.writeCharacteristicWithoutResponse(
-        char,
-        value: [0xFF, 0xAA, 0x01, 0x01, 0x00],
-      );
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Step 3: Save command
-      await _ble.writeCharacteristicWithoutResponse(
-        char,
-        value: [0xFF, 0xAA, 0x00, 0x00, 0x00],
-      );
-
-      if (kDebugMode) {
-        debugPrint('✅ Acceleration calibration command sent to $deviceId');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ Failed to send acceleration calibration: $e');
-      }
-    }
-  }
-
   /// Request battery level from a device (register 0x64)
   Future<void> _requestBatteryLevel(String deviceId) async {
     try {
@@ -308,27 +269,6 @@ class BleManager {
   /// Check if a device is currently connected (subscription active)
   bool isConnected(String deviceId) {
     return _connSubs.containsKey(deviceId);
-  }
-
-  /// Check if both sensors are streaming data and start calibration
-  void _checkAndStartCalibration() {
-    // Only start calibration if we've received data from both sensors
-    final hasLeftData = _latest.keys.any(
-      (id) => _deviceSideMapping[id] == 'left',
-    );
-    final hasRightData = _latest.keys.any(
-      (id) => _deviceSideMapping[id] == 'right',
-    );
-
-    if (hasLeftData &&
-        hasRightData &&
-        !_isCalibrating &&
-        _yawOffsetRightMinusLeft == null) {
-      _startCalibration();
-      if (kDebugMode) {
-        debugPrint('🎯 Both sensors streaming - starting calibration');
-      }
-    }
   }
 
   /// Start calibration process manually (called before recording)

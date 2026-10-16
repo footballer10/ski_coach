@@ -43,7 +43,7 @@ class ParallelnessCalculator {
       );
       debugPrint('📊 Turn #$turnNumber');
       debugPrint(
-        '📊 NOTE: Calibration offset already applied to right sensor in STEP 1',
+        '📊 NOTE: Calibration offset already applied to right sensor in STEP 2',
       );
     }
 
@@ -87,7 +87,7 @@ class ParallelnessCalculator {
         } else if (rightSample.parallelness != null) {
           parallelness = rightSample.parallelness!;
         } else {
-          // Compute from corrected yaw values (calibration already applied in STEP 1)
+          // Compute from corrected yaw values (calibration already applied in STEP 2)
           final actualDiff = rightSample.yaw - leftSample.yaw;
           parallelness = actualDiff.abs();
         }
