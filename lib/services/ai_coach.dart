@@ -19,7 +19,7 @@ AICoach getAICoach() {
 // LOCAL AI TEMPORARILY DISABLED
 // const int _localContextTokens = 8000;
 // const int _localMaxResponseTokens = 3000;
-const String _apiModel = 'gpt-5.4';
+const String _apiModel = 'gpt-6-luna';
 const int _apiMaxResponseTokens = 10000;
 
 class AICoach {
@@ -347,118 +347,84 @@ class AICoach {
   ) async {
     final apiKey = AIPreferences.apiKey;
     if (apiKey.isEmpty || apiKey == 'YOUR_API_KEY_HERE') {
-      throw Exception('OpenAI API key not set in lib/config/ai_config.dart');
+      throw Exception('OpenAI API key not set in lib/config/secrets.dart');
     }
-
-    final responsesUrl = Uri.parse('https://api.openai.com/v1/responses');
-    final chatCompletionsUrl = Uri.parse(
-      'https://api.openai.com/v1/chat/completions',
-    );
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $apiKey',
-    };
 
     // Create a new client for each request to avoid connection reuse issues
     final client = http.Client();
-    
+
     try {
-      Future<http.Response> postJson(Uri url, Map<String, dynamic> body) {
-        return client
-            .post(url, headers: headers, body: jsonEncode(body))
-            .timeout(const Duration(seconds: 300)); // 5 minute timeout for GPT-5.4
-      }
+      // gpt-6-luna does not accept `temperature`, so it is not sent.
+      final response = await client
+          .post(
+            Uri.parse('https://api.openai.com/v1/responses'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $apiKey',
+            },
+            body: jsonEncode(<String, dynamic>{
+              'model': _apiModel,
+              'input': [
+                {'role': 'system', 'content': systemPrompt},
+                {'role': 'user', 'content': userPrompt},
+              ],
+              'max_output_tokens': _apiMaxResponseTokens,
+            }),
+          )
+          .timeout(const Duration(seconds: 300)); // Long step-by-step prompts can take minutes
 
-      // Preferred: Responses API (matches OpenAI Playground "Responses" behavior).
-      http.Response response = await postJson(responsesUrl, <String, dynamic>{
-        'model': _apiModel,
-        'input': [
-          {'role': 'system', 'content': systemPrompt},
-          {'role': 'user', 'content': userPrompt},
-        ],
-        'temperature': 0.0,
-        'max_output_tokens': _apiMaxResponseTokens,
-      });
-
-      // Fallback: Chat Completions API (older schema).
       if (response.statusCode != 200) {
-        response = await postJson(chatCompletionsUrl, <String, dynamic>{
-        'model': _apiModel,
-        'messages': [
-          {'role': 'system', 'content': systemPrompt},
-          {'role': 'user', 'content': userPrompt},
-        ],
-        'temperature': 0.0,
-        'max_tokens': _apiMaxResponseTokens,
-      });
-    }
+        throw Exception(
+          'API request failed: ${response.statusCode} - ${response.body}',
+        );
+      }
 
-    if (response.statusCode != 200) {
-      throw Exception(
-        'API request failed: ${response.statusCode} - ${response.body}',
-      );
-    }
+      debugPrint('🤖 API Response Status: ${response.statusCode}');
+      debugPrint('🤖 API Response Body: ${response.body}');
 
-    debugPrint('🤖 API Response Status: ${response.statusCode}');
-    debugPrint('🤖 API Response Body: ${response.body}');
+      final jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
 
-    final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse['status'] == 'incomplete') {
+        throw Exception(
+          'AI response was cut off: ${jsonResponse['incomplete_details']}',
+        );
+      }
 
-    String? aiResponse;
-    if (jsonResponse is Map<String, dynamic>) {
-      // Try new Responses API format (output array)
+      // The output list can start with a reasoning item, so look for the
+      // message item and join its text parts.
+      final buffer = StringBuffer();
       final output = jsonResponse['output'];
-      if (output is List && output.isNotEmpty) {
-        final firstOutput = output.first;
-        if (firstOutput is Map<String, dynamic>) {
-          final content = firstOutput['content'];
-          if (content is List && content.isNotEmpty) {
-            final firstContent = content.first;
-            if (firstContent is Map<String, dynamic> &&
-                firstContent['text'] is String) {
-              aiResponse = firstContent['text'] as String;
+      if (output is List) {
+        for (final item in output) {
+          if (item is Map<String, dynamic> && item['type'] == 'message') {
+            final content = item['content'];
+            if (content is List) {
+              for (final part in content) {
+                if (part is Map<String, dynamic> && part['text'] is String) {
+                  buffer.write(part['text'] as String);
+                }
+              }
             }
           }
         }
       }
 
-      // Try Chat Completions API format (choices array)
-      if (aiResponse == null) {
-        final choices = jsonResponse['choices'];
-        if (choices is List && choices.isNotEmpty) {
-          final first = choices.first;
-          if (first is Map<String, dynamic>) {
-            final msg = first['message'];
-            if (msg is Map<String, dynamic> && msg['content'] is String) {
-              aiResponse = msg['content'] as String;
-            } else if (first['text'] is String) {
-              aiResponse = first['text'] as String;
-            }
-          }
-        }
+      if (buffer.isEmpty) {
+        debugPrint(
+          '🤖 ❌ Failed to parse response. JSON structure: ${jsonResponse.keys}',
+        );
+        throw Exception('API response parsing failed');
       }
 
-      // Try legacy format
-      if (aiResponse == null && jsonResponse['output_text'] is String) {
-        aiResponse = jsonResponse['output_text'] as String;
-      }
-    }
-
-    if (aiResponse == null) {
+      final aiResponse = buffer.toString();
       debugPrint(
-        '🤖 ❌ Failed to parse response. JSON structure: ${jsonResponse.keys}',
+        '🤖 ✓ Successfully parsed AI response (${aiResponse.length} characters)',
       );
-      throw Exception('API response parsing failed');
-    }
+      debugPrint(
+        '🤖 Response preview: ${aiResponse.substring(0, aiResponse.length > 200 ? 200 : aiResponse.length)}...',
+      );
 
-    debugPrint(
-      '🤖 ✓ Successfully parsed AI response (${aiResponse.length} characters)',
-    );
-    debugPrint(
-      '🤖 Response preview: ${aiResponse.substring(0, aiResponse.length > 200 ? 200 : aiResponse.length)}...',
-    );
-
-    return aiResponse;
+      return aiResponse;
     } finally {
       // Always close the client to prevent connection reuse issues
       client.close();
