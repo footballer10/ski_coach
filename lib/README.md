@@ -7,9 +7,8 @@ lib/
 ├── main.dart                    # App entry point & initialization
 ├── models.dart                  # Data models (ImuSample, AnalysisResults)
 ├── config/                      # Configuration files
-│   ├── ai_config.dart          # Reads the API key from secrets.dart
-│   ├── ai_prompts.dart         # Coaching system prompt + drill handbook
-│   └── secrets.dart            # OpenAI API key (gitignored, create locally)
+│   ├── ai_config.dart          # API key entered in the app, saved on device
+│   └── ai_prompts.dart         # Coaching system prompt + drill handbook
 ├── pages/                       # UI screens
 │   ├── app_controller.dart     # Root navigation controller
 │   ├── connection_page.dart    # BLE sensor connection UI
@@ -27,6 +26,7 @@ lib/
 │       ├── symmetry_calculator.dart
 │       └── turn_shape_calculator.dart
 └── widgets/                     # Reusable UI components
+    ├── api_key_dialog.dart     # Dialog for entering the OpenAI API key
     ├── results_view.dart       # Turn analysis visualization
     └── time_series_graph.dart  # Time-series data plotting
 ```

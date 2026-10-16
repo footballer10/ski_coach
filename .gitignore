@@ -44,5 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# API key (never commit)
+
+# API key file used by the personal build (never commit)
 lib/config/secrets.dart

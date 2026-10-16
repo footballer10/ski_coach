@@ -6,6 +6,8 @@ import 'package:ski_coach/models.dart';
 import 'package:ski_coach/widgets/time_series_graph.dart';
 import 'package:ski_coach/services/segmentation.dart';
 import 'package:ski_coach/services/ai_coach.dart';
+import 'package:ski_coach/config/ai_config.dart';
+import 'package:ski_coach/widgets/api_key_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -924,6 +926,10 @@ class _ResultsViewState extends State<ResultsView> {
   Future<void> _regenerateCoachingAdvice() async {
     if (_loadingCoachingAdvice || widget.isAnyAiProcessing()) return;
 
+    // No key saved yet: ask for one before calling the API.
+    if (!AIPreferences.hasApiKey && !await showApiKeyDialog(context)) return;
+    if (!mounted) return;
+
     if (widget.results == null) {
       setState(() {
         _coachingAdvice = '';
@@ -947,6 +953,16 @@ class _ResultsViewState extends State<ResultsView> {
   Future<void> _generateCoachingAdvice() async {
     if (widget.results == null) {
       setState(() {
+        _loadingCoachingAdvice = false;
+      });
+      widget.onAiProcessingChanged(false);
+      return;
+    }
+
+    if (!AIPreferences.hasApiKey) {
+      setState(() {
+        _coachingError =
+            'No OpenAI API key yet. Tap the refresh button to add one.';
         _loadingCoachingAdvice = false;
       });
       widget.onAiProcessingChanged(false);

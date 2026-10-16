@@ -69,8 +69,8 @@ class AICoach {
     String userPrompt,
   ) async {
     final apiKey = AIPreferences.apiKey;
-    if (apiKey.isEmpty || apiKey == 'YOUR_API_KEY_HERE') {
-      throw Exception('OpenAI API key not set in lib/config/secrets.dart');
+    if (apiKey.isEmpty) {
+      throw Exception('No OpenAI API key. Tap the refresh button to add one.');
     }
 
     // Create a new client for each request to avoid connection reuse issues

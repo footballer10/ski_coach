@@ -9,6 +9,8 @@ import '../services/imu_preprocessor.dart';
 import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import '../widgets/api_key_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Single page that handles the full run lifecycle:
@@ -669,6 +671,11 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                       },
                       activeThumbColor: Colors.blue,
                     ),
+                    IconButton(
+                      tooltip: 'OpenAI API key',
+                      onPressed: () => showApiKeyDialog(context),
+                      icon: const Icon(Icons.key, color: Colors.blue),
+                    ),
                   ],
                 ),
               ],
@@ -718,6 +725,24 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
                     horizontal: 24,
                   ),
                   backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            if (!_recording) const SizedBox(height: 8),
+            if (!_recording)
+              ElevatedButton.icon(
+                onPressed: _trySampleRun,
+                icon: const Icon(Icons.downhill_skiing, size: 28),
+                label: const Text(
+                  'Try a Sample Run',
+                  style: TextStyle(fontSize: 20),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 24,
+                  ),
+                  backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -939,6 +964,45 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  /// Sample runs bundled with the app, recorded with the real sensors.
+  static const List<({String name, String asset})> _sampleRuns = [
+    (name: 'Presentation Run (18 turns)', asset: 'assets/sample_runs/presentation_run_1.json'),
+    (name: 'Presentation Run 2 (15 turns)', asset: 'assets/sample_runs/presentation_run_2.json'),
+  ];
+
+  Future<void> _trySampleRun() async {
+    final asset = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Choose a sample run',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            for (final sample in _sampleRuns)
+              ListTile(
+                leading: const Icon(Icons.downhill_skiing),
+                title: Text(sample.name),
+                onTap: () => Navigator.pop(context, sample.asset),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (asset == null) return;
+
+    try {
+      await _loadExportedRunJson(await rootBundle.loadString(asset));
+    } catch (e) {
+      _showImportError(e);
+    }
+  }
+
   Future<void> _importRun() async {
     try {
       // Open file picker
@@ -951,86 +1015,39 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
 
       // Read file
       final file = File(result.files.single.path!);
-      final jsonString = await file.readAsString();
+      await _loadExportedRunJson(await file.readAsString());
+    } catch (e) {
+      _showImportError(e);
+    }
+  }
 
-      // Parse and validate
-      final exportedRunRaw = ExportedRun.fromJsonString(jsonString);
+  void _showImportError(Object e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Import failed: $e'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
-      // If we're on results page already, use callback to create a new page.
-      // Important: do NOT apply the turn range here, because AppController will
-      // apply it when it builds the new page. Applying twice shifts the start
-      // (e.g. start=2 becomes 3; start=3 becomes 5).
-      if (widget.onImportedRun != null) {
-        widget.onImportedRun!(exportedRunRaw);
+  /// Shows an exported run, from a picked file or a bundled sample.
+  Future<void> _loadExportedRunJson(String jsonString) async {
+    // Parse and validate
+    final exportedRunRaw = ExportedRun.fromJsonString(jsonString);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Imported: ${exportedRunRaw.runName}'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-          );
-        }
-        return; // Don't update current page state
-      }
-
-      // Otherwise, apply any embedded turn range and show results in-place.
-      final exportedRun = exportedRunRaw.applyTurnRangeIfPresent();
-
-      // Convert imported data to analysis results format
-      final results = exportedRun.analysisResults;
-
-      final rebuiltSegments = _rebuildSegmentsForImportIfMissing(results);
-      final segmentsForGraphs = (results.segments is List &&
-              (results.segments as List).isNotEmpty)
-          ? results.segments
-          : rebuiltSegments;
-      final analysisResults = {
-        'leftSampleCount': results.leftSampleCount,
-        'rightSampleCount': results.rightSampleCount,
-        'leftSegments': results.leftSegments,
-        'rightSegments': results.rightSegments,
-        'duration': results.runDurationSeconds,
-        'startTime': (segmentsForGraphs is List<TurnSegment> &&
-                segmentsForGraphs.isNotEmpty)
-            ? segmentsForGraphs.first.startTime
-            : results.runStartTime,
-        'turnCount': results.turnCount,
-        'turnDurations': results.turnDurationsSeconds,
-        'edgeAngles': results.edgeAngles,
-        'turnDirections': results.turnDirections,
-        'parallelBeginning': results.parallelBeginning,
-        'parallelMiddle': results.parallelMiddle,
-        'parallelEnd': results.parallelEnd,
-        'parallelAvg': results.parallelAvg,
-        'turnShapeBeginning': results.turnShapeBeginning,
-        'turnShapeMiddle': results.turnShapeMiddle,
-        'turnShapeEnd': results.turnShapeEnd,
-        'turnShapeAvg': results.turnShapeAvg,
-        'turnSymmetryRatio': results.turnSymmetryRatio,
-        'turnSymmetryBiggerSide': results.turnSymmetryBiggerSide,
-        'turnSymmetryScore': results.turnSymmetryScore,
-        'processedLeftSamples': results.processedLeftSamples,
-        'processedRightSamples': results.processedRightSamples,
-        'segments': segmentsForGraphs,
-      };
-
-      // Otherwise update state to show results (from pre-recording page)
-      setState(() {
-        _state = RunState.results;
-        _analysisResults = analysisResults;
-        _importedRunName = exportedRun.runName;
-        _importedAiFeedback = exportedRun.aiFeedback;
-      });
+    // If we're on results page already, use callback to create a new page.
+    // Important: do NOT apply the turn range here, because AppController will
+    // apply it when it builds the new page. Applying twice shifts the start
+    // (e.g. start=2 becomes 3; start=3 becomes 5).
+    if (widget.onImportedRun != null) {
+      widget.onImportedRun!(exportedRunRaw);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Imported: ${exportedRun.runName}'),
+            content: Text('Imported: ${exportedRunRaw.runName}'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
@@ -1039,16 +1056,69 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import failed: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      return; // Don't update current page state
+    }
+
+    // Otherwise, apply any embedded turn range and show results in-place.
+    final exportedRun = exportedRunRaw.applyTurnRangeIfPresent();
+
+    // Convert imported data to analysis results format
+    final results = exportedRun.analysisResults;
+
+    final rebuiltSegments = _rebuildSegmentsForImportIfMissing(results);
+    final segmentsForGraphs = (results.segments is List &&
+            (results.segments as List).isNotEmpty)
+        ? results.segments
+        : rebuiltSegments;
+    final analysisResults = {
+      'leftSampleCount': results.leftSampleCount,
+      'rightSampleCount': results.rightSampleCount,
+      'leftSegments': results.leftSegments,
+      'rightSegments': results.rightSegments,
+      'duration': results.runDurationSeconds,
+      'startTime': (segmentsForGraphs is List<TurnSegment> &&
+              segmentsForGraphs.isNotEmpty)
+          ? segmentsForGraphs.first.startTime
+          : results.runStartTime,
+      'turnCount': results.turnCount,
+      'turnDurations': results.turnDurationsSeconds,
+      'edgeAngles': results.edgeAngles,
+      'turnDirections': results.turnDirections,
+      'parallelBeginning': results.parallelBeginning,
+      'parallelMiddle': results.parallelMiddle,
+      'parallelEnd': results.parallelEnd,
+      'parallelAvg': results.parallelAvg,
+      'turnShapeBeginning': results.turnShapeBeginning,
+      'turnShapeMiddle': results.turnShapeMiddle,
+      'turnShapeEnd': results.turnShapeEnd,
+      'turnShapeAvg': results.turnShapeAvg,
+      'turnSymmetryRatio': results.turnSymmetryRatio,
+      'turnSymmetryBiggerSide': results.turnSymmetryBiggerSide,
+      'turnSymmetryScore': results.turnSymmetryScore,
+      'processedLeftSamples': results.processedLeftSamples,
+      'processedRightSamples': results.processedRightSamples,
+      'segments': segmentsForGraphs,
+    };
+
+    // Otherwise update state to show results (from pre-recording page)
+    setState(() {
+      _state = RunState.results;
+      _analysisResults = analysisResults;
+      _importedRunName = exportedRun.runName;
+      _importedAiFeedback = exportedRun.aiFeedback;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Imported: ${exportedRun.runName}'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+      );
     }
   }
 
