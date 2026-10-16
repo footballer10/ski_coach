@@ -8,7 +8,6 @@ import '../services/segmentation.dart';
 import '../services/imu_preprocessor.dart';
 import '../services/metrics/symmetry_calculator.dart';
 import '../widgets/results_view.dart';
-// import '../config/ai_config.dart';  // Unused - API only mode
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -750,9 +749,6 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       ),
     );
   }
-
-  // AI Mode toggle removed - API only mode
-  // Widget _buildAIModeToggle() { ... }
 
   Widget _buildProcessingView() {
     return const Center(

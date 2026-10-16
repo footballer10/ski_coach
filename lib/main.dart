@@ -10,14 +10,7 @@ void main() async {
   // Enable wakelock to keep app running when screen is off
   await WakelockPlus.enable();
 
-  final aiCoach = getAICoach();
-  await aiCoach.initialize();
-
-  aiCoach.setSystemPromptLocal(localSystemPrompt);
-  aiCoach.setSystemPromptAPI(localSystemPrompt);
-  
-  // LOCAL AI TEMPORARILY DISABLED - Use API mode only
-  // aiCoach.ensureModelDownloaded();
+  getAICoach().setSystemPrompt(systemPrompt);
 
   runApp(const MyApp());
 }

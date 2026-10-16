@@ -2,10 +2,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-// import 'dart:io';  // Unused when local AI is disabled
 import 'dart:convert';
-// import 'package:path_provider/path_provider.dart';  // Unused when local AI is disabled
-// import 'package:llama_cpp_dart/llama_cpp_dart.dart';  // Unused when local AI is disabled
 import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
 
@@ -16,9 +13,6 @@ AICoach getAICoach() {
   return _aiCoachInstance!;
 }
 
-// LOCAL AI TEMPORARILY DISABLED
-// const int _localContextTokens = 8000;
-// const int _localMaxResponseTokens = 3000;
 const String _apiModel = 'gpt-6-luna';
 const int _apiMaxResponseTokens = 10000;
 
@@ -27,241 +21,18 @@ class AICoach {
   factory AICoach() => _instance;
   AICoach._();
 
-  bool _isInitialized = false;
-  // String? _modelPath;  // LOCAL AI DISABLED
-  // Llama? _llama;  // LOCAL AI DISABLED
-
-  String? _systemPromptLocal;
-  String? _systemPromptAPI;
+  String? _systemPrompt;
   String? _userPrompt;
-  
-  // LOCAL AI TEMPORARILY DISABLED
-  // bool _isDownloading = false;
-  // double _downloadProgress = 0.0;
-  // bool _isLoading = false;
 
-
-  Future<void> initialize({bool forceLoad = false}) async {
-    if (_isInitialized && !forceLoad) return;
-    _isInitialized = true;
-  }
-  
-  /// Download model in background if not present
-  Future<void> ensureModelDownloaded() async {
-    // LOCAL AI TEMPORARILY DISABLED
-    debugPrint('🤖 Local AI disabled - use API mode');
-    return;
-    
-    // final docDir = await getApplicationDocumentsDirectory();
-    // final modelPath = '${docDir.path}/model.gguf';
-    // final file = File(modelPath);
-    // 
-    // if (file.existsSync()) {
-    //   debugPrint('🤖 Model already downloaded');
-    //   return;
-    // }
-    // 
-    // _downloadModelInBackground();
-  }
-  
-  // ignore: unused_element
-  Future<void> _downloadModelInBackground() async {
-    // LOCAL AI TEMPORARILY DISABLED
-    debugPrint('🤖 Model download disabled');
-    return;
-    
-    // if (_isDownloading) return;
-    // 
-    // _isDownloading = true;
-    // debugPrint('🤖 Starting model download...');
-    // 
-    // // Qwen 2.5 7B Instruct Q4_K_M from HuggingFace
-    // const modelUrl = 'https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf';
-    // 
-    // try {
-    //   final docDir = await getApplicationDocumentsDirectory();
-    //   final modelPath = '${docDir.path}/model.gguf';
-    //   final file = File(modelPath);
-    //   
-    //   debugPrint('🤖 Downloading from: $modelUrl');
-    //   debugPrint('🤖 Saving to: $modelPath');
-    //   
-    //   final client = http.Client();
-    //   final request = http.Request('GET', Uri.parse(modelUrl));
-    //   request.followRedirects = true;
-    //   request.maxRedirects = 5;
-    //   
-    //   final response = await client.send(request);
-    //   
-    //   debugPrint('🤖 Response status: ${response.statusCode}');
-    //   
-    //   if (response.statusCode == 200) {
-    //     final contentLength = response.contentLength ?? 0;
-    //     debugPrint('🤖 File size: ${(contentLength / 1024 / 1024).toStringAsFixed(2)} MB');
-    //     
-    //     var downloaded = 0;
-    //     final bytes = <int>[];
-    //     
-    //     await for (final chunk in response.stream) {
-    //       bytes.addAll(chunk);
-    //       downloaded += chunk.length;
-    //       
-    //       if (contentLength > 0) {
-    //         _downloadProgress = downloaded / contentLength;
-    //         if (downloaded % (10 * 1024 * 1024) == 0 || downloaded == contentLength) {
-    //           debugPrint('🤖 Downloaded: ${(downloaded / 1024 / 1024).toStringAsFixed(2)} MB (${(_downloadProgress * 100).toStringAsFixed(1)}%)');
-    //         }
-    //       }
-    //     }
-    //     
-    //     debugPrint('🤖 Writing file to disk...');
-    //     await file.writeAsBytes(bytes);
-    //     debugPrint('🤖 Model downloaded successfully to: $modelPath');
-    //   } else {
-    //     debugPrint('🤖 Download failed with status: ${response.statusCode}');
-    //     debugPrint('🤖 Response headers: ${response.headers}');
-    //     throw Exception('Download failed: HTTP ${response.statusCode}');
-    //   }
-    //   
-    //   client.close();
-    // } catch (e, stackTrace) {
-    //   debugPrint('🤖 Download error: $e');
-    //   debugPrint('🤖 Stack trace: $stackTrace');
-    // } finally {
-    //   _isDownloading = false;
-    //   _downloadProgress = 0.0;
-    // }
-  }
-
-  /// Load model into memory when switching to Local mode
-  Future<void> loadModelIntoMemory() async {
-    // LOCAL AI TEMPORARILY DISABLED
-    debugPrint('⚠️ Local AI is disabled. Please use API mode.');
-    throw Exception('Local AI is temporarily disabled. Please use API mode in settings.');
-    
-    // if (_isLoading) {
-    //   debugPrint('⚠️ Model load/unload already in progress, ignoring request');
-    //   return;
-    // }
-    // 
-    // _isLoading = true;
-    // try {
-    //   if (_llama != null) {
-    //     debugPrint('🤖 Model already loaded in memory');
-    //     return;
-    //   }
-    //   debugPrint('🤖 Loading model into memory...');
-    //   await _loadLocalModel();
-    //   debugPrint('🤖 Model loaded and ready!');
-    // } catch (e) {
-    //   debugPrint('❌ Model load failed: $e');
-    //   rethrow;
-    // } finally {
-    //   _isLoading = false;
-    // }
-  }
-
-  /// Unload model from memory when switching to API mode
-  Future<void> unloadModelFromMemory() async {
-    // LOCAL AI TEMPORARILY DISABLED
-    debugPrint('⚠️ Local AI is disabled');
-    return;
-    
-    // if (_isLoading) {
-    //   debugPrint('⚠️ Model load/unload already in progress, ignoring request');
-    //   return;
-    // }
-    // 
-    // _isLoading = true;
-    // try {
-    //   if (_llama == null) {
-    //     debugPrint('🤖 Model not loaded, nothing to unload');
-    //     return;
-    //   }
-    //   debugPrint('🤖 Unloading model from memory...');
-    //   _llama = null;
-    //   debugPrint('🤖 Model unloaded, memory freed');
-    // } finally {
-    //   _isLoading = false;
-    // }
-  }
-
-  // ignore: unused_element
-  Future<void> _loadLocalModel() async {
-    // LOCAL AI TEMPORARILY DISABLED
-    throw Exception('Local AI is disabled');
-    
-    // if (_llama != null) return;
-    //
-    // final docDir = await getApplicationDocumentsDirectory();
-    // _modelPath = '${docDir.path}/model.gguf';
-    // final file = File(_modelPath!);
-    //
-    // // If model doesn't exist, trigger download
-    // if (!file.existsSync()) {
-    //   debugPrint('🤖 Model not found. Downloading...');
-    //   await _downloadModelInBackground();
-    //   
-    //   // Check again after download
-    //   if (!file.existsSync()) {
-    //     throw Exception(
-    //       'Model download failed. Please check internet connection or use API mode.',
-    //     );
-    //   }
-    // }
-    //
-    // debugPrint('🤖 Model found at: $_modelPath');
-    //
-    // try {
-    //   final modelParams = ModelParams();
-    //   final contextParams = ContextParams()
-    //     ..nCtx = _localContextTokens
-    //     ..nPredict = _localMaxResponseTokens;
-    //   final samplerParams = SamplerParams()..temp = 0.0;
-    //   _llama = Llama(
-    //     _modelPath!,
-    //     modelParams,
-    //     contextParams,
-    //     samplerParams,
-    //     false,
-    //   );
-    // } catch (e) {
-    //   debugPrint('⚠️ Failed with full context, trying reduced settings...');
-    //   try {
-    //     final modelParams = ModelParams();
-    //     final contextParams = ContextParams()
-    //       ..nCtx = 4000
-    //       ..nPredict = 1500;
-    //     final samplerParams = SamplerParams()..temp = 0.0;
-    //     _llama = Llama(
-    //       _modelPath!,
-    //       modelParams,
-    //       contextParams,
-    //       samplerParams,
-    //       false,
-    //     );
-    //     debugPrint('🤖 Model loaded with reduced context (4000 tokens)');
-    //   } catch (e) {
-    //     debugPrint('❌ Failed even with reduced settings: $e');
-    //     rethrow;
-    //   }
-    // }
-  }
-
-  void setSystemPromptLocal(String prompt) {
-    _systemPromptLocal = prompt;
-  }
-
-  void setSystemPromptAPI(String prompt) {
-    _systemPromptAPI = prompt;
+  void setSystemPrompt(String prompt) {
+    _systemPrompt = prompt;
   }
 
   void setUserPrompt(String prompt) {
     _userPrompt = prompt;
   }
 
-  String? getSystemPromptLocal() => _systemPromptLocal;
-  String? getSystemPromptAPI() => _systemPromptAPI;
+  String? getSystemPrompt() => _systemPrompt;
   String? getUserPrompt() => _userPrompt;
 
   Future<String> generateCoachingAdvice({
@@ -275,29 +46,10 @@ class AICoach {
     if (_userPrompt == null) {
       throw Exception('User prompt not set');
     }
-
-    if (AIPreferences.currentMode == AIMode.local) {
-      // LOCAL AI TEMPORARILY DISABLED
-      throw Exception(
-        'Local AI is temporarily disabled. Please use API mode in settings.',
-      );
-      
-      // if (_systemPromptLocal == null) {
-      //   throw Exception('Local system prompt not set');
-      // }
-      // 
-      // if (_llama == null) {
-      //   throw Exception(
-      //     'Local model not loaded. Please toggle to Local mode first to load the model into memory.',
-      //   );
-      // }
-      // return _sendPromptsToLocalLLM(_systemPromptLocal!, _userPrompt!);
-    } else {
-      if (_systemPromptAPI == null) {
-        throw Exception('API system prompt not set');
-      }
-      return _sendPromptsToAPI(_systemPromptAPI!, _userPrompt!);
+    if (_systemPrompt == null) {
+      throw Exception('System prompt not set');
     }
+    return _sendPromptsToAPI(_systemPrompt!, _userPrompt!);
   }
 
   /// Extracts the user-visible coaching feedback from the model output.
@@ -310,35 +62,6 @@ class AICoach {
     final last = aiResponse.lastIndexOf('//');
     if (last == -1) return aiResponse.trim();
     return aiResponse.substring(last + 2).trim();
-  }
-
-  // ignore: unused_element
-  Future<String> _sendPromptsToLocalLLM(
-    String systemPrompt,
-    String userPrompt,
-  ) async {
-    // LOCAL AI TEMPORARILY DISABLED
-    throw Exception('Local AI is disabled');
-    
-    // if (_modelPath == null) {
-    //   throw Exception('Model path not set');
-    // }
-    //
-    // if (_llama == null) {
-    //   throw Exception('Model not loaded');
-    // }
-    //
-    // final combinedPrompt = '$systemPrompt\n\n$userPrompt';
-    //
-    // _llama!.clear();
-    // _llama!.setPrompt(combinedPrompt);
-    //
-    // final responseBuffer = StringBuffer();
-    // await for (final token in _llama!.generateText()) {
-    //   responseBuffer.write(token);
-    // }
-    //
-    // return responseBuffer.toString();
   }
 
   Future<String> _sendPromptsToAPI(
