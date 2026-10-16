@@ -29,12 +29,12 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/reactive_ble_mobile/darwin"
 
 SPEC CHECKSUMS:
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   objective_c: 89e720c30d716b036faf9c9684022048eee1eee2
   Protobuf: 164aea2ae380c3951abdc3e195220c01d17400e0
   reactive_ble_mobile: ea97709e18fa6f0b0592909725d7ae7e1c595b64
   SwiftProtobuf: e1b437c8e31a4c5577b643249a0bb62ed4f02153
 
-PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0
