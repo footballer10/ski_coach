@@ -98,27 +98,41 @@ git clone https://github.com/footballer10/ski_coach.git
 cd ski_coach
 ```
 
-Open the iPhone simulator. Which command depends on your Xcode version (`xcodebuild -version` shows it):
+The app is designed for a large iPhone, so use a **Pro Max** simulator. On a smaller one, part of the results screen will be cut off.
 
-- **Xcode 26 or earlier:**
+1. See which Pro Max simulators you have:
 
-  ```bash
-  open -a Simulator
-  ```
+   ```bash
+   xcrun simctl list devices available | grep "Pro Max"
+   ```
 
-- **Xcode 27 or later** (the Simulator app was replaced by Device Hub):
+2. Start one, using a name from that list. For example:
 
-  ```bash
-  open -a DeviceHub
-  ```
+   ```bash
+   xcrun simctl boot "iPhone 17 Pro Max"
+   ```
 
-  Then select an iPhone simulator in the Device Hub window.
+3. Open the simulator window so you can see it. Which command depends on your Xcode version (`xcodebuild -version` shows it):
 
-When a simulated iPhone is showing, start the app:
+   - **Xcode 26 or earlier:**
 
-```bash
-flutter run
-```
+     ```bash
+     open -a Simulator
+     ```
+
+   - **Xcode 27 or later** (the Simulator app was replaced by Device Hub):
+
+     ```bash
+     open -a DeviceHub
+     ```
+
+     Then select the Pro Max you started.
+
+4. Start the app on that simulator, using the same name as in step 2:
+
+   ```bash
+   flutter run -d "iPhone 17 Pro Max"
+   ```
 
 The first build takes a few minutes. When it finishes, the app appears on the simulated iPhone. Leave Terminal open while you try it, and press `q` there to quit.
 
@@ -147,9 +161,11 @@ Click the **↻** button on the AI Coach Advice card, paste an OpenAI API key, a
 
 ### If something goes wrong
 
-- **`flutter run` says "No devices found":** open the simulator first (step 2) and wait for the iPhone to appear.
+- **`flutter run` says "No devices found" or can't find the name:** check the name with `xcrun simctl list devices available | grep "Pro Max"` and start that simulator first (step 2).
+- **`xcrun simctl boot` says "Unable to boot device in current state: Booted":** that simulator is already running, so carry on.
+- **The simulator window shows a different, smaller iPhone:** select the Pro Max in the Simulator or Device Hub window.
 - **`open -a Simulator` says "Unable to find application":** you have Xcode 27 or later; use `open -a DeviceHub` instead.
-- **The app is running but you can't see it:** open the simulator window with the command from step 2.
+- **The app is running but you can't see it:** open the simulator window (step 2, part 3).
 - **CocoaPods fails with an "Encoding" or "Unicode" error:** run `export LANG=en_US.UTF-8` in the same Terminal window, then `flutter run` again.
 - **Xcode offers to "Update to recommended settings":** click **Don't Update**.
 
