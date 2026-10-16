@@ -514,8 +514,6 @@ class _AppControllerState extends State<AppController> {
               ),
             ),
 
-          // Navigation arrows removed per user request
-
           // Page indicator dots (only when runs exist and not on connection screen)
           if (_runPages.isNotEmpty && !_showConnectionOverlay)
             Positioned(
