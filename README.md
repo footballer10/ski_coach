@@ -4,6 +4,8 @@ An iPhone app that turns two boot-mounted motion sensors into ski coaching. You 
 
 **Author:** Luke Postma
 
+> **Reviewers:** you can try the app on a Mac with no sensors, no iPhone and no API key. It includes two runs I recorded on the snow, with the coaching GPT gave me for each. See [Try it without sensors](#try-it-without-sensors).
+
 ## What it does
 
 - Connects to two Bluetooth IMU sensors (WitMotion WT9011DCL), one strapped to each ski boot
@@ -49,48 +51,95 @@ The system prompt in `lib/config/ai_prompts.dart` makes the model work through f
 
 I designed the system: the data pipeline, the scoring formulas, the metrics and the coaching prompt. GitHub Copilot wrote the code from my instructions. ChatGPT helped with research and with drafting parts of the prompt. The commit history shows how the project developed, including approaches I tried and dropped, like running a Llama model on the phone.
 
-## Setup
+## Try it without sensors
 
-### Requirements
+You need a **Mac**. You don't need an iPhone, sensors or an OpenAI API key. The app runs in the iPhone Simulator that comes with Xcode.
 
-- macOS with Xcode and the Flutter SDK (Dart 3.9 or later)
-- An iPhone (iOS 15 or later)
-- Two WitMotion WT9011DCL Bluetooth IMU sensors
-- An OpenAI API key with credits
+### 1. Install the tools (one time)
 
-### Steps
-
-1. Clone the repository:
+1. Install **Xcode** from the Mac App Store. It's a large download.
+2. Open Xcode once. Accept the license, and when it asks which platforms to install, include **iOS**.
+3. Install **Homebrew** if you don't have it, by following the one-line install at [brew.sh](https://brew.sh).
+4. Install Flutter and CocoaPods by running these in **Terminal**, one at a time:
 
    ```bash
-   git clone https://github.com/footballer10/ski_coach.git
-   cd ski_coach
+   brew install --cask flutter
    ```
-
-2. Create `lib/config/secrets.dart` with your OpenAI API key. This file is in `.gitignore`, so it never gets committed.
-
-   ```dart
-   const String openAiApiKey = 'sk-...';
-   ```
-
-3. Install dependencies:
 
    ```bash
-   flutter pub get
-   cd ios && pod install && cd ..
+   brew install cocoapods
    ```
 
-4. Connect your iPhone and run:
+5. Check that everything is ready:
 
    ```bash
-   flutter run
+   flutter doctor
    ```
 
-5. Run the tests:
+   The **Flutter** and **Xcode** lines should have green check marks. You can ignore Android, Chrome and Android Studio.
 
-   ```bash
-   flutter test
-   ```
+### 2. Download and start the app
+
+Run these in Terminal, one at a time:
+
+```bash
+git clone https://github.com/footballer10/ski_coach.git
+```
+
+```bash
+cd ski_coach
+```
+
+```bash
+open -a Simulator
+```
+
+Wait until a simulated iPhone appears on screen, then run:
+
+```bash
+flutter run
+```
+
+The first build takes a few minutes. When it finishes, the app opens in the simulated iPhone.
+
+### 3. Load a sample run
+
+1. The app opens on **Connect Sensors**. It will keep searching because there are no sensors. Tap the **✕** in the top right corner.
+2. Tap the green **Try a Sample Run** button.
+3. Pick **Presentation Run** or **Presentation Run 2**.
+
+### 4. What to look at
+
+- **Top card:** date, run length, number of turns and the overall score.
+- **Metric list:** the measured value and score for duration, edge angle, parallelness, turn shape and turn symmetry.
+- **Coloured boxes:** one per turn with its score. Scroll them to see every turn.
+- **Category menu** (top left): pick a metric, such as Edge Angle, to see the run's value against the optimal, every turn's value and score, and a dot plot of values across all turns.
+- **Turn menu** (top right): pick one turn to look at it on its own.
+- **AI Coach Advice:** the coaching GPT generated for that run, made from the prompt in `lib/config/ai_prompts.dart`.
+
+Swipe left or right to move between runs you've loaded.
+
+### Optional: generate new coaching
+
+Tap the **↻** button on the AI Coach Advice card, paste an OpenAI API key, and tap **Save**. The key is stored only in the simulator, and each request costs a few cents of API credit. The full working takes a few minutes. You can also change or remove the key with the key icon on the start screen.
+
+### If something goes wrong
+
+- **`flutter run` says "No devices found":** run `open -a Simulator` first and wait for the iPhone to appear.
+- **CocoaPods fails with an "Encoding" or "Unicode" error:** run `export LANG=en_US.UTF-8` in the same Terminal window, then `flutter run` again.
+- **Xcode offers to "Update to recommended settings":** click **Don't Update**.
+
+### Using a real iPhone or the sensors
+
+To install on a real iPhone, open `ios/Runner.xcworkspace` in Xcode, choose your own Apple ID under **Signing & Capabilities**, then connect the phone and run `flutter run --release`. Recording new runs needs two WitMotion WT9011DCL sensors named `WTLeft` and `WTRight`, strapped to the boots.
+
+## Tests
+
+```bash
+flutter test
+```
+
+This runs the tests for the scoring formulas in `test/scoring_test.dart`.
 
 ## Project structure
 
@@ -99,9 +148,8 @@ lib/
 ├── main.dart                    # App entry point
 ├── models.dart                  # Data models (ImuSample, analysis results)
 ├── config/
-│   ├── ai_config.dart           # Reads the API key
-│   ├── ai_prompts.dart          # Coaching system prompt and drill handbook
-│   └── secrets.dart             # Your API key (not committed)
+│   ├── ai_config.dart           # API key entered in the app, saved on the device
+│   └── ai_prompts.dart          # Coaching system prompt and drill handbook
 ├── pages/                       # Connection and run screens
 ├── services/
 │   ├── ble_manager.dart         # Bluetooth connection, packet parsing, calibration
@@ -110,7 +158,9 @@ lib/
 │   ├── metrics/                 # One calculator per metric
 │   ├── scoring.dart             # Value → 0–100 score
 │   └── ai_coach.dart            # OpenAI API call
-└── widgets/                     # Results view and graphs
+└── widgets/                     # Results view, graphs, API key dialog
+assets/
+└── sample_runs/                 # Two recorded runs with their saved coaching
 test/
 └── scoring_test.dart            # Tests for the scoring formulas
 ```
