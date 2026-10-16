@@ -47,7 +47,7 @@ The system prompt in `lib/config/ai_prompts.dart` makes the model work through f
 
 ## How it was built
 
-I designed the system: the data pipeline, the scoring formulas, the metrics and the coaching prompt. GitHub Copilot wrote the code from my instructions. ChatGPT helped with research and with drafting parts of the prompt. The commit history shows how the project developed, including approaches I tried and dropped, like running a Llama model on the phone.
+I designed the system: the data pipeline, the scoring formulas, the metrics and the coaching prompt. GitHub Copilot wrote the code from my instructions. ChatGPT helped with research and with drafting parts of the prompt. Before submitting, Claude (Anthropic) helped clean up the code: switching to GPT-6 Luna, removing unused code, adding tests, and setting up the sample-run mode so reviewers can try the app. The commit history shows how the project developed, including approaches I tried and dropped, like running a Llama model on the phone.
 
 ## Setup
 

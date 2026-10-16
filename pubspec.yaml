@@ -30,6 +30,6 @@ flutter:
   uses-material-design: true
 
 flutter_launcher_icons:
-  android: true
+  android: false
   ios: true
   image_path: "assets/icon.png"  # Your icon image (1024x1024 recommended)
