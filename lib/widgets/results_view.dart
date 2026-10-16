@@ -558,7 +558,6 @@ class _ResultsViewState extends State<ResultsView> {
   String _coachingAdvice = '';
   bool _loadingCoachingAdvice = false;
   String? _coachingError;
-  // _aiProcessing removed - now using widget.isAnyAiProcessing global state
 
   // Cache for score calculations to prevent recalculation on every rebuild
   final Map<String, List<double>> _scoreCache = {};
@@ -2206,7 +2205,6 @@ class _ResultsViewState extends State<ResultsView> {
             ],
           ),
         ),
-        // Footer reserved for future insights cards
       ],
     );
   }
@@ -2612,8 +2610,6 @@ class _ResultsViewState extends State<ResultsView> {
       ),
     );
   }
-
-  // Removed old color-coded visualization in favor of compact GPS card
 
   Widget _buildCategoryDotPlot() {
     final values = _getValuesForCategory(_selectedCategory, _categoryPageThird);

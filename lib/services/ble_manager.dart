@@ -591,9 +591,6 @@ class BleManager {
         _latest[deviceId]!["ax"] = ax;
         _latest[deviceId]!["ay"] = ay;
         _latest[deviceId]!["az"] = az;
-        if (kDebugMode) {
-          // Accel data parsed
-        }
         i += 11;
         continue;
       }
@@ -606,9 +603,6 @@ class BleManager {
         _latest[deviceId]!["gx"] = gx;
         _latest[deviceId]!["gy"] = gy;
         _latest[deviceId]!["gz"] = gz;
-        if (kDebugMode) {
-          // Gyro data parsed
-        }
         i += 11;
         continue;
       }
@@ -621,9 +615,6 @@ class BleManager {
         _latest[deviceId]!["roll"] = roll;
         _latest[deviceId]!["pitch"] = pitch;
         _latest[deviceId]!["yaw"] = yaw;
-        if (kDebugMode) {
-          // Angle data parsed
-        }
         i += 11;
         continue;
       }
