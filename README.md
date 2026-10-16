@@ -133,9 +133,10 @@ The first build takes a few minutes. When it's done, the app opens on the simula
 
 ### 3. Load a sample run
 
-1. The app opens on **Connect Sensors** and keeps searching, because there are no sensors. Click the **✕** in the top right corner.
-2. Click the green **Try a Sample Run** button.
-3. Pick **Presentation Run** or **Presentation Run 2**.
+1. The app opens on **Connect Sensors**, where it searches for the sensors. Click the green **No sensors? Try a sample run** button at the bottom.
+2. Pick **Presentation Run** or **Presentation Run 2**.
+
+To load another sample later, drag sideways back to the **Recording Session** screen and click **Try a Sample Run**.
 
 ### 4. What to look at
 
@@ -150,7 +151,7 @@ To switch between loaded runs, drag sideways.
 
 ### Optional: generate new coaching
 
-Click the **↻** button on the AI Coach Advice card, paste an OpenAI API key and click **Save**. The key is stored only in the simulator. Each request uses a small amount of API credit and takes a few minutes, because the model works through every step of the prompt. To change or remove the key later, use the key icon on the start screen.
+Click the **↻** button on the AI Coach Advice card, paste an OpenAI API key and click **Save**. The key is stored only in the simulator. Each request uses a small amount of API credit and takes a few minutes, because the model works through every step of the prompt. To change or remove the key later, use the key icon on the **Recording Session** screen.
 
 ### Troubleshooting
 
@@ -161,9 +162,32 @@ Click the **↻** button on the AI Coach Advice card, paste an OpenAI API key an
 - **CocoaPods fails with an "Encoding" or "Unicode" error:** run `export LANG=en_US.UTF-8` in the same Terminal window, then run `flutter run` again.
 - **Xcode offers to "Update to recommended settings":** click **Don't Update**.
 
-### Using a real iPhone or the sensors
+### Optional: run it on a real iPhone
 
-To install on a real iPhone, open `ios/Runner.xcworkspace` in Xcode, choose your own Apple ID under **Signing & Capabilities**, connect the phone and run `flutter run --release`. Recording new runs requires two WitMotion WT9011DCL sensors named `WTLeft` and `WTRight`, strapped to the boots.
+This also needs the Mac setup from step 1, plus a USB cable. A free Apple ID is enough.
+
+1. Plug the iPhone into the Mac, unlock it, and tap **Trust** if it asks.
+2. Open the project in Xcode:
+
+   ```bash
+   open ios/Runner.xcworkspace
+   ```
+
+3. In Xcode, click **Runner** at the top of the left sidebar, then the **Signing & Capabilities** tab.
+   - Under **Team**, choose your Apple ID. If it isn't listed, click **Add an Account…** and sign in, then pick **(Personal Team)**.
+   - Change **Bundle Identifier** to something unique, for example `com.yourname.skicoach`. Xcode shows an error until the identifier is unique.
+4. On the iPhone, turn on **Developer Mode** in **Settings → Privacy & Security → Developer Mode**, then let the phone restart. If the option isn't there, unplug the phone, plug it back in, and check again.
+5. Back in Terminal, in the `ski_coach` folder, run the command below. If Flutter asks which device to use, pick the iPhone.
+
+   ```bash
+   flutter run --release
+   ```
+
+6. The first time, the iPhone blocks the app as coming from an "Untrusted Developer". Go to **Settings → General → VPN & Device Management**, tap your Apple ID, then tap **Trust**. Open the app from the home screen.
+
+On a free Apple ID, the app keeps working for 7 days.
+
+Recording new runs requires two WitMotion WT9011DCL sensors named `WTLeft` and `WTRight`, strapped to the boots. Without them, use the sample runs, just like in the simulator.
 
 ## Tests
 
