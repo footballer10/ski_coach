@@ -4,11 +4,35 @@ import '../config/ai_config.dart';
 /// Asks for an OpenAI API key and saves it on the device.
 /// Returns true if a key is set when the dialog closes.
 Future<bool> showApiKeyDialog(BuildContext context) async {
-  final controller = TextEditingController(text: AIPreferences.apiKey);
-
   final saved = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => const _ApiKeyDialog(),
+  );
+  return (saved ?? false) && AIPreferences.hasApiKey;
+}
+
+class _ApiKeyDialog extends StatefulWidget {
+  const _ApiKeyDialog();
+
+  @override
+  State<_ApiKeyDialog> createState() => _ApiKeyDialogState();
+}
+
+class _ApiKeyDialogState extends State<_ApiKeyDialog> {
+  // Owned by the dialog so it is disposed only after the closing animation.
+  late final TextEditingController _controller = TextEditingController(
+    text: AIPreferences.apiKey,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
       title: const Text('OpenAI API key'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -21,7 +45,7 @@ Future<bool> showApiKeyDialog(BuildContext context) async {
           ),
           const SizedBox(height: 12),
           TextField(
-            controller: controller,
+            controller: _controller,
             autocorrect: false,
             enableSuggestions: false,
             obscureText: true,
@@ -47,15 +71,12 @@ Future<bool> showApiKeyDialog(BuildContext context) async {
         ),
         FilledButton(
           onPressed: () async {
-            await AIPreferences.setApiKey(controller.text);
+            await AIPreferences.setApiKey(_controller.text);
             if (context.mounted) Navigator.pop(context, true);
           },
           child: const Text('Save'),
         ),
       ],
-    ),
-  );
-
-  controller.dispose();
-  return (saved ?? false) && AIPreferences.hasApiKey;
+    );
+  }
 }
