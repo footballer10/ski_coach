@@ -1658,8 +1658,10 @@ class _ResultsViewState extends State<ResultsView> {
                 style: const TextStyle(color: Colors.red, fontSize: 13),
               )
             else if (_coachingAdvice.isNotEmpty)
+              // Kept short so the full metric list fits on screen; the
+              // advice scrolls inside this box.
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
+                constraints: const BoxConstraints(maxHeight: 110),
                 child: SingleChildScrollView(
                   child: SelectableText(
                     _coachingAdvice,
