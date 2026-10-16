@@ -1660,7 +1660,7 @@ class _ResultsViewState extends State<ResultsView> {
               // Kept short so the full metric list fits on screen; the
               // advice scrolls inside this box.
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 110),
+                constraints: const BoxConstraints(maxHeight: 88),
                 child: SingleChildScrollView(
                   child: SelectableText(
                     _coachingAdvice,

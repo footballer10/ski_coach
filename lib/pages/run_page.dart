@@ -731,7 +731,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
             if (!_recording) const SizedBox(height: 8),
             if (!_recording)
               ElevatedButton.icon(
-                onPressed: _trySampleRun,
+                onPressed: trySampleRun,
                 icon: const Icon(Icons.downhill_skiing, size: 28),
                 label: const Text(
                   'Try a Sample Run',
@@ -970,7 +970,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     (name: 'Presentation Run 2 (15 turns)', asset: 'assets/sample_runs/presentation_run_2.json'),
   ];
 
-  Future<void> _trySampleRun() async {
+  /// Lets the user pick one of the bundled sample runs and opens it.
+  Future<void> trySampleRun() async {
     final asset = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(

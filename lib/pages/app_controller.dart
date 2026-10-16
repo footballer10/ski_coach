@@ -470,6 +470,33 @@ class _AppControllerState extends State<AppController> {
     });
   }
 
+  /// Hides the startup connection screen, creating a sensorless run page
+  /// if none exists yet.
+  void _closeConnectionOverlay() {
+    setState(() {
+      _showConnectionOverlay = false;
+      // If no run pages exist yet, create the first one without sensors
+      if (_runPages.isEmpty) {
+        final pageKey = GlobalKey<RunPageState>();
+        final newPage = RunPage(
+          key: pageKey,
+          bleMgr: null,
+          leftId: '',
+          rightId: '',
+          onRecordAgain: _addNewRunPage,
+          onDisconnect: _onSensorsDisconnected,
+          onManualReconnect: _onManualReconnectPressed,
+          autoStart: false,
+          onAiProcessingChanged: _onAiProcessingChanged,
+          onImportedRun: _addImportedRunPage,
+          isAnyAiProcessing: () => _isAnyAiProcessing,
+        );
+        _runPages.add(newPage);
+        _runPageKeys.add(pageKey);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -487,28 +514,16 @@ class _AppControllerState extends State<AppController> {
               color: Colors.white,
               child: ConnectionPage(
                 onConnected: _onSensorsConnected,
-                onClose: () {
-                  setState(() {
-                    _showConnectionOverlay = false;
-                    // If no run pages exist yet, create the first one without sensors
-                    if (_runPages.isEmpty) {
-                      final pageKey = GlobalKey<RunPageState>();
-                      final newPage = RunPage(
-                        key: pageKey,
-                        bleMgr: null,
-                        leftId: '',
-                        rightId: '',
-                        onRecordAgain: _addNewRunPage,
-                        onDisconnect: _onSensorsDisconnected,
-                        onManualReconnect: _onManualReconnectPressed,
-                        autoStart: false,
-                        onAiProcessingChanged: _onAiProcessingChanged,
-                        onImportedRun: _addImportedRunPage,
-                        isAnyAiProcessing: () => _isAnyAiProcessing,
-                      );
-                      _runPages.add(newPage);
-                      _runPageKeys.add(pageKey);
-                    }
+                onClose: _closeConnectionOverlay,
+                onTrySample: () {
+                  _closeConnectionOverlay();
+                  // Open the sample picker once the run page is built.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _runPageKeys
+                        .map((key) => key.currentState)
+                        .whereType<RunPageState>()
+                        .firstOrNull
+                        ?.trySampleRun();
                   });
                 },
               ),

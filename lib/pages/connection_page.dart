@@ -10,11 +10,15 @@ class ConnectionPage extends StatefulWidget {
   final bool showCloseButton;
   final VoidCallback? onClose;
 
+  /// When set, shows a button for trying the app with a bundled sample run.
+  final VoidCallback? onTrySample;
+
   const ConnectionPage({
     super.key,
     this.onConnected,
     this.showCloseButton = false,
     this.onClose,
+    this.onTrySample,
   });
 
   @override
@@ -465,6 +469,25 @@ class _ConnectionPageState extends State<ConnectionPage> {
                           },
                         ),
                 ),
+                if (widget.onTrySample != null) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: widget.onTrySample,
+                      icon: const Icon(Icons.downhill_skiing),
+                      label: const Text(
+                        'No sensors? Try a sample run',
+                        style: TextStyle(fontSize: 18),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
