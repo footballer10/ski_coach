@@ -501,7 +501,6 @@ class ResultsView extends StatefulWidget {
   final AnalysisResults? results; // null if showing error
   final String? errorMessage;
   final VoidCallback onNewRun;
-  final VoidCallback? onFinishDay;
   final VoidCallback? onReconnect;
   final VoidCallback? onImportRun; // Import another run from results page
   final bool showReconnectButton;
@@ -518,7 +517,6 @@ class ResultsView extends StatefulWidget {
     this.results,
     this.errorMessage,
     required this.onNewRun,
-    this.onFinishDay,
     this.onReconnect,
     this.onImportRun,
     this.showReconnectButton = true,

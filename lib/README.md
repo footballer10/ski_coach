@@ -6,8 +6,6 @@
 lib/
 ├── main.dart                    # App entry point & initialization
 ├── models.dart                  # Data models (ImuSample, AnalysisResults)
-├── models/
-│   └── daily_summary.dart      # Daily summary model
 ├── config/                      # Configuration files
 │   ├── ai_config.dart          # Reads the API key from secrets.dart
 │   ├── ai_prompts.dart         # Coaching system prompt + drill handbook
@@ -15,7 +13,6 @@ lib/
 ├── pages/                       # UI screens
 │   ├── app_controller.dart     # Root navigation controller
 │   ├── connection_page.dart    # BLE sensor connection UI
-│   ├── daily_summary_page.dart # End-of-day summary
 │   └── run_page.dart           # Recording & results screen
 ├── services/                    # Business logic
 │   ├── ai_coach.dart           # OpenAI API call (GPT-6 Luna)

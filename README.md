@@ -16,7 +16,7 @@ An iPhone app that turns two boot-mounted motion sensors into ski coaching. You 
   - **Turn symmetry**: how left turns compare to right turns
 - Converts each metric to a 0–100 score and averages them into a run score
 - After the run, sends the scores and measured values to OpenAI GPT-6 Luna, which picks your weakest area and returns coaching from a drill handbook
-- Shows turn-by-turn graphs, saves a daily summary, and exports or imports runs as files
+- Shows turn-by-turn graphs and exports or imports runs as files
 
 ## How it works
 
@@ -98,12 +98,11 @@ I designed the system: the data pipeline, the scoring formulas, the metrics and 
 lib/
 ├── main.dart                    # App entry point
 ├── models.dart                  # Data models (ImuSample, analysis results)
-├── models/daily_summary.dart    # Daily summary model
 ├── config/
 │   ├── ai_config.dart           # Reads the API key
 │   ├── ai_prompts.dart          # Coaching system prompt and drill handbook
 │   └── secrets.dart             # Your API key (not committed)
-├── pages/                       # Connection, run, and daily summary screens
+├── pages/                       # Connection and run screens
 ├── services/
 │   ├── ble_manager.dart         # Bluetooth connection, packet parsing, calibration
 │   ├── imu_preprocessor.dart    # Unwrapping, yaw offset, averaging

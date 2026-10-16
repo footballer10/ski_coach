@@ -22,8 +22,6 @@ class RunPage extends StatefulWidget {
   final VoidCallback? onManualReconnect;
   final VoidCallback? onResultsShown;
   final VoidCallback? onReconnected;
-  final Function(Map<String, dynamic>)? onRunCompleted;
-  final VoidCallback? onFinishDay;
   final bool autoStart;
   final Function(ExportedRun)? onImportedRun; // Handle imported run data
   final RunState? initialState; // Start in specific state (for imports)
@@ -43,8 +41,6 @@ class RunPage extends StatefulWidget {
     this.onManualReconnect,
     this.onResultsShown,
     this.onReconnected,
-    this.onRunCompleted,
-    this.onFinishDay,
     this.autoStart = false,
     this.onImportedRun,
     this.initialState,
@@ -627,9 +623,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       _analysisResults = results;
       _state = RunState.results;
     });
-    
-    // Record run completion with scores
-    widget.onRunCompleted?.call(results);
+
     widget.onResultsShown?.call();
   }
 
@@ -778,7 +772,6 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         results: null,
         errorMessage: error,
         onNewRun: widget.onRecordAgain,
-        onFinishDay: widget.onFinishDay,
         onReconnect: showReconnectButton ? widget.onManualReconnect : null,
         onImportRun: _importRun,
         showReconnectButton: showReconnectButton,
@@ -935,7 +928,6 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
     return ResultsView(
       results: resultsModel,
       onNewRun: widget.onRecordAgain,
-      onFinishDay: widget.onFinishDay,
       onImportRun: _importRun,
       showReconnectButton: false,
       aiFeedback: _importedAiFeedback,

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'connection_page.dart';
 import 'run_page.dart';
-import 'daily_summary_page.dart';
 import '../models.dart';
-import '../models/daily_summary.dart';
 import '../services/segmentation.dart';
 
 /// Main controller that manages all run pages and handles connection state.
@@ -27,10 +25,6 @@ class _AppControllerState extends State<AppController> {
   bool _showArrows = false;
   int _currentPage = 0;
 
-  // Track runs for daily summary
-  final List<DailyRunSummary> _todaysRuns = [];
-  final DateTime _sessionStartDate = DateTime.now();
-  
   // Track AI processing state globally
   bool _isAnyAiProcessing = false;
 
@@ -139,8 +133,6 @@ class _AppControllerState extends State<AppController> {
         onDisconnect: _onSensorsDisconnected,
         onManualReconnect: _onManualReconnectPressed,
         autoStart: false,
-        onRunCompleted: _recordRun,
-        onFinishDay: _showDailySummary,
         onImportedRun: _addImportedRunPage, // Allow import to create new page
         isAnyAiProcessing: () => _isAnyAiProcessing,
         onAiProcessingChanged: _onAiProcessingChanged,
@@ -169,70 +161,6 @@ class _AppControllerState extends State<AppController> {
     
     setState(() {
       _isAnyAiProcessing = isProcessing;
-    });
-  }
-
-  void _recordRun(Map<String, dynamic> analysisResults) {
-    // Extract scores from analysis results
-    final turnCount = (analysisResults['turnCount'] as int?) ?? 0;
-    final scores = analysisResults['scores'] as Map<String, dynamic>?;
-    
-    if (scores != null && turnCount > 0) {
-      final run = DailyRunSummary(
-        timestamp: DateTime.now(),
-        turnCount: turnCount,
-        overallScore: (scores['overall'] as num?)?.toDouble() ?? 0.0,
-        durationScore: (scores['duration'] as num?)?.toDouble() ?? 0.0,
-        edgeAngleScore: (scores['edgeAngle'] as num?)?.toDouble() ?? 0.0,
-        parallelnessScore: (scores['parallelness'] as num?)?.toDouble() ?? 0.0,
-        turnShapeScore: (scores['turnShape'] as num?)?.toDouble() ?? 0.0,
-        symmetryScore: (scores['symmetry'] as num?)?.toDouble() ?? 0.0,
-      );
-      
-      setState(() {
-        _todaysRuns.add(run);
-      });
-    }
-  }
-
-  void _showDailySummary() {
-    if (_todaysRuns.isEmpty) {
-      // Show message if no runs recorded
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No runs recorded today'),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.only(bottom: 10, left: 10, right: 10),
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
-      );
-      return;
-    }
-
-    final summaryData = DailySummaryData(
-      date: _sessionStartDate,
-      runs: List.from(_todaysRuns),
-    );
-
-    final summaryPage = DailySummaryPage(
-      summaryData: summaryData,
-      onDisconnect: _onSensorsDisconnected,
-    );
-
-    final targetPage = _runPages.length;
-
-    setState(() {
-      _runPages.add(summaryPage);
-    });
-
-    // Navigate to summary page
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_pageController.hasClients && mounted) {
-        _pageController.jumpToPage(targetPage);
-        setState(() {
-          _currentPage = targetPage;
-        });
-      }
     });
   }
 
@@ -320,8 +248,6 @@ class _AppControllerState extends State<AppController> {
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
       autoStart: false,
-      onRunCompleted: _recordRun,
-      onFinishDay: _showDailySummary,
       isAnyAiProcessing: () => _isAnyAiProcessing,
       onAiProcessingChanged: _onAiProcessingChanged,
       onResultsShown: null,
@@ -430,8 +356,6 @@ class _AppControllerState extends State<AppController> {
       onDisconnect: _onSensorsDisconnected,
       onManualReconnect: _onManualReconnectPressed,
       autoStart: true,
-      onRunCompleted: _recordRun,
-      onFinishDay: _showDailySummary,
       onImportedRun: _addImportedRunPage,
       isAnyAiProcessing: () => _isAnyAiProcessing,
       onAiProcessingChanged: _onAiProcessingChanged,
@@ -578,11 +502,9 @@ class _AppControllerState extends State<AppController> {
                         onDisconnect: _onSensorsDisconnected,
                         onManualReconnect: _onManualReconnectPressed,
                         autoStart: false,
-                        onRunCompleted: _recordRun,
                         onAiProcessingChanged: _onAiProcessingChanged,
                         onImportedRun: _addImportedRunPage,
                         isAnyAiProcessing: () => _isAnyAiProcessing,
-                        onFinishDay: _showDailySummary,
                       );
                       _runPages.add(newPage);
                       _runPageKeys.add(pageKey);
