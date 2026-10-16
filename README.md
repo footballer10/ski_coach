@@ -53,32 +53,40 @@ I designed the system: the data pipeline, the scoring formulas, the metrics and 
 
 ## Try it without sensors
 
-You need a **Mac**. You don't need an iPhone, sensors or an OpenAI API key. The app runs in the iPhone Simulator that comes with Xcode.
+**You need:** a Mac with Xcode, Flutter and CocoaPods. You don't need an iPhone, the sensors or an OpenAI API key. The app runs in the iPhone simulator that comes with Xcode. (No Mac? The demo video in my portfolio shows the app in use.)
 
-### 1. Install the tools (one time)
+### 1. Check your tools
 
-1. Install **Xcode** from the Mac App Store. It's a large download.
-2. Open Xcode once. Accept the license, and when it asks which platforms to install, include **iOS**.
-3. Install **Homebrew** if you don't have it, by following the one-line install at [brew.sh](https://brew.sh).
-4. Install Flutter and CocoaPods by running these in **Terminal**, one at a time:
+In **Terminal**, run:
 
-   ```bash
-   brew install --cask flutter
-   ```
+```bash
+flutter doctor
+```
 
-   ```bash
-   brew install cocoapods
-   ```
+If the **Flutter** and **Xcode** lines both have a green ✓, skip to step 2. Ignore the Android, Chrome and Android Studio lines; this app is iPhone only.
 
-5. Check that everything is ready:
+<details>
+<summary><b>Missing something? How to install it</b></summary>
 
-   ```bash
-   flutter doctor
-   ```
+- **Xcode:** install it from the Mac App Store, open it once, accept the license, and include **iOS** when it asks which platforms to download.
+- **Homebrew** (used for the next two): follow the one-line install at [brew.sh](https://brew.sh).
+- **Flutter:**
 
-   The **Flutter** and **Xcode** lines should have green check marks. You can ignore Android, Chrome and Android Studio.
+  ```bash
+  brew install --cask flutter
+  ```
 
-### 2. Download and start the app
+- **CocoaPods** (if the Xcode line in `flutter doctor` says it's missing):
+
+  ```bash
+  brew install cocoapods
+  ```
+
+Run `flutter doctor` again until Flutter and Xcode both show a green ✓.
+
+</details>
+
+### 2. Download the app and open the simulator
 
 Run these in Terminal, one at a time:
 
@@ -90,42 +98,58 @@ git clone https://github.com/footballer10/ski_coach.git
 cd ski_coach
 ```
 
-```bash
-open -a Simulator
-```
+Open the iPhone simulator. Which command depends on your Xcode version (`xcodebuild -version` shows it):
 
-Wait until a simulated iPhone appears on screen, then run:
+- **Xcode 26 or earlier:**
+
+  ```bash
+  open -a Simulator
+  ```
+
+- **Xcode 27 or later** (the Simulator app was replaced by Device Hub):
+
+  ```bash
+  open -a DeviceHub
+  ```
+
+  Then select an iPhone simulator in the Device Hub window.
+
+When a simulated iPhone is showing, start the app:
 
 ```bash
 flutter run
 ```
 
-The first build takes a few minutes. When it finishes, the app opens in the simulated iPhone.
+The first build takes a few minutes. When it finishes, the app appears on the simulated iPhone. Leave Terminal open while you try it, and press `q` there to quit.
+
+**Using the simulator:** click to tap. To scroll, **click and drag** up or down, as if you were dragging with a finger.
 
 ### 3. Load a sample run
 
-1. The app opens on **Connect Sensors**. It will keep searching because there are no sensors. Tap the **✕** in the top right corner.
-2. Tap the green **Try a Sample Run** button.
+1. The app opens on **Connect Sensors**. It will keep searching because there are no sensors. Click the **✕** in the top right corner.
+2. Click the green **Try a Sample Run** button.
 3. Pick **Presentation Run** or **Presentation Run 2**.
 
 ### 4. What to look at
 
 - **Top card:** date, run length, number of turns and the overall score.
 - **Metric list:** the measured value and score for duration, edge angle, parallelness, turn shape and turn symmetry.
-- **Coloured boxes:** one per turn with its score. Scroll them to see every turn.
+- **Coloured boxes:** one per turn with its score. Click and drag them to see every turn.
 - **Category menu** (top left): pick a metric, such as Edge Angle, to see the run's value against the optimal, every turn's value and score, and a dot plot of values across all turns.
 - **Turn menu** (top right): pick one turn to look at it on its own.
 - **AI Coach Advice:** the coaching GPT generated for that run, made from the prompt in `lib/config/ai_prompts.dart`.
 
-Swipe left or right to move between runs you've loaded.
+To move between runs you've loaded, click and drag sideways.
 
 ### Optional: generate new coaching
 
-Tap the **↻** button on the AI Coach Advice card, paste an OpenAI API key, and tap **Save**. The key is stored only in the simulator, and each request costs a few cents of API credit. The full working takes a few minutes. You can also change or remove the key with the key icon on the start screen.
+Click the **↻** button on the AI Coach Advice card, paste an OpenAI API key, and click **Save**. The key is stored only in the simulator, and each request costs a few cents of API credit. The full working takes a few minutes. You can also change or remove the key with the key icon on the start screen.
 
 ### If something goes wrong
 
-- **`flutter run` says "No devices found":** run `open -a Simulator` first and wait for the iPhone to appear.
+- **`flutter run` says "No devices found":** open the simulator first (step 2) and wait for the iPhone to appear.
+- **`open -a Simulator` says "Unable to find application":** you have Xcode 27 or later; use `open -a DeviceHub` instead.
+- **The app is running but you can't see it:** open the simulator window with the command from step 2.
 - **CocoaPods fails with an "Encoding" or "Unicode" error:** run `export LANG=en_US.UTF-8` in the same Terminal window, then `flutter run` again.
 - **Xcode offers to "Update to recommended settings":** click **Don't Update**.
 
