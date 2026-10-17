@@ -1598,30 +1598,38 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCoachingAdviceWidget() {
+    // The rest of the results screen needs about 720 points, so the advice
+    // box gets whatever is left: small on a standard iPhone, taller on a
+    // Pro Max. Longer advice scrolls inside the box.
+    final adviceMaxHeight =
+        (MediaQuery.of(context).size.height - 720).clamp(88.0, 260.0);
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       elevation: 4,
       color: Colors.blue[50],
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(14, 4, 4, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                const Icon(Icons.psychology, color: Colors.blue, size: 24),
-                const SizedBox(width: 12),
+                const Icon(Icons.psychology, color: Colors.blue, size: 20),
+                const SizedBox(width: 8),
                 const Text(
                   'AI Coach Advice',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.blue,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 20,
                   tooltip: 'Regenerate AI feedback',
                   onPressed:
                       (_loadingCoachingAdvice || widget.isAnyAiProcessing())
@@ -1631,7 +1639,6 @@ class _ResultsViewState extends State<ResultsView> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
             if (_loadingCoachingAdvice)
               const Row(
                 children: [
@@ -1657,11 +1664,10 @@ class _ResultsViewState extends State<ResultsView> {
                 style: const TextStyle(color: Colors.red, fontSize: 13),
               )
             else if (_coachingAdvice.isNotEmpty)
-              // Kept short so the full metric list fits on screen; the
-              // advice scrolls inside this box.
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 88),
+                constraints: BoxConstraints(maxHeight: adviceMaxHeight),
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(right: 10),
                   child: SelectableText(
                     _coachingAdvice,
                     style: const TextStyle(fontSize: 13, height: 1.6),
@@ -1693,7 +1699,9 @@ class _ResultsViewState extends State<ResultsView> {
             _selectedCategory == 'Turn Shape') &&
         _selectedTurn != 'All Turns';
 
+    // Only the top inset: the bottom one added a blank gap under the dropdowns.
     return SafeArea(
+      bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
         child: Row(
