@@ -504,7 +504,7 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       return;
     }
 
-    // Segment turns using roll zero-crossings on both sensors
+    // Segment turns by finding peaks and valleys in the averaged yaw
     List<ImuSample> leftImu = leftSamples.cast<ImuSample>();
     List<ImuSample> rightImu = rightSamples.cast<ImuSample>();
     final yawOffset = BleManager().yawOffset ?? 0.0;
@@ -866,7 +866,8 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
         ? Scoring.symmetry(turnSymmetryRatio)
         : storedTurnSymmetryScore;
 
-    // Compute per-turn scores (average of 4 categories: duration, edge, parallel, smooth)
+    // Per-turn score: average of duration, edge angle, parallelness and turn shape
+    // (symmetry compares left and right turns, so it only exists for the whole run)
     final turnScores = <double>[];
     for (int i = 0; i < turnCount; i++) {
       double scoreSum = 0.0;
