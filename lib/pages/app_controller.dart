@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'connection_page.dart';
 import 'run_page.dart';
@@ -21,7 +22,7 @@ class _AppControllerState extends State<AppController> {
   dynamic _bleMgr;
   String? _leftId;
   String? _rightId;
-  bool _showConnectionOverlay = true;
+  bool _showConnectionOverlay = !kIsWeb;
   bool _showArrows = false;
   int _currentPage = 0;
 
@@ -98,7 +99,34 @@ class _AppControllerState extends State<AppController> {
   void initState() {
     super.initState();
     _pageController.addListener(_onPageChanged);
+    // The web demo has no Bluetooth, so it skips the sensor screen and
+    // opens straight to the sample runs.
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openSampleRuns());
+    }
   }
+
+  void _openSampleRuns() {
+    _closeConnectionOverlay();
+    _showSamplePickerWhenReady();
+  }
+
+  /// Opens the sample picker as soon as the run page has been built.
+  void _showSamplePickerWhenReady([int attempt = 0]) {
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      final page = _runPageKeys
+          .map((key) => key.currentState)
+          .whereType<RunPageState>()
+          .firstOrNull;
+      if (page != null && page.mounted) {
+        page.trySampleRun();
+      } else if (attempt < 20) {
+        _showSamplePickerWhenReady(attempt + 1);
+      }
+    });
+  }
+
 
   void _onPageChanged() {
     final page = _pageController.page?.round() ?? 0;
@@ -515,17 +543,7 @@ class _AppControllerState extends State<AppController> {
               child: ConnectionPage(
                 onConnected: _onSensorsConnected,
                 onClose: _closeConnectionOverlay,
-                onTrySample: () {
-                  _closeConnectionOverlay();
-                  // Open the sample picker once the run page is built.
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _runPageKeys
-                        .map((key) => key.currentState)
-                        .whereType<RunPageState>()
-                        .firstOrNull
-                        ?.trySampleRun();
-                  });
-                },
+                onTrySample: _openSampleRuns,
               ),
             ),
 

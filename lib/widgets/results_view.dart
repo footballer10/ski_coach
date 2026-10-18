@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:convert';
 import 'dart:io';
 import 'package:ski_coach/services/scoring.dart';
 import 'package:ski_coach/models.dart';
@@ -1396,11 +1398,21 @@ class _ResultsViewState extends State<ResultsView> {
       // Serialize to JSON
       final jsonString = exportedRun.toJsonString();
 
-      // Write to temporary file
-      final tempDir = await getTemporaryDirectory();
       final sanitizedName = runName.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_');
-      final file = File('${tempDir.path}/$sanitizedName.json');
-      await file.writeAsString(jsonString);
+      final XFile exportFile;
+      if (kIsWeb) {
+        // Browsers have no temporary folder, so share the bytes directly.
+        exportFile = XFile.fromData(
+          utf8.encode(jsonString),
+          name: '$sanitizedName.json',
+          mimeType: 'application/json',
+        );
+      } else {
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/$sanitizedName.json');
+        await file.writeAsString(jsonString);
+        exportFile = XFile(file.path);
+      }
 
       // Check if widget is still mounted before using context
       if (!mounted) return;
@@ -1408,7 +1420,7 @@ class _ResultsViewState extends State<ResultsView> {
       // Share the file with proper positioning for iPad
       final box = context.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
-        [XFile(file.path)],
+        [exportFile],
         subject: 'Ski Coach Run: $runName',
         sharePositionOrigin: box != null
             ? box.localToGlobal(Offset.zero) & box.size

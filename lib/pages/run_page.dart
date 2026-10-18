@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ski_coach/services/scoring.dart';
 import 'package:ski_coach/models.dart';
@@ -681,20 +683,34 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
               ],
             ),
             const SizedBox(height: 16),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
-                    const SizedBox(height: 12),
-                    _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
-                  ],
+            // The web demo has no sensors, so it explains that instead.
+            if (kIsWeb)
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'This is the web demo of Ski Coach. Recording needs the '
+                    'iPhone app and two Bluetooth sensors, so try one of the '
+                    'runs I recorded on the snow instead.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, height: 1.5),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSampleCard('LEFT Sensor', _leftLatest, Colors.green),
+                      const SizedBox(height: 12),
+                      _buildSampleCard('RIGHT Sensor', _rightLatest, Colors.blue),
+                    ],
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 16),
-            if (!_recording)
+            if (!_recording && !kIsWeb)
               ElevatedButton.icon(
                 onPressed: _areSensorsConnected() ? _startRecording : null,
                 icon: const Icon(Icons.fiber_manual_record, size: 28),
@@ -1011,13 +1027,17 @@ class RunPageState extends State<RunPage> with AutomaticKeepAliveClientMixin {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
+        withData: kIsWeb,
       );
 
       if (result == null || result.files.isEmpty) return;
 
-      // Read file
-      final file = File(result.files.single.path!);
-      await _loadExportedRunJson(await file.readAsString());
+      // Read file (browsers give the bytes instead of a path)
+      final picked = result.files.single;
+      final jsonString = kIsWeb
+          ? utf8.decode(picked.bytes!)
+          : await File(picked.path!).readAsString();
+      await _loadExportedRunJson(jsonString);
     } catch (e) {
       _showImportError(e);
     }

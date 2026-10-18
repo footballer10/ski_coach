@@ -11,7 +11,8 @@ class BleManager {
   static final BleManager _instance = BleManager._internal();
   factory BleManager() => _instance;
 
-  final FlutterReactiveBle _ble = FlutterReactiveBle();
+  // Created on first use, so the web demo never touches Bluetooth.
+  late final FlutterReactiveBle _ble = FlutterReactiveBle();
 
   // Track active scan subscription to ensure proper cleanup
   StreamSubscription<DiscoveredDevice>? _activeScanSubscription;
