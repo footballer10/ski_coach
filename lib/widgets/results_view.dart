@@ -1598,11 +1598,11 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCoachingAdviceWidget() {
-    // The rest of the results screen needs about 720 points, so the advice
-    // box gets whatever is left: small on a standard iPhone, taller on a
+    // The rest of the results screen needs about 700 points, so the advice
+    // box gets whatever is left: smaller on a standard iPhone, taller on a
     // Pro Max. Longer advice scrolls inside the box.
     final adviceMaxHeight =
-        (MediaQuery.of(context).size.height - 720).clamp(88.0, 260.0);
+        (MediaQuery.of(context).size.height - 700).clamp(88.0, 300.0);
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
