@@ -78,7 +78,13 @@ If the **Flutter** and **Xcode** lines both have a green ✓, go to step 2. Erro
 <summary><b>Missing something? How to install it</b></summary>
 
 - **Xcode:** install it from the Mac App Store, then open it once and accept the license. When it asks which platforms to download, tick **iOS**. It's listed as optional, but the iPhone simulator needs it.
-- **Homebrew** (used for the next two): follow the one-line install at [brew.sh](https://brew.sh). If the installer finishes with "Next steps" commands, run those. Then **quit Terminal completely and reopen it**, or the `brew` command won't be found.
+- **Homebrew** (used for the next two). This is the official install command from [brew.sh](https://brew.sh):
+
+  ```bash
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  ```
+
+  It asks for your Mac password. If it finishes with "Next steps" commands, run those. Then **quit Terminal completely and reopen it**, or the `brew` command won't be found.
 - **Flutter:**
 
   ```bash
