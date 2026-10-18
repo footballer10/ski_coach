@@ -37,41 +37,47 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// On a wide browser window, shows the web demo inside an iPhone-sized
-/// frame instead of stretching it across the screen.
+/// On a computer, shows the web demo as an iPhone: the app is always laid out
+/// at iPhone Pro Max size, and the whole phone is scaled to fit the window,
+/// so every screen looks exactly as it does on the phone.
 class _PhoneFrame extends StatelessWidget {
   final Widget child;
   const _PhoneFrame({required this.child});
 
-  static const _phone = Size(430, 932); // iPhone Pro Max, in points
+  static const _screen = Size(430, 932); // iPhone Pro Max, in points
+  static const _bezel = 12.0;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    if (media.size.width < 600) return child; // already on a phone
+    // On a phone in portrait, just fill the screen.
+    if (media.size.width < 600 && media.size.height > media.size.width) {
+      return child;
+    }
 
-    final height = (media.size.height - 48).clamp(560.0, _phone.height);
-    final size = Size(_phone.width, height);
     return ColoredBox(
       color: const Color(0xFFE8E8E8),
-      child: Center(
-        child: Container(
-          width: size.width + 24,
-          height: size.height + 24,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
-            borderRadius: BorderRadius.circular(56),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(44),
-            child: MediaQuery(
-              data: media.copyWith(
-                size: size,
-                padding: const EdgeInsets.only(top: 20, bottom: 12),
-                viewPadding: const EdgeInsets.only(top: 20, bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: FittedBox(
+          child: Container(
+            width: _screen.width + 2 * _bezel,
+            height: _screen.height + 2 * _bezel,
+            padding: const EdgeInsets.all(_bezel),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(56),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(44),
+              child: MediaQuery(
+                data: media.copyWith(
+                  size: _screen,
+                  padding: const EdgeInsets.only(top: 20, bottom: 12),
+                  viewPadding: const EdgeInsets.only(top: 20, bottom: 12),
+                ),
+                child: SizedBox.fromSize(size: _screen, child: child),
               ),
-              child: child,
             ),
           ),
         ),
