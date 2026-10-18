@@ -72,13 +72,13 @@ In Terminal, run:
 flutter doctor
 ```
 
-If the **Flutter** and **Xcode** lines both have a green ✓, go to step 2. You can ignore the Android, Chrome and Android Studio lines, since this app is iPhone only.
+If the **Flutter** and **Xcode** lines both have a green ✓, go to step 2. Errors on the Android, Chrome and Android Studio lines are fine, since this app is iPhone only.
 
 <details>
 <summary><b>Missing something? How to install it</b></summary>
 
-- **Xcode:** install it from the Mac App Store, open it once, accept the license, and include **iOS** when it asks which platforms to download.
-- **Homebrew** (used for the next two): follow the one-line install at [brew.sh](https://brew.sh).
+- **Xcode:** install it from the Mac App Store, then open it once and accept the license. When it asks which platforms to download, tick **iOS**. It's listed as optional, but the iPhone simulator needs it.
+- **Homebrew** (used for the next two): follow the one-line install at [brew.sh](https://brew.sh). If the installer finishes with "Next steps" commands, run those. Then **quit Terminal completely and reopen it**, or the `brew` command won't be found.
 - **Flutter:**
 
   ```bash
@@ -92,6 +92,18 @@ If the **Flutter** and **Xcode** lines both have a green ✓, go to step 2. You 
   ```
 
 Run `flutter doctor` again until Flutter and Xcode both show a green ✓.
+
+If the Xcode line says **"Xcode installation is incomplete"**, run these two commands one at a time. Each asks for your Mac password.
+
+```bash
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+```
+
+```bash
+sudo xcodebuild -runFirstLaunch
+```
+
+Then run `flutter doctor` again.
 
 </details>
 
@@ -115,11 +127,16 @@ Open the iPhone simulator. The command depends on your Xcode version, which `xco
   open -a Simulator
   ```
 
-- **Xcode 27 or later** (Device Hub replaced the Simulator app): run the command below, then select an iPhone simulator in the window that opens.
+- **Xcode 27 or later** (Device Hub replaced the Simulator app):
 
   ```bash
   open -a DeviceHub
   ```
+
+  If no iPhone is listed in the Device Hub window, add one:
+  1. Click **+**, then choose **iPhone**.
+  2. Choose **iOS 27**, not iOS 27.1. iOS 27.1 only offers the iPhone Duo.
+  3. Pick any iPhone model, then select it so it starts up.
 
 When a simulated iPhone is showing, start the app:
 
@@ -156,6 +173,8 @@ Click the **↻** button on the AI Coach Advice card, paste an OpenAI API key an
 ### Troubleshooting
 
 - **`open -a Simulator` says "Unable to find application":** you have Xcode 27 or later, so use `open -a DeviceHub` instead.
+- **`flutter doctor` says "Xcode installation is incomplete":** run the two `sudo` commands at the end of "Missing something? How to install it" in step 1.
+- **Device Hub shows no iPhone:** click **+**, choose **iPhone**, pick **iOS 27** (not 27.1) and any iPhone model.
 - **`flutter run` says "No devices found":** open the simulator first (step 2) and wait for the iPhone to appear.
 - **`flutter run` asks which device to use:** choose the iPhone simulator.
 - **The app is running but you can't see it:** open the simulator window with the command from step 2.
