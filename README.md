@@ -6,7 +6,18 @@ An iPhone app that turns two boot-mounted motion sensors into a ski coach. You s
 
 **Built with:** Flutter (Dart), Bluetooth Low Energy, OpenAI API
 
-> **Reviewers:** you can try the app on a Mac without the sensors, an iPhone or an API key. It includes two runs I recorded on the snow, along with the coaching the AI generated for each. See [Try it without sensors](#try-it-without-sensors).
+## Try it: pick either option
+
+You don't need the sensors, an iPhone or an API key for either one. Both use the same code and the same two runs I recorded on the snow, with the coaching the AI generated for each.
+
+| | **Option A: in your browser** | **Option B: iPhone simulator on a Mac** |
+| --- | --- | --- |
+| **You need** | Any web browser. Nothing to install. | A Mac with Xcode, Flutter and CocoaPods |
+| **Setup time** | None | About an hour the first time, mostly downloads |
+| **What you get** | The results screens, graphs, dot plots, AI coaching, export and import | The real iPhone app, exactly as it runs on my phone |
+| **How** | **[Open the web demo](https://footballer10.github.io/ski_coach/)** | Follow [Option B](#option-b-iphone-simulator-on-a-mac) below |
+
+**Option A steps:** open the link above. A list of sample runs appears; pick one. Then see [what to look at](#4-what-to-look-at). Recording a new run needs the iPhone app and the two sensors, so the web demo starts with the recorded runs. Click to tap, and drag or use the scroll wheel to scroll.
 
 ## What it does
 
@@ -60,9 +71,9 @@ The model shows all of its working, but the app only displays the final line aft
 
 I designed the system: the data pipeline, the metrics, the scoring formulas and the coaching prompt. GitHub Copilot wrote the code from my instructions. ChatGPT helped with research and with drafting parts of the prompt. Before submission, Claude (Anthropic) helped clean up the code: switching to GPT-6 Luna, removing unused code, adding tests, and adding the sample-run mode so reviewers can try the app. The commit history shows how the project developed, including approaches I tried and dropped, such as running a Llama model on the phone.
 
-## Try it without sensors
+## Option B: iPhone simulator on a Mac
 
-**You need:** a Mac with Xcode, Flutter and CocoaPods. You don't need an iPhone, the sensors or an OpenAI API key, because the app runs in the iPhone simulator that comes with Xcode. Without a Mac, the demo video in my portfolio shows the app in use.
+This runs the real iPhone app in the simulator that comes with Xcode. You don't need an iPhone, the sensors or an OpenAI API key. Without a Mac, use [Option A](#try-it-pick-either-option) instead.
 
 ### 1. Check your tools
 
