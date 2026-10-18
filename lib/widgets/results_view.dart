@@ -1539,10 +1539,27 @@ class _ResultsViewState extends State<ResultsView> {
     return Column(
       children: [
         _buildNavigationBar(),
-        Expanded(child: _buildContent()),
-        // AI Coaching Advice Widget - show only on the main summary view
+        // On the main summary view the results take only the height they
+        // need, and the AI advice fills the rest of the screen.
         if (widget.results != null && _viewMode == ViewMode.overview)
-          _buildCoachingAdviceWidget(),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final needed =
+                    MediaQuery.of(context).size.width < 600 ? 530.0 : 460.0;
+                final resultsHeight =
+                    math.min(needed, constraints.maxHeight - 150);
+                return Column(
+                  children: [
+                    SizedBox(height: resultsHeight, child: _buildContent()),
+                    Expanded(child: _buildCoachingAdviceWidget()),
+                  ],
+                );
+              },
+            ),
+          )
+        else
+          Expanded(child: _buildContent()),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
@@ -1610,12 +1627,6 @@ class _ResultsViewState extends State<ResultsView> {
   }
 
   Widget _buildCoachingAdviceWidget() {
-    // The rest of the results screen needs about 700 points, so the advice
-    // box gets whatever is left: smaller on a standard iPhone, taller on a
-    // Pro Max. Longer advice scrolls inside the box.
-    final adviceMaxHeight =
-        (MediaQuery.of(context).size.height - 700).clamp(88.0, 300.0);
-
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       elevation: 4,
@@ -1624,7 +1635,7 @@ class _ResultsViewState extends State<ResultsView> {
         padding: const EdgeInsets.fromLTRB(14, 4, 4, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
             Row(
               children: [
@@ -1676,8 +1687,9 @@ class _ResultsViewState extends State<ResultsView> {
                 style: const TextStyle(color: Colors.red, fontSize: 13),
               )
             else if (_coachingAdvice.isNotEmpty)
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: adviceMaxHeight),
+              // The card fills the space below the results; longer advice
+              // scrolls inside it.
+              Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.only(right: 10),
                   child: SelectableText(
